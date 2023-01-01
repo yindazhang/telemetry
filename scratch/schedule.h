@@ -46,8 +46,18 @@ void ScheduleFlowInputs(){
 }
 
 void schedule_flow(std::string flow_file){
-	if(record)
-    	fct_output = fopen(("scratch/" + flow_file + "s_" + std::to_string(intSize) + ".fct").c_str(), "w");
+	if(record){
+		if(intSize > 0){
+			fct_output = fopen(("scratch/" + flow_file + "s_INT" + std::to_string(intSize) + ".fct").c_str(), "w");
+		}
+		else if(OrbWeaver > 0){
+			fct_output = fopen(("scratch/" + flow_file + "s_Orb" + std::to_string(OrbWeaver) + ".fct").c_str(), "w");
+		}
+		else{
+			fct_output = fopen(("scratch/" + flow_file + "s.fct").c_str(), "w");
+		}
+	}
+    	
 	flow_input.open("scratch/" + flow_file + ".tr");
 	if(!flow_input.is_open()){
 		std::cout << "Cannot open flow file" << std::endl;

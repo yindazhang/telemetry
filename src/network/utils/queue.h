@@ -86,7 +86,7 @@ class QueueBase : public Object
     /**
      * \return true if the queue is empty; false otherwise
      */
-    bool IsEmpty() const;
+    virtual bool IsEmpty() const;
 
     /**
      * \return The number of packets currently stored in the Queue
@@ -96,7 +96,7 @@ class QueueBase : public Object
     /**
      * \return The number of bytes currently occupied by the packets in the Queue
      */
-    uint32_t GetNBytes() const;
+    virtual uint32_t GetNBytes() const;
 
     /**
      * \return The current size of the Queue in terms of packets, if the maximum

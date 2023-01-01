@@ -222,6 +222,18 @@ PacketSink::HandleRead(Ptr<Socket> socket)
                                    << " total Rx " << m_totalRx << " bytes");
         }
 
+        if(m_localPort != 80){
+            Entry entry;
+            packet->CopyData((uint8_t*)(&entry), sizeof(Entry));
+            /*
+            std::cout << "Receive Packet: " << std::endl
+                << "Flow ID: " << entry.flowId << std::endl
+                << "TTL: " << int(entry.ttl) << std::endl
+                << "Node ID: " << entry.nodeId << std::endl
+                << std::endl;
+            */
+        }
+
         if (!m_rxTrace.IsEmpty() || !m_rxTraceWithAddresses.IsEmpty() ||
             (!m_rxTraceWithSeqTsSize.IsEmpty() && m_enableSeqTsSizeHeader))
         {

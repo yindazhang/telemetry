@@ -35,7 +35,7 @@ void build_dctcp(){
     Config::SetDefault("ns3::TcpL4Protocol::SocketType", StringValue ("ns3::TcpDctcp"));
 	Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(1440 - intSize));
     Config::SetDefault("ns3::TcpSocket::DelAckCount", UintegerValue(2));
-	Config::SetDefault("ns3::TcpSocketBase::MinRto", TimeValue(MilliSeconds(1)));
+	Config::SetDefault("ns3::TcpSocketBase::MinRto", TimeValue(MicroSeconds(100)));
     GlobalValue::Bind("ChecksumEnabled", BooleanValue(false));
 }
 
@@ -62,6 +62,9 @@ void build_leaf_spine_routing(
 		for(uint32_t k = 0;k < serverAddress.size();++k){
 			uint32_t rack_id = k / SERVER_PER_LEAF;
 			spines[i]->AddHostRouteTo(serverAddress[k], rack_id + 1);
+			for(uint32_t leafId = 0;leafId < NUM_LEAF;++leafId){
+				spines[i]->AddHostRouteOther(serverAddress[k], leafId + 1);
+			}
 		}
 	}
 
@@ -71,10 +74,12 @@ void build_leaf_spine_routing(
 			if(rack_id != i){
 				for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
 					leaves[i]->AddHostRouteTo(serverAddress[k], SERVER_PER_LEAF + spineId + 1);
+					leaves[i]->AddHostRouteOther(serverAddress[k], SERVER_PER_LEAF + spineId + 1);
 				}
 			}
 			else{
 				leaves[i]->AddHostRouteTo(serverAddress[k], k % SERVER_PER_LEAF + 1);
+				leaves[i]->AddHostRouteOther(serverAddress[k], k % SERVER_PER_LEAF + 1);
 			}
 		}
 	}
@@ -93,10 +98,14 @@ void build_leaf_spine(
 
 	for(uint32_t i = 0;i < NUM_LEAF * SERVER_PER_LEAF;++i)
 		servers[i] = CreateObject<Node>();
-	for(uint32_t i = 0;i < NUM_LEAF;++i)
+	for(uint32_t i = 0;i < NUM_LEAF;++i){
 		leaves[i] = CreateObject<SwitchNode>();
-	for(uint32_t i = 0;i < NUM_SPINE;++i)
+		leaves[i]->SetOrbWeaver(OrbWeaver);
+	}
+	for(uint32_t i = 0;i < NUM_SPINE;++i){
 		spines[i] = CreateObject<SwitchNode>();
+		spines[i]->SetOrbWeaver(OrbWeaver);
+	}
 
 	InternetStackHelper internet;
     internet.InstallAll();
@@ -112,11 +121,16 @@ void build_leaf_spine(
 	pp_leaf_spine.SetDeviceAttribute("INT", UintegerValue(intSize));
 	pp_leaf_spine.SetChannelAttribute("Delay", StringValue("1us"));
 
+	TrafficControlHelper tch;
+	tch.SetRootQueueDisc("ns3::FifoQueueDisc", "MaxSize", 
+						QueueSizeValue(QueueSize("4MiB")));
+
 	Ipv4AddressHelper ipv4;
 	for(uint32_t i = 0;i < NUM_LEAF;++i){
 		for(uint32_t j = 0;j < SERVER_PER_LEAF;++j){
 			uint32_t server_id = i * SERVER_PER_LEAF + j;
 			NetDeviceContainer netDev = pp_server_leaf.Install(servers[server_id], leaves[i]);
+			tch.Install(netDev);
 
 			std::string ipBase = "10." + std::to_string(i) + "." + std::to_string(j) + ".0";
 			ipv4.SetBase(ipBase.c_str(), "255.255.255.0");
@@ -149,7 +163,7 @@ void start_sink_app(){
 	}
 
 	PacketSinkHelper sink("ns3::UdpSocketFactory",
-                         InetSocketAddress(Ipv4Address::GetAny(), DEFAULT_PORT));
+                         InetSocketAddress(Ipv4Address::GetAny(), COLLECT_PORT));
   	ApplicationContainer sinkApps = sink.Install(servers[servers.size() - 1]);
 	sinkApps.Start(Seconds(start_time - 1));
 	sinkApps.Stop(Seconds(start_time + duration + 2));

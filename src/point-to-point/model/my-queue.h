@@ -28,6 +28,9 @@ public:
     Ptr<Packet> Remove() override;
     Ptr<const Packet> Peek() const override;
 
+    bool IsEmpty() const override;
+    uint32_t GetNBytes() const override;
+
     std::vector<Ptr<DropTailQueue<Packet>>> m_queues;
 };
 

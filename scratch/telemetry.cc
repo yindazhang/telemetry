@@ -14,13 +14,14 @@ NS_LOG_COMPONENT_DEFINE("Telemetry");
 
 int main(int argc, char *argv[])
 {
-	std::string flow_file = "WebSearch_143_0.2_10G_1";
+	std::string flow_file = "Hadoop_143_0.2_10G_1";
 
 	CommandLine cmd(__FILE__);
 	cmd.AddValue("time", "the total run time (s), by default 1", duration);
 	cmd.AddValue("flow", "the flow file", flow_file);
 	cmd.AddValue("record", "record fct", record);
 	cmd.AddValue("INT", "the size of INT header", intSize);
+	cmd.AddValue("OrbWeaver", "Start OrbWeaver", OrbWeaver);
     cmd.Parse(argc, argv);
 	
 	std::cout << "Run Telemetry." << std::endl;

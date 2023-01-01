@@ -110,6 +110,28 @@ class PacketSink : public Application
                                       const Address& to,
                                       const SeqTsSizeHeader& header);
 
+    struct Entry{
+      uint64_t srcDst;
+      uint32_t srcDstPort;
+      uint16_t nodeId;
+      uint8_t ttl;
+
+      Entry(uint64_t _srcDst = 0, uint32_t _srcDstPort = 0, 
+              uint32_t _nodeId = 0, uint8_t _ttl = 0):
+        srcDst(_srcDst), srcDstPort(_srcDstPort), nodeId(_nodeId), ttl(_ttl){}
+
+      bool Empty(){
+        return (srcDst == 0) && (ttl == 0);
+      }
+
+      bool equal(const Entry& other){
+        return (srcDst == other.srcDst) && 
+                (srcDstPort == other.srcDstPort) &&
+                (nodeId == other.nodeId) && 
+                (ttl == other.ttl);
+      }
+    };
+    
   protected:
     void DoDispose() override;
 

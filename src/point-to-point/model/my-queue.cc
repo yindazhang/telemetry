@@ -49,19 +49,15 @@ MyQueue::Enqueue(Ptr<Packet> item)
     SocketPriorityTag priorityTag;
     if(item->PeekPacketTag(priorityTag)){
         priority = (priorityTag.GetPriority() & 0x1);
-        std::cout << "Find priority: " << int(priorityTag.GetPriority()) << std::endl;
     }
 
     if(priority == 0){
-        if((m_queues[0]->GetNBytes() + m_queues[1]->GetNBytes()) > 1500 * 30){
+        if(GetNBytes() > 1500 * 30){
             if(ipHeader.GetEcn() == Ipv4Header::ECN_ECT1 || 
                     ipHeader.GetEcn() == Ipv4Header::ECN_ECT0){
                 ipHeader.SetEcn(Ipv4Header::ECN_CE);
             }
         }
-    }
-    else{
-        std::cout << "Unknown queue index" << std::endl;
     }
 
     item->AddHeader(ipHeader);
@@ -84,13 +80,27 @@ MyQueue::Dequeue()
 Ptr<Packet>
 MyQueue::Remove()
 {
+    std::cout << "Remove in MyQueue is not implemented now." << std::endl;
     return nullptr;
 }
 
 Ptr<const Packet>
 MyQueue::Peek() const
 {
+    std::cout << "Peek in MyQueue is not implemented now." << std::endl;
     return nullptr;
+}
+
+bool 
+MyQueue::IsEmpty() const
+{
+    return (m_queues[0]->IsEmpty() && m_queues[1]->IsEmpty());
+}
+
+uint32_t
+MyQueue::GetNBytes() const
+{
+    return (m_queues[0]->GetNBytes() + m_queues[1]->GetNBytes());
 }
 
 } // namespace ns3

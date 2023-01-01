@@ -4,6 +4,7 @@
 #include "ns3/node.h"
 #include "ns3/ipv4-header.h"
 
+#include <queue>
 #include <unordered_map>
 
 namespace ns3
@@ -48,10 +49,48 @@ class SwitchNode : public Node
                                 const Address& from);
 
     void AddHostRouteTo(Ipv4Address dest, uint32_t devId);
+    void AddHostRouteOther(Ipv4Address dest, uint32_t devId);
+
+    void SetOrbWeaver(uint32_t OrbWeaver);
+
+    struct Entry{
+      uint64_t srcDst;
+      uint32_t srcDstPort;
+      uint16_t nodeId;
+      uint8_t ttl;
+
+      Entry(uint64_t _srcDst = 0, uint32_t _srcDstPort = 0, 
+              uint32_t _nodeId = 0, uint8_t _ttl = 0):
+        srcDst(_srcDst), srcDstPort(_srcDstPort), nodeId(_nodeId), ttl(_ttl){}
+
+      bool Empty(){
+        return (srcDst == 0) && (ttl == 0);
+      }
+
+      bool equal(const Entry& other){
+        return (srcDst == other.srcDst) && 
+                (srcDstPort == other.srcDstPort) &&
+                (nodeId == other.nodeId) && 
+                (ttl == other.ttl);
+      }
+    };
+
+    void CacheInfo(Entry entry);
+
+    void OrbWeaverSend();
 
   protected:
 
-    std::unordered_map<uint32_t, std::vector<uint32_t>> m_routeTable;
+    const uint32_t arrSize = 65537;
+
+    uint32_t m_orbweaver;
+
+    std::queue<Entry> m_queue;
+    std::vector<Entry> m_array;
+
+    std::unordered_map<uint32_t, std::vector<uint32_t>> m_routeForward;
+    std::unordered_map<uint32_t, std::vector<uint32_t>> m_routeOther;
+    std::unordered_map<uint32_t, bool> m_mask;
 
 };
 
