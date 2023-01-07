@@ -31,8 +31,8 @@ MyQueue::MyQueue()
 {
     m_queues.push_back(CreateObject<DropTailQueue<Packet>>());
     m_queues.push_back(CreateObject<DropTailQueue<Packet>>());
-    m_queues[0]->SetMaxSize(QueueSize("4MiB"));
-    m_queues[1]->SetMaxSize(QueueSize("4MiB"));
+    m_queues[0]->SetMaxSize(QueueSize("1MiB"));
+    m_queues[1]->SetMaxSize(QueueSize("1MiB"));
 }
 
 MyQueue::~MyQueue() {}
@@ -40,6 +40,10 @@ MyQueue::~MyQueue() {}
 bool
 MyQueue::Enqueue(Ptr<Packet> item)
 {
+    if(GetNBytes() > 200000){
+        return false;
+    }
+
     PppHeader ppp;
     Ipv4Header ipHeader;
     item->RemoveHeader(ppp);

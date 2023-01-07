@@ -35,6 +35,8 @@
 #include "ns3/udp-socket-factory.h"
 #include "ns3/udp-socket.h"
 
+#include "ns3/telemetry-header.h"
+
 namespace ns3
 {
 
@@ -189,6 +191,8 @@ PacketSink::StopApplication() // Called at time specified by Stop
         m_socket->Close();
         m_socket->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());
     }
+    if(m_paths.size() > 0)
+        std::cout << "Final Receive entries: " << m_paths.size() << std::endl;
 }
 
 void
@@ -223,15 +227,24 @@ PacketSink::HandleRead(Ptr<Socket> socket)
         }
 
         if(m_localPort != 80){
-            Entry entry;
-            packet->CopyData((uint8_t*)(&entry), sizeof(Entry));
-            /*
-            std::cout << "Receive Packet: " << std::endl
-                << "Flow ID: " << entry.flowId << std::endl
-                << "TTL: " << int(entry.ttl) << std::endl
-                << "Node ID: " << entry.nodeId << std::endl
-                << std::endl;
-            */
+            TelemetryHeader teleHeader;
+            packet->RemoveHeader(teleHeader);
+
+            uint32_t number = teleHeader.GetNumber();
+            // std::cout << "Telemetry Number: " << number << std::endl;
+
+            for(uint32_t i = 0;i < number;++i){
+                PathHeader pathHeader;
+                packet->RemoveHeader(pathHeader);
+                m_paths.insert(pathHeader);
+                if(m_paths.size() % 10000 == 9999)
+                    std::cout << "Receive entries: " << m_paths.size() << std::endl;
+                
+                // std::cout << "Receive Packet: " << std::endl
+                // << "TTL: " << int(pathHeader.GetTTL()) << std::endl
+                // << "Node ID: " << int(pathHeader.GetNodeID())<< std::endl
+                // << std::endl;
+            }
         }
 
         if (!m_rxTrace.IsEmpty() || !m_rxTraceWithAddresses.IsEmpty() ||

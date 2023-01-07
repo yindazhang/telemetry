@@ -5,6 +5,26 @@ import numpy as np
 
 import plotly.graph_objects as go
 
+def parse_tr_file(tr_file):
+	total = 0
+	f = open(tr_file, "r")
+	text = f.read()
+	lines = text.split('\n')
+
+	for line in lines:
+		numbers = line.split(' ')
+		if len(numbers) == 4:
+			src = int(numbers[0])
+			dst = int(numbers[1])
+			src_rack = src // 16
+			dst_rack = dst // 16
+			if src_rack == dst_rack:
+				total += 2
+			else:
+				total += 6
+	
+	print("Total telemetry data: " + str(total))
+
 def read_fct_file(fct_file):
 	f = open(fct_file, "r")
 	text = f.read()
@@ -32,13 +52,17 @@ if __name__=="__main__":
 	parser.add_argument('-f', dest='file', action='store', help="Specify the fct file.")
 	args = parser.parse_args()
 
+	parse_tr_file(args.file + ".tr")
 
 	fct_files = []
-	fct_files.append(args.file + ".fct")
-	fct_files.append(args.file + "_Orb1.fct")
-	fct_files.append(args.file + "_INT4.fct")
+	fct_files.append(args.file + "s.fct")
+	# fct_files.append(args.file + "s_INT4.fct")
+	fct_files.append(args.file + "s_Orb1.fct")
+	fct_files.append(args.file + "s_Orb3.fct")
+	fct_files.append(args.file + "s_Orb5.fct")
+	fct_files.append(args.file + "s_Orb7.fct")
 
-	names = ['Original', 'Orbweaver', 'INT-4']
+	names = ['Original', 'Orbweaver', 'Efficient', 'Random', 'Random+Efficient']
 	xnames = ['<100K','100K~1M','>1M']
 
 	dic = {'id' : [], 'Mean' : [], '95%' : [], '99%' : []}
@@ -68,7 +92,9 @@ if __name__=="__main__":
 	df = pd.DataFrame.from_dict(dic)
 	df.to_csv('csv/' + args.file + ".csv", index=False)
 
-	fig.update_yaxes(type='log', range=[3.5,9])
+	print("Finish CSV")
+
+	fig.update_yaxes(type='log', range=[3.5,8])
 	fig.update_layout(xaxis_title="Size Range", yaxis_title="FCT (ns)", boxmode='group')
 	
 	fig.write_image("images/" + args.file + "_fct.pdf")

@@ -33,8 +33,10 @@ void print_addr(Ipv4Address addr){
 
 void build_dctcp(){
     Config::SetDefault("ns3::TcpL4Protocol::SocketType", StringValue ("ns3::TcpDctcp"));
+	Config::SetDefault("ns3::TcpSocket::DataRetries", UintegerValue(UINT32_MAX));
+	Config::SetDefault("ns3::TcpSocket::ConnCount", UintegerValue(UINT32_MAX));
 	Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(1440 - intSize));
-    Config::SetDefault("ns3::TcpSocket::DelAckCount", UintegerValue(2));
+	Config::SetDefault("ns3::TcpSocket::DelAckTimeout", TimeValue(MicroSeconds(100)));
 	Config::SetDefault("ns3::TcpSocketBase::MinRto", TimeValue(MicroSeconds(100)));
     GlobalValue::Bind("ChecksumEnabled", BooleanValue(false));
 }
@@ -74,12 +76,15 @@ void build_leaf_spine_routing(
 			if(rack_id != i){
 				for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
 					leaves[i]->AddHostRouteTo(serverAddress[k], SERVER_PER_LEAF + spineId + 1);
-					leaves[i]->AddHostRouteOther(serverAddress[k], SERVER_PER_LEAF + spineId + 1);
 				}
 			}
 			else{
 				leaves[i]->AddHostRouteTo(serverAddress[k], k % SERVER_PER_LEAF + 1);
-				leaves[i]->AddHostRouteOther(serverAddress[k], k % SERVER_PER_LEAF + 1);
+				leaves[i]->AddHostRouteOther(serverAddress[k], k % SERVER_PER_LEAF + 1, 
+							(k == (serverAddress.size() - 1)));
+			}
+			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
+				leaves[i]->AddHostRouteOther(serverAddress[k], SERVER_PER_LEAF + spineId + 1);
 			}
 		}
 	}
@@ -166,7 +171,7 @@ void start_sink_app(){
                          InetSocketAddress(Ipv4Address::GetAny(), COLLECT_PORT));
   	ApplicationContainer sinkApps = sink.Install(servers[servers.size() - 1]);
 	sinkApps.Start(Seconds(start_time - 1));
-	sinkApps.Stop(Seconds(start_time + duration + 2));
+	sinkApps.Stop(Seconds(start_time + duration + 9.99));
 }
 
 #endif 

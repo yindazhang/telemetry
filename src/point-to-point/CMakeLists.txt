@@ -23,6 +23,8 @@ build_lib(
     model/point-to-point-channel.cc
     model/point-to-point-net-device.cc
     model/ppp-header.cc
+    model/path-header.cc
+    model/telemetry-header.cc
     model/switch-node.cc
     model/my-queue.cc
   HEADER_FILES
@@ -31,6 +33,8 @@ build_lib(
     model/point-to-point-channel.h
     model/point-to-point-net-device.h
     model/ppp-header.h
+    model/path-header.h
+    model/telemetry-header.h
     model/switch-node.h
     model/my-queue.h
   LIBRARIES_TO_LINK ${libnetwork}

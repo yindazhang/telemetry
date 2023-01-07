@@ -19,6 +19,9 @@
 #include "ns3/udp-l4-protocol.h"
 #include "ns3/socket.h"
 
+#include "telemetry-header.h"
+#include "path-header.h"
+
 namespace ns3
 {
 
@@ -62,9 +65,77 @@ SwitchNode::AddDevice(Ptr<NetDevice> device)
     return index;
 }
 
+uint32_t 
+SwitchNode::HashFlow(PathHeader pathHeader)
+{
+    Hasher hasher;
+    uint32_t hash = hasher.GetHash32((char*)(&pathHeader), sizeof(PathHeader));
+    return hash;
+}
+
+void 
+SwitchNode::AddUdpIpHeader(Ptr<Packet> packet){
+    UdpHeader udpHeader;
+    udpHeader.SetDestinationPort(1000);
+    udpHeader.SetSourcePort(1000);
+    packet->AddHeader(udpHeader);
+
+    Ipv4Header ipHeader;
+    ipHeader.SetSource(Ipv4Address("11.11.11.11"));
+    ipHeader.SetDestination(Ipv4Address("10.8.15.1"));
+    ipHeader.SetProtocol(UdpL4Protocol::PROT_NUMBER);
+    ipHeader.SetPayloadSize(packet->GetSize());
+    ipHeader.SetTtl(64);
+    ipHeader.SetTos(0);
+    ipHeader.SetMayFragment();
+    packet->AddHeader(ipHeader);
+}
+
+Ptr<Packet> 
+SwitchNode::GeneratePacket()
+{
+    if(!m_queue.empty()){
+        Ptr<Packet> packet = Create<Packet>(0);
+
+        PathHeader pathHeader = m_queue.front();
+        m_queue.pop();
+        packet->AddHeader(pathHeader);
+
+        TelemetryHeader teleHeader;
+        teleHeader.SetNumber(1);
+        packet->AddHeader(teleHeader);
+
+        AddUdpIpHeader(packet);
+
+        SocketPriorityTag priorityTag;
+        priorityTag.SetPriority(1);
+        packet->ReplacePacketTag(priorityTag);
+
+        return packet;
+    }
+    else{
+        return nullptr;
+    }
+}
+
 void
 SwitchNode::OrbWeaverSend(){
-    if(m_orbweaver > 0){
+    if((m_orbweaver & 3) == 3){
+        Simulator::Schedule(NanoSeconds(300), &SwitchNode::OrbWeaverSend, this);
+
+        for(auto it = m_mask.begin();it != m_mask.end();++it){
+            if(!m_mask[it->first]){
+                Ptr<Packet> packet = GeneratePacket();
+                if(packet != nullptr){
+                    Ptr<NetDevice> dev = m_devices[it->first];
+                    dev->Send(packet, dev->GetBroadcast(), 0x0800);
+                }
+            }
+            m_mask_counter[it->first] = 0;
+            m_mask[it->first] = false;
+        }
+    }
+    else if(m_orbweaver & 1){
         Simulator::Schedule(NanoSeconds(150), &SwitchNode::OrbWeaverSend, this);
 
         for(auto it = m_mask.begin();it != m_mask.end();++it){
@@ -72,53 +143,29 @@ SwitchNode::OrbWeaverSend(){
                 m_mask[it->first] = false;
             }
             else{
-                if(!m_queue.empty()){
-                    Entry entry = m_queue.front();
-                    m_queue.pop();
-
-                    Ptr<Packet> packet = Create<Packet>((uint8_t*)(&entry), sizeof(Entry));
-
-                    UdpHeader udpHeader;
-                    udpHeader.SetDestinationPort(1000);
-                    udpHeader.SetSourcePort(1000);
-                    packet->AddHeader(udpHeader);
-
-                    Ipv4Header ipHeader;
-                    ipHeader.SetSource(Ipv4Address("11.11.11.11"));
-                    ipHeader.SetDestination(Ipv4Address("10.8.15.1"));
-                    ipHeader.SetProtocol(UdpL4Protocol::PROT_NUMBER);
-                    ipHeader.SetPayloadSize(packet->GetSize());
-                    ipHeader.SetTtl(64);
-                    ipHeader.SetTos(0);
-                    ipHeader.SetMayFragment();
-                    packet->AddHeader(ipHeader);
-
-                    SocketPriorityTag priorityTag;
-                    priorityTag.SetPriority(1);
-                    packet->ReplacePacketTag(priorityTag);
-
+                Ptr<Packet> packet = GeneratePacket();
+                if(packet != nullptr){
                     Ptr<NetDevice> dev = m_devices[it->first];
                     dev->Send(packet, dev->GetBroadcast(), 0x0800);
-
                     m_mask[it->first] = true;
-                }   
+                } 
             }
         }
     }
 }
 
 void 
-SwitchNode::CacheInfo(Entry entry){
-    uint32_t hash = Hash32((char*)(&entry), sizeof(Entry));
-    uint32_t arrIndex = hash % arrSize;
+SwitchNode::CacheInfo(PathHeader pathHeader){
+    uint32_t hash = Hash32((char*)(&pathHeader), sizeof(PathHeader));
+    uint32_t arrIndex = hash % m_array.size();
 
-    if(m_array[arrIndex].Empty() || !m_array[arrIndex].equal(entry)){
-        m_array[arrIndex] = entry;
+    if(m_array[arrIndex].Empty() || !(m_array[arrIndex] == pathHeader)){
+        m_array[arrIndex] = pathHeader;
         if(m_queue.size() > arrIndex){
             m_queue.pop();
             std::cout << "Information Loss" << std::endl;
         }
-        m_queue.push(entry);
+        m_queue.push(pathHeader);
     }
 }
 
@@ -137,65 +184,108 @@ SwitchNode::ReceiveFromDevice(Ptr<NetDevice> device,
 
     Ipv4Header ipHeader;
     packet->RemoveHeader(ipHeader);
+    uint32_t proto = ipHeader.GetProtocol();
+    uint32_t src = ipHeader.GetSource().Get();
+    uint32_t dst = ipHeader.GetDestination().Get();
+    uint32_t ttl = ipHeader.GetTtl();
 
-    ipHeader.SetTtl(ipHeader.GetTtl() - 1);
-    if(ipHeader.GetTtl() == 0){
+    auto vec = m_routeForward[dst];
+    if(vec.size() <= 0){
+        std::cout << "Unknown Destination for Routing" << std::endl;
+        return false;
+    }
+    if(ttl == 0){
         std::cout << "Error: TTL = 0" << std::endl;
         return false;
     }
+    if(proto != 6 && proto != 17){
+        std::cout << "Unknown Protocol" << std::endl;
+        return false;
+    }
+    ipHeader.SetTtl(ttl - 1);
 
-    uint32_t proto = ipHeader.GetProtocol();
-    uint64_t src = ipHeader.GetSource().Get();
-    uint64_t dst = ipHeader.GetDestination().Get();
-    uint8_t ttl = ipHeader.GetTtl();
+    PathHeader pathHeader;
+    pathHeader.SetSrcIP(src);
+    pathHeader.SetDstIP(dst);
 
-    uint64_t srcDst = (dst | (src << 32));
     uint32_t devId = 0;
-
     if(proto == 6){
         TcpHeader tcpHeader;
         packet->RemoveHeader(tcpHeader);
 
         uint32_t srcPort = tcpHeader.GetSourcePort();
         uint32_t dstPort = tcpHeader.GetDestinationPort();
-        uint32_t srcDstPort = (dstPort | (srcPort << 16));
+        pathHeader.SetSrcPort(srcPort);
+        pathHeader.SetDstPort(dstPort);
 
-        auto vec = m_routeForward[dst];
-
-        if(vec.size() <= 0){
-            std::cout << "Unknown Destination for Routing" << std::endl;
-            return false;
-        }
-
-        uint32_t hash = Hash32((char*)(&srcDst), 8) * 
-                        (Hash32((char*)(&srcDstPort), 4) + 131);
+        uint32_t hash = HashFlow(pathHeader);
         devId = vec[hash % vec.size()];
 
-        if(m_orbweaver > 0){
-            CacheInfo(Entry(srcDst, m_id, ttl));
+        if(m_orbweaver & 1){
+            pathHeader.SetNodeID(m_id);
+            pathHeader.SetTTL(ttl);
+            CacheInfo(pathHeader);
         }
 
         packet->AddHeader(tcpHeader);
     }
     else if(proto == 17){
-        auto vec = m_routeForward[dst];
+        UdpHeader udpHeader;
+        packet->RemoveHeader(udpHeader);
 
-        if(vec.size() <= 0){
-            std::cout << "Unknown Destination for Routing" << std::endl;
-            return false;
+        uint32_t srcPort = udpHeader.GetSourcePort();
+        uint32_t dstPort = udpHeader.GetDestinationPort();
+        pathHeader.SetSrcPort(srcPort);
+        pathHeader.SetDstPort(dstPort);
+
+        if((m_orbweaver & 5) == 5){
+            std::vector<uint32_t> potentialPorts;
+            for(uint32_t dev : vec){
+                if(m_mask.find(dev) == m_mask.end())
+                    std::cout << "Cannot find Dev " << dev << " in Mask of Node " << m_id << std::endl;
+                if(m_mask[dev] == false)
+                    potentialPorts.push_back(dev);
+            }
+
+            if(potentialPorts.size() <= 0){
+                for(auto it = m_mask.begin();it != m_mask.end();++it){
+                    if(it->second == false){
+                        potentialPorts.push_back(it->first);
+                    }
+                }
+
+                if(potentialPorts.size() <= 0){
+                    uint32_t hash = HashFlow(pathHeader);
+                    potentialPorts.push_back(vec[hash % vec.size()]);
+                }
+            }
+            devId = potentialPorts[rand() % potentialPorts.size()];
+        }
+        else if(m_orbweaver & 1){
+            uint32_t hash = HashFlow(pathHeader);
+            devId = vec[hash % vec.size()];
+        }
+        else{
+            std::cout << "Unknown OrbWeaver Setting." << std::endl;
         }
 
-        uint32_t hash = Hash32((char*)(&srcDst), 8);
-        devId = vec[hash % vec.size()];
-    }
-    else{
-        std::cout << "Unknown Protocol" << std::endl;
-        return false;
+        packet->AddHeader(udpHeader);
     }
 
-    m_mask[devId] = true;
-    Ptr<NetDevice> dev = m_devices[devId];
     packet->AddHeader(ipHeader);
+    if((m_orbweaver & 3) == 3){
+        if(m_mask.find(devId) != m_mask.end()){
+            m_mask_counter[devId] += packet->GetSize();
+            if(m_mask_counter[devId] > 1400)
+                m_mask[devId] = true;
+        }
+    }
+    else if(m_orbweaver & 1){
+        if(m_mask.find(devId) != m_mask.end())
+            m_mask[devId] = true;
+    }
+
+    Ptr<NetDevice> dev = m_devices[devId];
     return dev->Send(packet, dev->GetBroadcast(), 0x0800);
 }
 
@@ -206,10 +296,13 @@ SwitchNode::AddHostRouteTo(Ipv4Address dest, uint32_t devId)
 }
 
 void
-SwitchNode::AddHostRouteOther(Ipv4Address dest, uint32_t devId)
+SwitchNode::AddHostRouteOther(Ipv4Address dest, uint32_t devId, bool set)
 {
     m_routeOther[dest.Get()].push_back(devId);
-    m_mask[devId] = false;
+    if(set){
+        m_mask[devId] = false; 
+        m_mask_counter[devId] = 0; 
+    }
 }
 
 

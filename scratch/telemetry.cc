@@ -14,7 +14,7 @@ NS_LOG_COMPONENT_DEFINE("Telemetry");
 
 int main(int argc, char *argv[])
 {
-	std::string flow_file = "Hadoop_143_0.2_10G_1";
+	std::string flow_file = "Hadoop_143_0.5_10G_0.2";
 
 	CommandLine cmd(__FILE__);
 	cmd.AddValue("time", "the total run time (s), by default 1", duration);
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 	std::cout << "Finish Topology." << std::endl;
 	schedule_flow(flow_file);
 
-	Simulator::Stop(Seconds(start_time + duration + 2));
+	Simulator::Stop(Seconds(start_time + duration + 10));
 	Simulator::Run();
 	Simulator::Destroy();
 
