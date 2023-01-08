@@ -30,11 +30,15 @@ def read_fct_file(fct_file):
 	text = f.read()
 	lines = text.split('\n')
 
+	packet_number = 0
+	total_packet_size = 0
 	ret = [[], [], []]
 	for line in lines:
 		numbers = line.split(' ')
 		if len(numbers) == 2:
 			flow_size = int(numbers[0])
+			packet_number += (flow_size + 1439) // 1440
+			total_packet_size += flow_size
 			if flow_size < 1e5:
 				ret[0].append(int(numbers[1]))
 			elif flow_size < 1e6:
@@ -44,6 +48,9 @@ def read_fct_file(fct_file):
 
 	for i in range(len(ret)):
 		ret[i] = sorted(ret[i])
+
+	print("Total packet number: " + str(packet_number))
+	print("Avg packet size: " + str(total_packet_size / packet_number))
 
 	return ret
 

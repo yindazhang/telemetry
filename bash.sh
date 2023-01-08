@@ -50,5 +50,4 @@ nohup ./ns3 run "scratch/telemetry --flow=Hadoop_143_0.6_10G_0.2 --record=1 --IN
 # internet/ipv4-end-point-demux.cc
 
 # Add
-# point-to-point/switch-node.h/.cc
-# point-to-point/my-queue.h/.cc
+# point-to-point/...

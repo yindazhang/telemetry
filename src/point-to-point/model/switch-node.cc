@@ -65,16 +65,9 @@ SwitchNode::AddDevice(Ptr<NetDevice> device)
     return index;
 }
 
-uint32_t 
-SwitchNode::HashFlow(PathHeader pathHeader)
-{
-    Hasher hasher;
-    uint32_t hash = hasher.GetHash32((char*)(&pathHeader), sizeof(PathHeader));
-    return hash;
-}
-
 void 
-SwitchNode::AddUdpIpHeader(Ptr<Packet> packet){
+SwitchNode::AddUdpIpHeader(Ptr<Packet> packet)
+{
     UdpHeader udpHeader;
     udpHeader.SetDestinationPort(1000);
     udpHeader.SetSourcePort(1000);
@@ -161,7 +154,7 @@ SwitchNode::CacheInfo(PathHeader pathHeader){
 
     if(m_array[arrIndex].Empty() || !(m_array[arrIndex] == pathHeader)){
         m_array[arrIndex] = pathHeader;
-        if(m_queue.size() > arrIndex){
+        if(m_queue.size() > m_array.size()){
             m_queue.pop();
             std::cout << "Information Loss" << std::endl;
         }
@@ -184,10 +177,10 @@ SwitchNode::ReceiveFromDevice(Ptr<NetDevice> device,
 
     Ipv4Header ipHeader;
     packet->RemoveHeader(ipHeader);
-    uint32_t proto = ipHeader.GetProtocol();
+    uint8_t proto = ipHeader.GetProtocol();
+    uint8_t ttl = ipHeader.GetTtl();
     uint32_t src = ipHeader.GetSource().Get();
     uint32_t dst = ipHeader.GetDestination().Get();
-    uint32_t ttl = ipHeader.GetTtl();
 
     auto vec = m_routeForward[dst];
     if(vec.size() <= 0){
@@ -205,20 +198,22 @@ SwitchNode::ReceiveFromDevice(Ptr<NetDevice> device,
     ipHeader.SetTtl(ttl - 1);
 
     PathHeader pathHeader;
+    memset((char*)(&pathHeader), 0, sizeof(PathHeader));
+    
     pathHeader.SetSrcIP(src);
     pathHeader.SetDstIP(dst);
 
-    uint32_t devId = 0;
+    uint32_t devId = -1;
     if(proto == 6){
         TcpHeader tcpHeader;
         packet->RemoveHeader(tcpHeader);
 
-        uint32_t srcPort = tcpHeader.GetSourcePort();
-        uint32_t dstPort = tcpHeader.GetDestinationPort();
+        uint16_t srcPort = tcpHeader.GetSourcePort();
+        uint16_t dstPort = tcpHeader.GetDestinationPort();
         pathHeader.SetSrcPort(srcPort);
         pathHeader.SetDstPort(dstPort);
 
-        uint32_t hash = HashFlow(pathHeader);
+        uint32_t hash = Hash32((char*)(&pathHeader), sizeof(PathHeader));
         devId = vec[hash % vec.size()];
 
         if(m_orbweaver & 1){
@@ -233,8 +228,8 @@ SwitchNode::ReceiveFromDevice(Ptr<NetDevice> device,
         UdpHeader udpHeader;
         packet->RemoveHeader(udpHeader);
 
-        uint32_t srcPort = udpHeader.GetSourcePort();
-        uint32_t dstPort = udpHeader.GetDestinationPort();
+        uint16_t srcPort = udpHeader.GetSourcePort();
+        uint16_t dstPort = udpHeader.GetDestinationPort();
         pathHeader.SetSrcPort(srcPort);
         pathHeader.SetDstPort(dstPort);
 
@@ -253,16 +248,17 @@ SwitchNode::ReceiveFromDevice(Ptr<NetDevice> device,
                         potentialPorts.push_back(it->first);
                     }
                 }
-
-                if(potentialPorts.size() <= 0){
-                    uint32_t hash = HashFlow(pathHeader);
-                    potentialPorts.push_back(vec[hash % vec.size()]);
-                }
             }
+
+            if(potentialPorts.size() <= 0){
+                uint32_t hash = Hash32((char*)(&pathHeader), sizeof(PathHeader));
+                potentialPorts.push_back(vec[hash % vec.size()]);
+            }
+            
             devId = potentialPorts[rand() % potentialPorts.size()];
         }
         else if(m_orbweaver & 1){
-            uint32_t hash = HashFlow(pathHeader);
+            uint32_t hash = Hash32((char*)(&pathHeader), sizeof(PathHeader));
             devId = vec[hash % vec.size()];
         }
         else{

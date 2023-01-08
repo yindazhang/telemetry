@@ -55,7 +55,6 @@ class SwitchNode : public Node
     void SetOrbWeaver(uint32_t OrbWeaver);
     void CacheInfo(PathHeader pathHeader);
     void OrbWeaverSend();
-    uint32_t HashFlow(PathHeader pathHeader);
 
     Ptr<Packet> GeneratePacket();
     void AddUdpIpHeader(Ptr<Packet> packet);

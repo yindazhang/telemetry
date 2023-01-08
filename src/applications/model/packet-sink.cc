@@ -240,10 +240,12 @@ PacketSink::HandleRead(Ptr<Socket> socket)
                 if(m_paths.size() % 10000 == 9999)
                     std::cout << "Receive entries: " << m_paths.size() << std::endl;
                 
-                // std::cout << "Receive Packet: " << std::endl
-                // << "TTL: " << int(pathHeader.GetTTL()) << std::endl
-                // << "Node ID: " << int(pathHeader.GetNodeID())<< std::endl
-                // << std::endl;
+                // if(pathHeader.GetTTL() < 60){
+                //    std::cout << "Receive Packet: " << std::endl
+                //    << "TTL: " << int(pathHeader.GetTTL()) << std::endl
+                //    << "Node ID: " << int(pathHeader.GetNodeID())<< std::endl
+                //    << std::endl;
+                // }
             }
         }
 
