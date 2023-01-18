@@ -36,8 +36,10 @@ void build_dctcp(){
 	Config::SetDefault("ns3::TcpSocket::DataRetries", UintegerValue(UINT32_MAX));
 	Config::SetDefault("ns3::TcpSocket::ConnCount", UintegerValue(UINT32_MAX));
 	Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(1440 - intSize));
+	Config::SetDefault("ns3::TcpSocket::ConnTimeout", TimeValue(MicroSeconds(100)));
 	Config::SetDefault("ns3::TcpSocket::DelAckTimeout", TimeValue(MicroSeconds(100)));
 	Config::SetDefault("ns3::TcpSocketBase::MinRto", TimeValue(MicroSeconds(100)));
+	Config::SetDefault("ns3::TcpSocketBase::ClockGranularity", TimeValue(MicroSeconds(10)));
     GlobalValue::Bind("ChecksumEnabled", BooleanValue(false));
 }
 
@@ -80,8 +82,8 @@ void build_leaf_spine_routing(
 			}
 			else{
 				leaves[i]->AddHostRouteTo(serverAddress[k], k % SERVER_PER_LEAF + 1);
-				leaves[i]->AddHostRouteOther(serverAddress[k], k % SERVER_PER_LEAF + 1, 
-							(k == (serverAddress.size() - 1)));
+				if(k == (serverAddress.size() - 1))
+					leaves[i]->AddHostRouteCollector(serverAddress[k], k % SERVER_PER_LEAF + 1);
 			}
 			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
 				leaves[i]->AddHostRouteOther(serverAddress[k], SERVER_PER_LEAF + spineId + 1);
@@ -116,6 +118,11 @@ void build_leaf_spine(
     internet.InstallAll();
 
 	// Initilize link
+	PointToPointHelper pp_collector;
+	pp_collector.SetDeviceAttribute("DataRate", StringValue("1Gbps"));
+	pp_collector.SetDeviceAttribute("INT", UintegerValue(intSize));
+	pp_collector.SetChannelAttribute("Delay", StringValue("1us"));
+
 	PointToPointHelper pp_server_leaf;
 	pp_server_leaf.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
 	pp_server_leaf.SetDeviceAttribute("INT", UintegerValue(intSize));
@@ -134,7 +141,13 @@ void build_leaf_spine(
 	for(uint32_t i = 0;i < NUM_LEAF;++i){
 		for(uint32_t j = 0;j < SERVER_PER_LEAF;++j){
 			uint32_t server_id = i * SERVER_PER_LEAF + j;
-			NetDeviceContainer netDev = pp_server_leaf.Install(servers[server_id], leaves[i]);
+			NetDeviceContainer netDev;
+
+			if(server_id == (NUM_LEAF * SERVER_PER_LEAF - 1))
+				netDev = pp_collector.Install(servers[server_id], leaves[i]);
+			else
+				netDev = pp_server_leaf.Install(servers[server_id], leaves[i]);
+
 			tch.Install(netDev);
 
 			std::string ipBase = "10." + std::to_string(i) + "." + std::to_string(j) + ".0";

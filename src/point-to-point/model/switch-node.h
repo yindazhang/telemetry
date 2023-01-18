@@ -50,14 +50,18 @@ class SwitchNode : public Node
                                 const Address& from);
 
     void AddHostRouteTo(Ipv4Address dest, uint32_t devId);
-    void AddHostRouteOther(Ipv4Address dest, uint32_t devId, bool set = true);
+    void AddHostRouteOther(Ipv4Address dest, uint32_t devId);
+    void AddHostRouteCollector(Ipv4Address dest, uint32_t devId);
 
     void SetOrbWeaver(uint32_t OrbWeaver);
     void CacheInfo(PathHeader pathHeader);
+
     void OrbWeaverSend();
+    void CollectorSend();
 
     Ptr<Packet> GeneratePacket();
     void AddUdpIpHeader(Ptr<Packet> packet);
+    void AddPathHeader(Ptr<Packet> packet);
 
   protected:
 
@@ -69,9 +73,13 @@ class SwitchNode : public Node
     std::vector<PathHeader> m_array;
 
     std::unordered_map<uint32_t, std::vector<uint32_t>> m_routeForward;
-    std::unordered_map<uint32_t, std::vector<uint32_t>> m_routeOther;
+    // std::unordered_map<uint32_t, std::vector<uint32_t>> m_routeOther;
+
     std::unordered_map<uint32_t, bool> m_mask;
     std::unordered_map<uint32_t, uint32_t> m_mask_counter;
+
+    std::unordered_map<uint32_t, bool> m_collector;
+    std::unordered_map<uint32_t, uint32_t> m_collector_counter;
 
 };
 

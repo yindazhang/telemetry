@@ -31,7 +31,15 @@ public:
     bool IsEmpty() const override;
     uint32_t GetNBytes() const override;
 
+protected:
     std::vector<Ptr<DropTailQueue<Packet>>> m_queues;
+    uint32_t m_maxSize;
+    uint32_t m_ecnThreshold;
+
+    uint64_t totalUserPacket;
+    uint64_t dropUserPacket;
+    uint64_t totalIDLEPacket;
+    uint64_t dropIDLEPacket;
 };
 
 } // namespace ns3

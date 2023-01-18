@@ -411,7 +411,7 @@ Ipv4EndPointDemux::AllocateEphemeralPort()
 {
     // Similar to counting up logic in netinet/in_pcb.c
     NS_LOG_FUNCTION(this);
-    uint16_t port = rand() % 60000 + m_portFirst;
+    uint16_t port = m_ephemeral + 1;
     int count = m_portLast - m_portFirst;
     do
     {

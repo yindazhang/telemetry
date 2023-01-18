@@ -231,8 +231,6 @@ PacketSink::HandleRead(Ptr<Socket> socket)
             packet->RemoveHeader(teleHeader);
 
             uint32_t number = teleHeader.GetNumber();
-            // std::cout << "Telemetry Number: " << number << std::endl;
-
             for(uint32_t i = 0;i < number;++i){
                 PathHeader pathHeader;
                 packet->RemoveHeader(pathHeader);

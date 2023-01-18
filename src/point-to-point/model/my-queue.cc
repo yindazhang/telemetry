@@ -23,7 +23,19 @@ MyQueue::GetTypeId()
         TypeId("ns3::MyQueue")
             .SetParent<Queue<Packet>>()
             .SetGroupName("PointToPoint")
-            .AddConstructor<MyQueue>();
+            .AddConstructor<MyQueue>()
+            .AddAttribute(
+                "MaxSize",
+                "Maximum bytes in queue",
+                UintegerValue(128 * 1024),
+                MakeUintegerAccessor(&MyQueue::m_maxSize),
+                MakeUintegerChecker<uint32_t>())
+            .AddAttribute(
+                "ECNThreshold",
+                "Threshold for ECN",
+                UintegerValue(45000),
+                MakeUintegerAccessor(&MyQueue::m_ecnThreshold),
+                MakeUintegerChecker<uint32_t>());
     return tid;
 }
 
@@ -33,6 +45,7 @@ MyQueue::MyQueue()
     m_queues.push_back(CreateObject<DropTailQueue<Packet>>());
     m_queues[0]->SetMaxSize(QueueSize("1MiB"));
     m_queues[1]->SetMaxSize(QueueSize("1MiB"));
+    totalUserPacket = dropUserPacket = totalIDLEPacket = dropIDLEPacket = 0;
 }
 
 MyQueue::~MyQueue() {}
@@ -40,10 +53,6 @@ MyQueue::~MyQueue() {}
 bool
 MyQueue::Enqueue(Ptr<Packet> item)
 {
-    if(GetNBytes() > 200000){
-        return false;
-    }
-
     PppHeader ppp;
     Ipv4Header ipHeader;
     item->RemoveHeader(ppp);
@@ -55,8 +64,31 @@ MyQueue::Enqueue(Ptr<Packet> item)
         priority = (priorityTag.GetPriority() & 0x1);
     }
 
+    if(priority == 0)
+        totalUserPacket += 1;
+    else
+        totalIDLEPacket += 1;
+    
+    if(totalUserPacket % 100000 == 99999){
+        if(totalUserPacket > 0)
+            std::cout << "Drop rate of user packets: " << dropUserPacket << "/" << totalUserPacket << std::endl;
+        if(totalIDLEPacket > 0)
+            std::cout << "Drop rate of idle packets: " << dropIDLEPacket << "/" << totalIDLEPacket << std::endl;
+    }
+
+    if(GetNBytes() > m_maxSize){
+        if(priority == 0){
+            dropUserPacket += 1;
+            return false;
+        }
+        else{
+            dropIDLEPacket += 1;
+            return false;
+        }
+    }
+
     if(priority == 0){
-        if(GetNBytes() > 1500 * 30){
+        if(GetNBytes() > m_ecnThreshold){
             if(ipHeader.GetEcn() == Ipv4Header::ECN_ECT1 || 
                     ipHeader.GetEcn() == Ipv4Header::ECN_ECT0){
                 ipHeader.SetEcn(Ipv4Header::ECN_CE);
@@ -66,6 +98,7 @@ MyQueue::Enqueue(Ptr<Packet> item)
 
     item->AddHeader(ipHeader);
     item->AddHeader(ppp);
+
     return m_queues[priority]->Enqueue(item);
 }
 

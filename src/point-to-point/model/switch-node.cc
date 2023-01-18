@@ -44,6 +44,7 @@ SwitchNode::GetTypeId()
 SwitchNode::SwitchNode() : Node() {
     m_array.resize(arrSize);
     Simulator::Schedule(Seconds(2), &SwitchNode::OrbWeaverSend, this);
+    Simulator::Schedule(Seconds(2), &SwitchNode::CollectorSend, this);
 }
 
 void
@@ -78,10 +79,27 @@ SwitchNode::AddUdpIpHeader(Ptr<Packet> packet)
     ipHeader.SetDestination(Ipv4Address("10.8.15.1"));
     ipHeader.SetProtocol(UdpL4Protocol::PROT_NUMBER);
     ipHeader.SetPayloadSize(packet->GetSize());
-    ipHeader.SetTtl(64);
+    ipHeader.SetTtl(255);
     ipHeader.SetTos(0);
     ipHeader.SetMayFragment();
     packet->AddHeader(ipHeader);
+}
+
+void 
+SwitchNode::AddPathHeader(Ptr<Packet> packet)
+{
+    if(!m_queue.empty()){
+        TelemetryHeader teleHeader;
+        packet->RemoveHeader(teleHeader);
+        uint8_t number = teleHeader.GetNumber();
+        if(number < 80){
+            PathHeader pathHeader = m_queue.front();
+            m_queue.pop();
+            packet->AddHeader(pathHeader);
+            teleHeader.SetNumber(number + 1);
+        }
+        packet->AddHeader(teleHeader);
+    }
 }
 
 Ptr<Packet> 
@@ -112,8 +130,17 @@ SwitchNode::GeneratePacket()
 }
 
 void
+SwitchNode::CollectorSend(){
+    Simulator::Schedule(NanoSeconds(12000), &SwitchNode::CollectorSend, this);
+    for(auto it = m_collector.begin();it != m_collector.end();++it){
+        m_collector_counter[it->first] = 0;
+        m_collector[it->first] = false;
+    }
+}
+
+void
 SwitchNode::OrbWeaverSend(){
-    if((m_orbweaver & 3) == 3){
+    if((m_orbweaver & 5) == 5){
         Simulator::Schedule(NanoSeconds(300), &SwitchNode::OrbWeaverSend, this);
 
         for(auto it = m_mask.begin();it != m_mask.end();++it){
@@ -188,7 +215,7 @@ SwitchNode::ReceiveFromDevice(Ptr<NetDevice> device,
         return false;
     }
     if(ttl == 0){
-        std::cout << "Error: TTL = 0" << std::endl;
+        // std::cout << "Error: TTL = 0" << std::endl;
         return false;
     }
     if(proto != 6 && proto != 17){
@@ -233,13 +260,23 @@ SwitchNode::ReceiveFromDevice(Ptr<NetDevice> device,
         pathHeader.SetSrcPort(srcPort);
         pathHeader.SetDstPort(dstPort);
 
-        if((m_orbweaver & 5) == 5){
+        if((m_orbweaver & 3) == 3)
+            AddPathHeader(packet);
+
+        if((m_orbweaver & 9) == 9){
             std::vector<uint32_t> potentialPorts;
             for(uint32_t dev : vec){
-                if(m_mask.find(dev) == m_mask.end())
-                    std::cout << "Cannot find Dev " << dev << " in Mask of Node " << m_id << std::endl;
-                if(m_mask[dev] == false)
+                if(m_mask.find(dev) == m_mask.end()){
+                    if(m_collector.find(dev) == m_collector.end()){
+                        std::cout << "Cannot find Dev " << dev << " in Mask of Node " << m_id << std::endl;
+                    }
+                    else if(m_collector[dev] == false){
+                        potentialPorts.push_back(dev);
+                    }
+                }
+                else if(m_mask[dev] == false){
                     potentialPorts.push_back(dev);
+                }
             }
 
             if(potentialPorts.size() <= 0){
@@ -268,17 +305,25 @@ SwitchNode::ReceiveFromDevice(Ptr<NetDevice> device,
         packet->AddHeader(udpHeader);
     }
 
+    ipHeader.SetPayloadSize(packet->GetSize());
     packet->AddHeader(ipHeader);
-    if((m_orbweaver & 3) == 3){
+    if((m_orbweaver & 5) == 5){
         if(m_mask.find(devId) != m_mask.end()){
             m_mask_counter[devId] += packet->GetSize();
             if(m_mask_counter[devId] > 1400)
                 m_mask[devId] = true;
         }
+        if(m_collector.find(devId) != m_collector.end()){
+            m_collector_counter[devId] += packet->GetSize();
+            if(m_collector_counter[devId] > 1400)
+                m_collector[devId] = true;
+        }
     }
     else if(m_orbweaver & 1){
         if(m_mask.find(devId) != m_mask.end())
             m_mask[devId] = true;
+        if(m_collector.find(devId) != m_collector.end())
+            m_collector[devId] = true;
     }
 
     Ptr<NetDevice> dev = m_devices[devId];
@@ -292,13 +337,18 @@ SwitchNode::AddHostRouteTo(Ipv4Address dest, uint32_t devId)
 }
 
 void
-SwitchNode::AddHostRouteOther(Ipv4Address dest, uint32_t devId, bool set)
+SwitchNode::AddHostRouteOther(Ipv4Address dest, uint32_t devId)
 {
-    m_routeOther[dest.Get()].push_back(devId);
-    if(set){
-        m_mask[devId] = false; 
-        m_mask_counter[devId] = 0; 
-    }
+    // m_routeOther[dest.Get()].push_back(devId);
+    m_mask[devId] = false; 
+    m_mask_counter[devId] = 0;
+}
+
+void
+SwitchNode::AddHostRouteCollector(Ipv4Address dest, uint32_t devId)
+{
+    m_collector[devId] = false; 
+    m_collector_counter[devId] = 0;
 }
 
 
