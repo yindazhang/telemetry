@@ -46,19 +46,21 @@ TelemetryHeader::Print(std::ostream& os) const
 uint32_t
 TelemetryHeader::GetSerializedSize() const
 {
-    return 1;
+    return 2;
 }
 
 void
 TelemetryHeader::Serialize(Buffer::Iterator start) const
 {
     start.WriteU8(m_number);
+    start.WriteU8(m_ttl);
 }
 
 uint32_t
 TelemetryHeader::Deserialize(Buffer::Iterator start)
 {
     m_number = start.ReadU8();
+    m_ttl = start.ReadU8();
     return GetSerializedSize();
 }
 
@@ -73,5 +75,18 @@ TelemetryHeader::GetNumber()
 {
     return m_number;
 }
+
+void 
+TelemetryHeader::SetTtl(uint8_t _ttl)
+{
+    m_ttl = _ttl;
+}
+
+uint8_t 
+TelemetryHeader::GetTtl()
+{
+    return m_ttl;
+}
+
 
 } // namespace ns3

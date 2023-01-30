@@ -67,9 +67,8 @@ if __name__=="__main__":
 	fct_files.append(args.file + "s_Orb1.fct")
 	fct_files.append(args.file + "s_Orb3.fct")
 	fct_files.append(args.file + "s_Orb7.fct")
-	fct_files.append(args.file + "s_Orb15.fct")
 
-	names = ['Original', 'Orbweaver', '+Batching', '+Efficient', '+Random']
+	names = ['Original', 'Orbweaver', 'Remove Header', 'Batching']
 	xnames = ['<100K','100K~1M','>1M']
 
 	dic = {'id' : [], 'Mean' : [], '95%' : [], '99%' : []}

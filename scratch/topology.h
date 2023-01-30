@@ -19,6 +19,7 @@ using namespace ns3;
 std::vector<Ptr<Node>> servers;
 std::vector<Ptr<SwitchNode>> leaves;
 std::vector<Ptr<SwitchNode>> spines;
+std::vector<Ptr<CollectorNode>> collectors;
 
 std::vector<Ipv4Address> serverAddress;
 
@@ -50,7 +51,7 @@ void build_leaf_spine_routing(
 	Ipv4StaticRoutingHelper ipv4RoutingHelper;
 	std::cout << "Start routing" << std::endl;
 
-	for(uint32_t i = 0;i < NUM_LEAF * SERVER_PER_LEAF;++i){
+	for(uint32_t i = 0;i < NUM_LEAF * SERVER_PER_LEAF - 1;++i){
 		Ptr<Ipv4> ipv4Server = servers[i]->GetObject<Ipv4>();
 		Ptr<Ipv4StaticRouting> routeServer = ipv4RoutingHelper.GetStaticRouting(ipv4Server);
 		std::string ipAddr = "10." + std::to_string(i / SERVER_PER_LEAF)
@@ -63,16 +64,31 @@ void build_leaf_spine_routing(
 	}
 
 	for(uint32_t i = 0;i < NUM_SPINE;++i){
+		spines[i]->AddHostRouteCollector(NUM_LEAF);
+		for(uint32_t leafId = 0;leafId < NUM_LEAF;++leafId){
+			spines[i]->AddHostRouteOrbWeaver(leafId + 1);
+		}
+		
 		for(uint32_t k = 0;k < serverAddress.size();++k){
 			uint32_t rack_id = k / SERVER_PER_LEAF;
 			spines[i]->AddHostRouteTo(serverAddress[k], rack_id + 1);
-			for(uint32_t leafId = 0;leafId < NUM_LEAF;++leafId){
-				spines[i]->AddHostRouteOther(serverAddress[k], leafId + 1);
-			}
 		}
 	}
 
 	for(uint32_t i = 0;i < NUM_LEAF;++i){
+		if(i != NUM_LEAF - 1){
+			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
+				leaves[i]->AddHostRouteCollector(SERVER_PER_LEAF + spineId + 1);
+				leaves[i]->AddHostRouteOrbWeaver(SERVER_PER_LEAF + spineId + 1);
+			}
+		}
+		else{
+			leaves[i]->AddHostRouteCollector(SERVER_PER_LEAF);
+			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
+				leaves[i]->AddHostRouteOrbWeaver(SERVER_PER_LEAF + spineId + 1);
+			}
+		}
+
 		for(uint32_t k = 0;k < serverAddress.size();++k){
 			uint32_t rack_id = k / SERVER_PER_LEAF;
 			if(rack_id != i){
@@ -82,11 +98,6 @@ void build_leaf_spine_routing(
 			}
 			else{
 				leaves[i]->AddHostRouteTo(serverAddress[k], k % SERVER_PER_LEAF + 1);
-				if(k == (serverAddress.size() - 1))
-					leaves[i]->AddHostRouteCollector(serverAddress[k], k % SERVER_PER_LEAF + 1);
-			}
-			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
-				leaves[i]->AddHostRouteOther(serverAddress[k], SERVER_PER_LEAF + spineId + 1);
 			}
 		}
 	}
@@ -99,11 +110,12 @@ void build_leaf_spine(
 
 	// Initilize node
 	serverAddress.resize(SERVER_PER_LEAF * NUM_LEAF);
-	servers.resize(SERVER_PER_LEAF * NUM_LEAF);
+	servers.resize(SERVER_PER_LEAF * NUM_LEAF - 1);
 	leaves.resize(NUM_LEAF);
 	spines.resize(NUM_SPINE);
+	collectors.resize(1);
 
-	for(uint32_t i = 0;i < NUM_LEAF * SERVER_PER_LEAF;++i)
+	for(uint32_t i = 0;i < NUM_LEAF * SERVER_PER_LEAF - 1;++i)
 		servers[i] = CreateObject<Node>();
 	for(uint32_t i = 0;i < NUM_LEAF;++i){
 		leaves[i] = CreateObject<SwitchNode>();
@@ -113,6 +125,8 @@ void build_leaf_spine(
 		spines[i] = CreateObject<SwitchNode>();
 		spines[i]->SetOrbWeaver(OrbWeaver);
 	}
+	leaves[NUM_LEAF - 1]->SetFinalHop();
+	collectors[0] = CreateObject<CollectorNode>();
 
 	InternetStackHelper internet;
     internet.InstallAll();
@@ -141,10 +155,10 @@ void build_leaf_spine(
 	for(uint32_t i = 0;i < NUM_LEAF;++i){
 		for(uint32_t j = 0;j < SERVER_PER_LEAF;++j){
 			uint32_t server_id = i * SERVER_PER_LEAF + j;
-			NetDeviceContainer netDev;
 
+			NetDeviceContainer netDev;
 			if(server_id == (NUM_LEAF * SERVER_PER_LEAF - 1))
-				netDev = pp_collector.Install(servers[server_id], leaves[i]);
+				netDev = pp_collector.Install(collectors[0], leaves[i]);
 			else
 				netDev = pp_server_leaf.Install(servers[server_id], leaves[i]);
 
@@ -156,7 +170,6 @@ void build_leaf_spine(
 			serverAddress[server_id] = addrContainer.GetAddress(0);
 		}
 	}
-
 	
 	for(uint32_t i = 0;i < NUM_SPINE;++i){
 		for(uint32_t j = 0;j < NUM_LEAF;++j){
@@ -172,19 +185,13 @@ void build_leaf_spine(
 }
 
 void start_sink_app(){
-	for(uint32_t i = 0;i < servers.size() - 1;++i){
+	for(uint32_t i = 0;i < servers.size();++i){
 		PacketSinkHelper sink("ns3::TcpSocketFactory",
                          InetSocketAddress(Ipv4Address::GetAny(), DEFAULT_PORT));
   		ApplicationContainer sinkApps = sink.Install(servers[i]);
 		sinkApps.Start(Seconds(start_time - 1));
   		sinkApps.Stop(Seconds(start_time + duration + 2));
 	}
-
-	PacketSinkHelper sink("ns3::UdpSocketFactory",
-                         InetSocketAddress(Ipv4Address::GetAny(), COLLECT_PORT));
-  	ApplicationContainer sinkApps = sink.Install(servers[servers.size() - 1]);
-	sinkApps.Start(Seconds(start_time - 1));
-	sinkApps.Stop(Seconds(start_time + duration + 9.99));
 }
 
 #endif 

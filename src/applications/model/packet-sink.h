@@ -187,7 +187,6 @@ class PacketSink : public Application
         }
     };
 
-    std::set<PathHeader> m_paths;
     std::unordered_map<Address, Ptr<Packet>, AddressHash> m_buffer; //!< Buffer for received packets
 
     // In the case of TCP, each socket accept returns a new socket, so the

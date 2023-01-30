@@ -32,10 +32,14 @@ public:
     uint16_t GetSrcPort();
     void SetDstPort(uint16_t _dstPort);
     uint16_t GetDstPort();
-    void SetNodeID(uint16_t _nodeId);
-    uint16_t GetNodeID();
+    void SetNodeId(uint32_t _nodeId);
+    uint32_t GetNodeId();
+    void SetProtocol(uint8_t _protocol);
+    uint8_t GetProtocol();
     void SetTTL(uint8_t _ttl);
     uint8_t GetTTL();
+
+    uint32_t Hash();
 
     bool operator == (const PathHeader& o);
 
@@ -43,7 +47,8 @@ public:
     uint32_t m_dstIP;
     uint16_t m_srcPort;
     uint16_t m_dstPort;
-    uint16_t m_nodeId;
+    uint32_t m_nodeId;
+    uint8_t m_protocol;
     uint8_t m_ttl;
 };
 

@@ -102,6 +102,10 @@ class PppHeader : public Header
     /**
      * \brief The PPP protocol type of the payload packet
      */
+    uint32_t m_source;
+    uint32_t m_destination;
+    uint16_t m_empty;
+
     uint16_t m_protocol;
     uint16_t m_padding;
 };

@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 	std::string flow_file = "Hadoop_143_0.5_10G_0.2";
 
 	CommandLine cmd(__FILE__);
-	cmd.AddValue("time", "the total run time (s), by default 1", duration);
+	cmd.AddValue("time", "the total run time (s), by default 0.2", duration);
 	cmd.AddValue("flow", "the flow file", flow_file);
 	cmd.AddValue("record", "record fct", record);
 	cmd.AddValue("INT", "the size of INT header", intSize);
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 	std::cout << "Finish Topology." << std::endl;
 	schedule_flow(flow_file);
 
-	Simulator::Stop(Seconds(start_time + duration + 10));
+	Simulator::Stop(Seconds(start_time + duration + 3));
 	Simulator::Run();
 	Simulator::Destroy();
 

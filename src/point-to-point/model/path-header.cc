@@ -21,6 +21,7 @@ PathHeader::PathHeader()
     m_srcPort = 0;
     m_dstPort = 0;
     m_nodeId = 0;
+    m_protocol = 0;
     m_ttl = 0;
 }
 
@@ -31,6 +32,7 @@ PathHeader::PathHeader(const PathHeader& o)
     m_srcPort = o.m_srcPort;
     m_dstPort = o.m_dstPort;
     m_nodeId = o.m_nodeId;
+    m_protocol = o.m_protocol;
     m_ttl = o.m_ttl;
 }
 
@@ -62,7 +64,7 @@ PathHeader::Print(std::ostream& os) const
 uint32_t
 PathHeader::GetSerializedSize() const
 {
-    return 15;
+    return 18;
 }
 
 void
@@ -72,7 +74,8 @@ PathHeader::Serialize(Buffer::Iterator start) const
     start.WriteHtonU32(m_dstIP);
     start.WriteHtonU16(m_srcPort);
     start.WriteHtonU16(m_dstPort);
-    start.WriteHtonU16(m_nodeId);
+    start.WriteHtonU32(m_nodeId);
+    start.WriteU8(m_protocol);
     start.WriteU8(m_ttl);
 }
 
@@ -83,7 +86,8 @@ PathHeader::Deserialize(Buffer::Iterator start)
     m_dstIP = start.ReadNtohU32();
     m_srcPort = start.ReadNtohU16();
     m_dstPort = start.ReadNtohU16();
-    m_nodeId = start.ReadNtohU16();
+    m_nodeId = start.ReadNtohU32();
+    m_protocol = start.ReadU8();
     m_ttl = start.ReadU8();
     return GetSerializedSize();
 }
@@ -93,7 +97,7 @@ PathHeader::operator == (const PathHeader& o)
 {
     return (m_srcIP == o.m_srcIP) && (m_dstIP == o.m_dstIP) &&
         (m_srcPort == o.m_srcPort) && (m_dstPort == o.m_dstPort) &&
-        (m_nodeId == o.m_nodeId) && (m_ttl == o.m_ttl);
+        (m_nodeId == o.m_nodeId) && (m_protocol == o.m_protocol) && (m_ttl == o.m_ttl);
 }
 
 bool 
@@ -101,7 +105,20 @@ PathHeader::Empty()
 {
     return (m_srcIP == 0) && (m_dstIP == 0) &&
         (m_srcPort == 0) && (m_dstPort == 0) &&
-        (m_nodeId == 0) && (m_ttl == 0);
+        (m_nodeId == 0) && (m_protocol == 0) && (m_ttl == 0);
+}
+
+uint32_t
+PathHeader::Hash()
+{
+    Hasher hasher;
+    hasher.GetHash32((char*)(&m_srcIP), 4);
+    hasher.GetHash32((char*)(&m_dstIP), 4);
+    hasher.GetHash32((char*)(&m_srcPort), 2);
+    hasher.GetHash32((char*)(&m_dstPort), 2);
+    hasher.GetHash32((char*)(&m_nodeId), 4);
+    hasher.GetHash32((char*)(&m_protocol), 1);
+    return hasher.GetHash32((char*)(&m_ttl), 1);
 }
 
 void 
@@ -153,15 +170,27 @@ PathHeader::GetDstPort()
 }
 
 void 
-PathHeader::SetNodeID(uint16_t _nodeId)
+PathHeader::SetNodeId(uint32_t _nodeId)
 {
     m_nodeId = _nodeId;
 }
 
-uint16_t 
-PathHeader::GetNodeID()
+uint32_t 
+PathHeader::GetNodeId()
 {
     return m_nodeId;
+}
+
+void 
+PathHeader::SetProtocol(uint8_t _protocol)
+{
+    m_protocol = _protocol;
+}
+
+uint8_t 
+PathHeader::GetProtocol()
+{
+    return m_protocol;
 }
 
 void 
@@ -178,8 +207,8 @@ PathHeader::GetTTL()
 
 bool operator < (const PathHeader& a, const PathHeader& b)
 {
-    return std::tie(a.m_srcIP, a.m_dstIP, a.m_srcPort, a.m_dstPort, a.m_nodeId, a.m_ttl) <
-          std::tie(b.m_srcIP, b.m_dstIP, b.m_srcPort, b.m_dstPort, b.m_nodeId, b.m_ttl);
+    return std::tie(a.m_srcIP, a.m_dstIP, a.m_srcPort, a.m_dstPort, a.m_nodeId, a.m_protocol, a.m_ttl) <
+          std::tie(b.m_srcIP, b.m_dstIP, b.m_srcPort, b.m_dstPort, b.m_nodeId, b.m_protocol, b.m_ttl);
 }
 
 } // namespace ns3

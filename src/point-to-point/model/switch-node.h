@@ -50,9 +50,11 @@ class SwitchNode : public Node
                                 const Address& from);
 
     void AddHostRouteTo(Ipv4Address dest, uint32_t devId);
-    void AddHostRouteOther(Ipv4Address dest, uint32_t devId);
-    void AddHostRouteCollector(Ipv4Address dest, uint32_t devId);
 
+    void AddHostRouteCollector(uint32_t devId);
+    void AddHostRouteOrbWeaver(uint32_t devId);
+
+    void SetFinalHop();
     void SetOrbWeaver(uint32_t OrbWeaver);
     void CacheInfo(PathHeader pathHeader);
 
@@ -61,25 +63,29 @@ class SwitchNode : public Node
 
     Ptr<Packet> GeneratePacket();
     void AddUdpIpHeader(Ptr<Packet> packet);
-    void AddPathHeader(Ptr<Packet> packet);
+    bool AddPathHeader(Ptr<Packet> packet, uint32_t batchSize);
 
   protected:
 
     const uint32_t arrSize = 65537;
 
-    uint32_t m_orbweaver;
+    bool m_orbweaver;
+    bool m_finalHop;
+    bool m_removeHeader;
+    bool m_localBatch;
 
     std::queue<PathHeader> m_queue;
     std::vector<PathHeader> m_array;
 
     std::unordered_map<uint32_t, std::vector<uint32_t>> m_routeForward;
-    // std::unordered_map<uint32_t, std::vector<uint32_t>> m_routeOther;
+    std::vector<uint32_t> m_routeCollector;
+    std::vector<uint32_t> m_routeOrbWeaver;
 
     std::unordered_map<uint32_t, bool> m_mask;
     std::unordered_map<uint32_t, uint32_t> m_mask_counter;
 
-    std::unordered_map<uint32_t, bool> m_collector;
-    std::unordered_map<uint32_t, uint32_t> m_collector_counter;
+    bool ReceiveFromDeviceUser(Ptr<Packet> packet);
+    bool ReceiveFromDeviceIdle(Ptr<Packet> packet, uint16_t protocol);
 
 };
 

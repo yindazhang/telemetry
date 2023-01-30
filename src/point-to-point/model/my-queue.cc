@@ -54,16 +54,25 @@ bool
 MyQueue::Enqueue(Ptr<Packet> item)
 {
     PppHeader ppp;
-    Ipv4Header ipHeader;
     item->RemoveHeader(ppp);
-    item->RemoveHeader(ipHeader);
 
+    uint16_t proto = ppp.GetProtocol();
+    if(proto != 0x0021 && proto != 0x1111){
+        std::cout << "Unknown protocol in Enqueue" << std::endl;
+        return false;
+    }
+
+    Ipv4Header ipHeader;
+    if(proto == 0x0021)
+        item->RemoveHeader(ipHeader);
+    
     uint32_t priority = 0;
     SocketPriorityTag priorityTag;
     if(item->PeekPacketTag(priorityTag)){
         priority = (priorityTag.GetPriority() & 0x1);
     }
 
+    /*
     if(priority == 0)
         totalUserPacket += 1;
     else
@@ -75,6 +84,7 @@ MyQueue::Enqueue(Ptr<Packet> item)
         if(totalIDLEPacket > 0)
             std::cout << "Drop rate of idle packets: " << dropIDLEPacket << "/" << totalIDLEPacket << std::endl;
     }
+    */
 
     if(GetNBytes() > m_maxSize){
         if(priority == 0){
@@ -87,7 +97,7 @@ MyQueue::Enqueue(Ptr<Packet> item)
         }
     }
 
-    if(priority == 0){
+    if(priority == 0 && proto == 0x0021){
         if(GetNBytes() > m_ecnThreshold){
             if(ipHeader.GetEcn() == Ipv4Header::ECN_ECT1 || 
                     ipHeader.GetEcn() == Ipv4Header::ECN_ECT0){
@@ -96,7 +106,9 @@ MyQueue::Enqueue(Ptr<Packet> item)
         }
     }
 
-    item->AddHeader(ipHeader);
+    if(proto == 0x0021)
+        item->AddHeader(ipHeader);
+
     item->AddHeader(ppp);
 
     return m_queues[priority]->Enqueue(item);

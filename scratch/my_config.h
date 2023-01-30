@@ -5,7 +5,7 @@
 #define COLLECT_PORT 1000
 
 double start_time = 2;
-double duration = 1;
+double duration = 0.2;
 int record = 0;
 uint16_t intSize = 0;
 uint32_t OrbWeaver = 0;

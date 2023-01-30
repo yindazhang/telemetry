@@ -24,8 +24,12 @@ public:
     void SetNumber(uint8_t _number);
     uint8_t GetNumber();
 
+    void SetTtl(uint8_t _ttl);
+    uint8_t GetTtl();
+
 private:
     uint8_t m_number;
+    uint8_t m_ttl;
 };
 
 } // namespace ns3

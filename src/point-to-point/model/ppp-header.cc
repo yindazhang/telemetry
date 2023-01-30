@@ -65,6 +65,9 @@ PppHeader::Print(std::ostream& os) const
     case 0x0021: /* IPv4 */
         proto = "IP (0x0021)";
         break;
+    case 0x1111: /* IPv4 */
+        proto = "Collector (0x1111)";
+        break;
     case 0x0057: /* IPv6 */
         proto = "IPv6 (0x0057)";
         break;
@@ -77,12 +80,15 @@ PppHeader::Print(std::ostream& os) const
 uint32_t
 PppHeader::GetSerializedSize() const
 {
-    return 2  + 2 + m_padding;
+    return 14 + m_padding;
 }
 
 void
 PppHeader::Serialize(Buffer::Iterator start) const
 {
+    start.WriteHtonU32(m_source);
+    start.WriteHtonU32(m_destination);
+    start.WriteHtonU16(m_empty);
     start.WriteHtonU16(m_protocol);
     start.WriteHtonU16(m_padding);
     for(uint32_t i = 0;i < m_padding;++i)
@@ -92,6 +98,9 @@ PppHeader::Serialize(Buffer::Iterator start) const
 uint32_t
 PppHeader::Deserialize(Buffer::Iterator start)
 {
+    m_source = start.ReadNtohU32();
+    m_destination = start.ReadNtohU32();
+    m_empty = start.ReadNtohU16();
     m_protocol = start.ReadNtohU16();
     m_padding = start.ReadNtohU16();
     for(uint32_t i = 0;i < m_padding;++i)

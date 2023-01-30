@@ -191,8 +191,6 @@ PacketSink::StopApplication() // Called at time specified by Stop
         m_socket->Close();
         m_socket->SetRecvCallback(MakeNullCallback<void, Ptr<Socket>>());
     }
-    if(m_paths.size() > 0)
-        std::cout << "Final Receive entries: " << m_paths.size() << std::endl;
 }
 
 void
@@ -224,27 +222,6 @@ PacketSink::HandleRead(Ptr<Socket> socket)
                                    << Inet6SocketAddress::ConvertFrom(from).GetIpv6() << " port "
                                    << Inet6SocketAddress::ConvertFrom(from).GetPort()
                                    << " total Rx " << m_totalRx << " bytes");
-        }
-
-        if(m_localPort != 80){
-            TelemetryHeader teleHeader;
-            packet->RemoveHeader(teleHeader);
-
-            uint32_t number = teleHeader.GetNumber();
-            for(uint32_t i = 0;i < number;++i){
-                PathHeader pathHeader;
-                packet->RemoveHeader(pathHeader);
-                m_paths.insert(pathHeader);
-                if(m_paths.size() % 10000 == 9999)
-                    std::cout << "Receive entries: " << m_paths.size() << std::endl;
-                
-                // if(pathHeader.GetTTL() < 60){
-                //    std::cout << "Receive Packet: " << std::endl
-                //    << "TTL: " << int(pathHeader.GetTTL()) << std::endl
-                //    << "Node ID: " << int(pathHeader.GetNodeID())<< std::endl
-                //    << std::endl;
-                // }
-            }
         }
 
         if (!m_rxTrace.IsEmpty() || !m_rxTraceWithAddresses.IsEmpty() ||
