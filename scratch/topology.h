@@ -34,12 +34,12 @@ void print_addr(Ipv4Address addr){
 
 void build_dctcp(){
     Config::SetDefault("ns3::TcpL4Protocol::SocketType", StringValue ("ns3::TcpDctcp"));
-	Config::SetDefault("ns3::TcpSocket::DataRetries", UintegerValue(UINT32_MAX));
-	Config::SetDefault("ns3::TcpSocket::ConnCount", UintegerValue(UINT32_MAX));
+	//Config::SetDefault("ns3::TcpSocket::DataRetries", UintegerValue(UINT32_MAX));
+	//Config::SetDefault("ns3::TcpSocket::ConnCount", UintegerValue(UINT32_MAX));
 	Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(1440 - intSize));
-	Config::SetDefault("ns3::TcpSocket::ConnTimeout", TimeValue(MicroSeconds(100)));
-	Config::SetDefault("ns3::TcpSocket::DelAckTimeout", TimeValue(MicroSeconds(100)));
-	Config::SetDefault("ns3::TcpSocketBase::MinRto", TimeValue(MicroSeconds(100)));
+	Config::SetDefault("ns3::TcpSocket::ConnTimeout", TimeValue(MicroSeconds(2000)));
+	Config::SetDefault("ns3::TcpSocket::DelAckTimeout", TimeValue(MicroSeconds(200)));
+	Config::SetDefault("ns3::TcpSocketBase::MinRto", TimeValue(MicroSeconds(800)));
 	Config::SetDefault("ns3::TcpSocketBase::ClockGranularity", TimeValue(MicroSeconds(10)));
     GlobalValue::Bind("ChecksumEnabled", BooleanValue(false));
 }
@@ -120,10 +120,14 @@ void build_leaf_spine(
 	for(uint32_t i = 0;i < NUM_LEAF;++i){
 		leaves[i] = CreateObject<SwitchNode>();
 		leaves[i]->SetOrbWeaver(OrbWeaver);
+		leaves[i]->SetEcmp(ecmpConfig);
+		leaves[i]->SetCollectorGap(12000 / collectorGbps);
 	}
 	for(uint32_t i = 0;i < NUM_SPINE;++i){
 		spines[i] = CreateObject<SwitchNode>();
 		spines[i]->SetOrbWeaver(OrbWeaver);
+		spines[i]->SetEcmp(ecmpConfig);
+		spines[i]->SetCollectorGap(12000 / collectorGbps);
 	}
 	leaves[NUM_LEAF - 1]->SetFinalHop();
 	collectors[0] = CreateObject<CollectorNode>();
@@ -133,7 +137,7 @@ void build_leaf_spine(
 
 	// Initilize link
 	PointToPointHelper pp_collector;
-	pp_collector.SetDeviceAttribute("DataRate", StringValue("1Gbps"));
+	pp_collector.SetDeviceAttribute("DataRate", StringValue(std::to_string(collectorGbps) + "Gbps"));
 	pp_collector.SetDeviceAttribute("INT", UintegerValue(intSize));
 	pp_collector.SetChannelAttribute("Delay", StringValue("1us"));
 

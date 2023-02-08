@@ -55,7 +55,10 @@ class SwitchNode : public Node
     void AddHostRouteOrbWeaver(uint32_t devId);
 
     void SetFinalHop();
+    void SetEcmp(uint32_t Ecmp);
     void SetOrbWeaver(uint32_t OrbWeaver);
+    void SetCollectorGap(uint32_t CollectorGap);
+
     void CacheInfo(PathHeader pathHeader);
 
     void OrbWeaverSend();
@@ -69,10 +72,14 @@ class SwitchNode : public Node
 
     const uint32_t arrSize = 65537;
 
+    int m_ecmp;
+    int m_collectorGap;
+
     bool m_orbweaver;
     bool m_finalHop;
     bool m_removeHeader;
     bool m_localBatch;
+    bool m_randomWalk;
 
     std::queue<PathHeader> m_queue;
     std::vector<PathHeader> m_array;

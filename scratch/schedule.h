@@ -34,6 +34,7 @@ void ScheduleFlowInputs(){
 		ApplicationContainer sourceApps = source.Install(servers[flow.src]);
 		sourceApps.Get(0)->TraceConnectWithoutContext("BulkEnd", MakeBoundCallback(record_fct, fct_output));
 		sourceApps.Start(Time(0));
+		
 
 		flow.index++;
 		ReadFlowInput();
@@ -47,15 +48,19 @@ void ScheduleFlowInputs(){
 
 void schedule_flow(std::string flow_file){
 	if(record){
+		std::string file_name = "scratch/" + flow_file + "s_ECMP" + std::to_string(ecmpConfig);
+
+
 		if(intSize > 0){
+			file_name += "_INT" + std::to_string(intSize);
 			fct_output = fopen(("scratch/" + flow_file + "s_INT" + std::to_string(intSize) + ".fct").c_str(), "w");
 		}
 		else if(OrbWeaver > 0){
-			fct_output = fopen(("scratch/" + flow_file + "s_Orb" + std::to_string(OrbWeaver) + ".fct").c_str(), "w");
+			file_name += "_Orb" + std::to_string(OrbWeaver);
 		}
-		else{
-			fct_output = fopen(("scratch/" + flow_file + "s.fct").c_str(), "w");
-		}
+
+		file_name += ".fct";
+		fct_output = fopen(file_name.c_str(), "w");
 	}
     	
 	flow_input.open("scratch/" + flow_file + ".tr");

@@ -58,6 +58,17 @@ SwitchNode::SetOrbWeaver(uint32_t OrbWeaver){
     m_orbweaver = ((OrbWeaver & 0x1) == 0x1);
     m_removeHeader = ((OrbWeaver & 0x3) == 0x3);
     m_localBatch = ((OrbWeaver & 0x5) == 0x5);
+    m_randomWalk = ((OrbWeaver & 0x9) == 0x9);
+}
+
+void 
+SwitchNode::SetEcmp(uint32_t Ecmp){
+    m_ecmp = Ecmp;
+}
+
+void 
+SwitchNode::SetCollectorGap(uint32_t CollectorGap){
+    m_collectorGap = CollectorGap;
 }
 
 uint32_t
@@ -140,7 +151,7 @@ SwitchNode::GeneratePacket()
 void
 SwitchNode::CollectorSend(){
     if(m_finalHop && m_orbweaver){
-        Simulator::Schedule(NanoSeconds(12000), &SwitchNode::CollectorSend, this);
+        Simulator::Schedule(NanoSeconds(m_collectorGap), &SwitchNode::CollectorSend, this);
         for(auto devId : m_routeCollector){
             if(m_mask.find(devId) == m_mask.end())
                 std::cout << "Cannot find devId " << devId << std::endl;
@@ -231,6 +242,10 @@ SwitchNode::ReceiveFromDeviceUser(Ptr<Packet> packet)
     pathHeader.SetProtocol(proto);
 
     uint32_t hash = pathHeader.Hash();
+    if(m_ecmp == 1){
+        hash = Hash32((char*)&dst, sizeof(dst));
+    }
+
     devId = vec[hash % vec.size()];
 
     if(m_orbweaver){
@@ -287,7 +302,27 @@ SwitchNode::ReceiveFromDeviceIdle(Ptr<Packet> packet, uint16_t protocol)
         return false;
     }
 
-    uint32_t devId = m_routeCollector[rand() % m_routeCollector.size()];
+    std::vector<uint32_t> devIds;
+
+    if(m_randomWalk){
+        for(auto devId : m_routeCollector){
+            if(!m_mask[devId]){
+                devIds.push_back(devId);
+            }
+        }
+        if(devIds.empty()){
+            for(auto devId : m_routeOrbWeaver){
+                if(!m_mask[devId]){
+                    devIds.push_back(devId);
+                }
+            }
+        }
+    }
+
+    if(devIds.empty())
+        devIds = m_routeCollector;
+
+    uint32_t devId = devIds[rand() % devIds.size()];
 
     if(protocol == 0x0800){
         packet->AddHeader(udpHeader);

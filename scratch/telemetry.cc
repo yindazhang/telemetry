@@ -21,8 +21,12 @@ int main(int argc, char *argv[])
 	cmd.AddValue("flow", "the flow file", flow_file);
 	cmd.AddValue("record", "record fct", record);
 	cmd.AddValue("INT", "the size of INT header", intSize);
+	cmd.AddValue("Collector bandwitdh (Gbps)", "Bandwidth to the collector", collectorGbps);
 	cmd.AddValue("OrbWeaver", "Start OrbWeaver", OrbWeaver);
+	cmd.AddValue("ECMP", "configuration of ecmp: (0) 5-tuple (1) dst IP", ecmpConfig);
     cmd.Parse(argc, argv);
+
+	// LogComponentEnable("TcpSocketBase", LOG_LEVEL_INFO);
 	
 	std::cout << "Run Telemetry." << std::endl;
 	auto start = std::chrono::system_clock::now();

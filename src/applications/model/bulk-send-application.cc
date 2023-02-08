@@ -295,12 +295,11 @@ BulkSendApplication::SendData(const Address& from, const Address& to)
     // Check if time to close (all sent)
     if (m_totBytes == m_maxBytes && m_connected)
     {
-        m_socket->Close();
-        m_connected = false;
-
         end_time_ns = Simulator::Now().GetNanoSeconds();
         BulkEnd(m_maxBytes, end_time_ns - start_time_ns);
-        StopApplication();
+        
+        m_socket->Close();
+        m_connected = false;
     }
 }
 

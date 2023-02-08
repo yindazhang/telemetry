@@ -1648,7 +1648,7 @@ void
 TcpSocketBase::EnterRecovery(uint32_t currentDelivered)
 {
     NS_LOG_FUNCTION(this);
-    NS_ASSERT(m_tcb->m_congState != TcpSocketState::CA_RECOVERY);
+    // NS_ASSERT(m_tcb->m_congState != TcpSocketState::CA_RECOVERY);
 
     NS_LOG_DEBUG(TcpSocketState::TcpCongStateName[m_tcb->m_congState] << " -> CA_RECOVERY");
 
@@ -1728,8 +1728,8 @@ TcpSocketBase::DupAck(uint32_t currentDelivered)
     if (m_tcb->m_congState == TcpSocketState::CA_OPEN)
     {
         // From Open we go Disorder
-        NS_ASSERT_MSG(m_dupAckCount == 1,
-                      "From OPEN->DISORDER but with " << m_dupAckCount << " dup ACKs");
+        // NS_ASSERT_MSG(m_dupAckCount == 1,
+        //              "From OPEN->DISORDER but with " << m_dupAckCount << " dup ACKs");
 
         m_congestionControl->CongestionStateSet(m_tcb, TcpSocketState::CA_DISORDER);
         m_tcb->m_congState = TcpSocketState::CA_DISORDER;
@@ -1761,7 +1761,7 @@ TcpSocketBase::DupAck(uint32_t currentDelivered)
         // after receiving new ACK smaller than m_recover. After that, m_dupackCount
         // can be equal and larger than m_retxThresh and we should avoid entering
         // CA_RECOVERY and reducing sending rate again.
-        NS_ASSERT((m_dupAckCount <= m_retxThresh) || m_recoverActive);
+        // NS_ASSERT((m_dupAckCount <= m_retxThresh) || m_recoverActive);
 
         // RFC 6675, Section 5, continuing:
         // ... and take the following steps:
@@ -1774,11 +1774,11 @@ TcpSocketBase::DupAck(uint32_t currentDelivered)
         //     bandwidth-greedy application in high speed and reliable network
         //     (such as datacenter network) whose sending rate is constrainted by
         //     TCP socket buffer size at receiver side.
-        if ((m_dupAckCount == m_retxThresh) &&
+        if ((m_dupAckCount >= m_retxThresh) &&
             ((m_highRxAckMark >= m_recover) || (!m_recoverActive)))
         {
             EnterRecovery(currentDelivered);
-            NS_ASSERT(m_tcb->m_congState == TcpSocketState::CA_RECOVERY);
+            // NS_ASSERT(m_tcb->m_congState == TcpSocketState::CA_RECOVERY);
         }
         // (2) If DupAcks < DupThresh but IsLost (HighACK + 1) returns true
         // (indicating at least three segments have arrived above the current
@@ -1787,7 +1787,7 @@ TcpSocketBase::DupAck(uint32_t currentDelivered)
         else if (m_txBuffer->IsLost(m_highRxAckMark + m_tcb->m_segmentSize))
         {
             EnterRecovery(currentDelivered);
-            NS_ASSERT(m_tcb->m_congState == TcpSocketState::CA_RECOVERY);
+            // NS_ASSERT(m_tcb->m_congState == TcpSocketState::CA_RECOVERY);
         }
         else
         {

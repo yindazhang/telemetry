@@ -61,6 +61,7 @@ if __name__=="__main__":
 
 	parse_tr_file(args.file + ".tr")
 
+	'''
 	fct_files = []
 	fct_files.append(args.file + "s.fct")
 	# fct_files.append(args.file + "s_INT4.fct")
@@ -104,3 +105,4 @@ if __name__=="__main__":
 	fig.update_layout(xaxis_title="Size Range", yaxis_title="FCT (ns)", boxmode='group')
 	
 	fig.write_image("images/" + args.file + "_fct.pdf")
+	'''
