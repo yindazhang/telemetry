@@ -65,10 +65,6 @@ void build_leaf_spine_routing(
 
 	for(uint32_t i = 0;i < NUM_SPINE;++i){
 		spines[i]->AddHostRouteCollector(NUM_LEAF);
-		for(uint32_t leafId = 0;leafId < NUM_LEAF;++leafId){
-			spines[i]->AddHostRouteOrbWeaver(leafId + 1);
-		}
-		
 		for(uint32_t k = 0;k < serverAddress.size();++k){
 			uint32_t rack_id = k / SERVER_PER_LEAF;
 			spines[i]->AddHostRouteTo(serverAddress[k], rack_id + 1);
@@ -79,14 +75,10 @@ void build_leaf_spine_routing(
 		if(i != NUM_LEAF - 1){
 			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
 				leaves[i]->AddHostRouteCollector(SERVER_PER_LEAF + spineId + 1);
-				leaves[i]->AddHostRouteOrbWeaver(SERVER_PER_LEAF + spineId + 1);
 			}
 		}
 		else{
 			leaves[i]->AddHostRouteCollector(SERVER_PER_LEAF);
-			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
-				leaves[i]->AddHostRouteOrbWeaver(SERVER_PER_LEAF + spineId + 1);
-			}
 		}
 
 		for(uint32_t k = 0;k < serverAddress.size();++k){
@@ -121,16 +113,19 @@ void build_leaf_spine(
 		leaves[i] = CreateObject<SwitchNode>();
 		leaves[i]->SetOrbWeaver(OrbWeaver);
 		leaves[i]->SetEcmp(ecmpConfig);
-		leaves[i]->SetCollectorGap(12000 / collectorGbps);
+		if(i == NUM_LEAF - 1)
+			leaves[i]->SetCollectorGap(800 / collectorGbps);
+		else
+			leaves[i]->SetCollectorGap(12000 / 40);
 	}
 	for(uint32_t i = 0;i < NUM_SPINE;++i){
 		spines[i] = CreateObject<SwitchNode>();
 		spines[i]->SetOrbWeaver(OrbWeaver);
 		spines[i]->SetEcmp(ecmpConfig);
-		spines[i]->SetCollectorGap(12000 / collectorGbps);
+		spines[i]->SetCollectorGap(12000 / 40);
 	}
-	leaves[NUM_LEAF - 1]->SetFinalHop();
 	collectors[0] = CreateObject<CollectorNode>();
+	collectors[0]->SetOutput(file_name);
 
 	InternetStackHelper internet;
     internet.InstallAll();

@@ -72,7 +72,6 @@ MyQueue::Enqueue(Ptr<Packet> item)
         priority = (priorityTag.GetPriority() & 0x1);
     }
 
-    /*
     if(priority == 0)
         totalUserPacket += 1;
     else
@@ -84,27 +83,30 @@ MyQueue::Enqueue(Ptr<Packet> item)
         if(totalIDLEPacket > 0)
             std::cout << "Drop rate of idle packets: " << dropIDLEPacket << "/" << totalIDLEPacket << std::endl;
     }
-    */
 
-    if(GetNBytes() > m_maxSize){
-        if(priority == 0){
+    if(priority == 0){
+        if(m_queues[0]->GetNBytes() > m_maxSize){
             dropUserPacket += 1;
             return false;
         }
-        else{
+    }
+    else{
+        if(m_queues[1]->GetNBytes() > m_maxSize / 8){
             dropIDLEPacket += 1;
             return false;
         }
     }
 
+    /*
     if(priority == 0 && proto == 0x0021){
-        if(GetNBytes() > m_ecnThreshold){
+        if(m_queues[0]->GetNBytes() > m_ecnThreshold){
             if(ipHeader.GetEcn() == Ipv4Header::ECN_ECT1 || 
                     ipHeader.GetEcn() == Ipv4Header::ECN_ECT0){
                 ipHeader.SetEcn(Ipv4Header::ECN_CE);
             }
         }
     }
+    */
 
     if(proto == 0x0021)
         item->AddHeader(ipHeader);

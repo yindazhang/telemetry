@@ -52,21 +52,13 @@ class SwitchNode : public Node
     void AddHostRouteTo(Ipv4Address dest, uint32_t devId);
 
     void AddHostRouteCollector(uint32_t devId);
-    void AddHostRouteOrbWeaver(uint32_t devId);
 
-    void SetFinalHop();
     void SetEcmp(uint32_t Ecmp);
     void SetOrbWeaver(uint32_t OrbWeaver);
     void SetCollectorGap(uint32_t CollectorGap);
 
-    void CacheInfo(PathHeader pathHeader);
-
-    void OrbWeaverSend();
-    void CollectorSend();
-
-    Ptr<Packet> GeneratePacket();
-    void AddUdpIpHeader(Ptr<Packet> packet);
-    bool AddPathHeader(Ptr<Packet> packet, uint32_t batchSize);
+    bool IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol);
+    bool EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol);
 
   protected:
 
@@ -76,10 +68,8 @@ class SwitchNode : public Node
     int m_collectorGap;
 
     bool m_orbweaver;
-    bool m_finalHop;
-    bool m_removeHeader;
     bool m_localBatch;
-    bool m_randomWalk;
+    bool m_cache;
 
     std::queue<PathHeader> m_queue;
     std::vector<PathHeader> m_array;
@@ -91,8 +81,22 @@ class SwitchNode : public Node
     std::unordered_map<uint32_t, bool> m_mask;
     std::unordered_map<uint32_t, uint32_t> m_mask_counter;
 
-    bool ReceiveFromDeviceUser(Ptr<Packet> packet);
-    bool ReceiveFromDeviceIdle(Ptr<Packet> packet, uint16_t protocol);
+    void CollectorSend();
+    Ptr<Packet> GeneratePacket();
+
+    bool AddPathHeader(Ptr<Packet> packet);
+
+    void CacheInfo(Ptr<Packet> packet);
+    void CacheInfo(PathHeader pathHeader);
+
+    void ClearOrbWeaverMask(uint32_t devId);
+    void SetOrbWeaverMask(Ptr<Packet> packet, uint32_t devId);
+
+    bool IngressPipelineUser(Ptr<Packet> packet);
+    bool IngressPipelineIdle(Ptr<Packet> packet);
+
+    bool EgressPipelineUser(Ptr<Packet> packet);
+    bool EgressPipelineIdle(Ptr<Packet> packet);
 
 };
 

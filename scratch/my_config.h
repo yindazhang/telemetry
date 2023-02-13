@@ -11,4 +11,6 @@ uint16_t intSize = 0;
 uint32_t OrbWeaver = 0;
 uint32_t ecmpConfig = 0;
 
+std::string file_name;
+
 #endif

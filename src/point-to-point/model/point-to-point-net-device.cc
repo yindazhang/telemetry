@@ -19,6 +19,7 @@
 
 #include "point-to-point-channel.h"
 #include "ppp-header.h"
+#include "switch-node.h"
 
 #include "ns3/error-model.h"
 #include "ns3/llc-snap-header.h"
@@ -29,6 +30,7 @@
 #include "ns3/simulator.h"
 #include "ns3/trace-source-accessor.h"
 #include "ns3/uinteger.h"
+#include "ns3/socket.h"
 
 namespace ns3
 {
@@ -244,6 +246,22 @@ PointToPointNetDevice::TransmitStart(Ptr<Packet> p)
 {
     NS_LOG_FUNCTION(this << p);
     NS_LOG_LOGIC("UID is " << p->GetUid() << ")");
+
+
+    // Add
+    Ptr<SwitchNode> node = DynamicCast<SwitchNode>(GetNode());
+    if(node != nullptr){
+        uint32_t priority = 0;
+        SocketPriorityTag priorityTag;
+        if(p->PeekPacketTag(priorityTag))
+            priority = (priorityTag.GetPriority() & 0x1);
+
+        PppHeader ppp;
+        p->RemoveHeader(ppp);
+        if(!node->EgressPipeline(p, priority, PppToEther(ppp.GetProtocol())))
+            return false;
+        p->AddHeader(ppp);
+    }
 
     //
     // This function is called to start the process of transmitting a packet.

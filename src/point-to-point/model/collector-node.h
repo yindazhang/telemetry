@@ -50,10 +50,14 @@ class CollectorNode : public Node
                                 uint16_t protocol,
                                 const Address& from);
 
+    void SetOutput(std::string output);
+
   protected:
 
     std::set<PathHeader> m_paths;
     uint64_t m_duplicates = 0;
+    
+    std::string output_file;
 
 };
 

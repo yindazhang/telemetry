@@ -25,16 +25,22 @@ int main(int argc, char *argv[])
 	cmd.AddValue("OrbWeaver", "Start OrbWeaver", OrbWeaver);
 	cmd.AddValue("ECMP", "configuration of ecmp: (0) 5-tuple (1) dst IP", ecmpConfig);
     cmd.Parse(argc, argv);
-
-	// LogComponentEnable("TcpSocketBase", LOG_LEVEL_INFO);
 	
 	std::cout << "Run Telemetry." << std::endl;
-	auto start = std::chrono::system_clock::now();
+
+	file_name = "scratch/" + flow_file + "s_ECMP" + std::to_string(ecmpConfig);
+	if(intSize > 0)
+		file_name += "_INT" + std::to_string(intSize);
+	else if(OrbWeaver > 0)
+		file_name += "_Orb" + std::to_string(OrbWeaver);
 
 	build_dctcp();
 	build_leaf_spine();
 	start_sink_app();
 	std::cout << "Finish Topology." << std::endl;
+
+	auto start = std::chrono::system_clock::now();
+
 	schedule_flow(flow_file);
 
 	Simulator::Stop(Seconds(start_time + duration + 3));
