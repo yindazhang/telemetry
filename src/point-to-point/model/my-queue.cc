@@ -72,6 +72,7 @@ MyQueue::Enqueue(Ptr<Packet> item)
         priority = (priorityTag.GetPriority() & 0x1);
     }
 
+    /*
     if(priority == 0)
         totalUserPacket += 1;
     else
@@ -83,6 +84,7 @@ MyQueue::Enqueue(Ptr<Packet> item)
         if(totalIDLEPacket > 0)
             std::cout << "Drop rate of idle packets: " << dropIDLEPacket << "/" << totalIDLEPacket << std::endl;
     }
+    */
 
     if(priority == 0){
         if(m_queues[0]->GetNBytes() > m_maxSize){
@@ -91,7 +93,7 @@ MyQueue::Enqueue(Ptr<Packet> item)
         }
     }
     else{
-        if(m_queues[1]->GetNBytes() > m_maxSize / 8){
+        if(m_queues[1]->GetNBytes() > 512){
             dropIDLEPacket += 1;
             return false;
         }

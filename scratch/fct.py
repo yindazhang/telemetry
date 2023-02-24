@@ -61,15 +61,12 @@ if __name__=="__main__":
 
 	parse_tr_file(args.file + ".tr")
 
-	'''
 	fct_files = []
-	fct_files.append(args.file + "s.fct")
+	fct_files.append(args.file + "s_ECMP1.fct")
 	# fct_files.append(args.file + "s_INT4.fct")
-	fct_files.append(args.file + "s_Orb1.fct")
-	fct_files.append(args.file + "s_Orb3.fct")
-	fct_files.append(args.file + "s_Orb7.fct")
+	fct_files.append(args.file + "s_ECMP1_Orb1.fct")
 
-	names = ['Original', 'Orbweaver', 'Remove Header', 'Batching']
+	names = ['Original', 'Ours']
 	xnames = ['<100K','100K~1M','>1M']
 
 	dic = {'id' : [], 'Mean' : [], '95%' : [], '99%' : []}
@@ -105,4 +102,3 @@ if __name__=="__main__":
 	fig.update_layout(xaxis_title="Size Range", yaxis_title="FCT (ns)", boxmode='group')
 	
 	fig.write_image("images/" + args.file + "_fct.pdf")
-	'''

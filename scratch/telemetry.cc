@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
 	cmd.AddValue("flow", "the flow file", flow_file);
 	cmd.AddValue("record", "record fct", record);
 	cmd.AddValue("INT", "the size of INT header", intSize);
-	cmd.AddValue("Collector bandwitdh (Gbps)", "Bandwidth to the collector", collectorGbps);
+	cmd.AddValue("Collector bandwitdh (Mbps)", "Bandwidth to the collector", collectorMbps);
 	cmd.AddValue("OrbWeaver", "Start OrbWeaver", OrbWeaver);
 	cmd.AddValue("ECMP", "configuration of ecmp: (0) 5-tuple (1) dst IP", ecmpConfig);
     cmd.Parse(argc, argv);
@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
 
 	schedule_flow(flow_file);
 
-	Simulator::Stop(Seconds(start_time + duration + 3));
+	Simulator::Stop(Seconds(start_time + duration + 2));
 	Simulator::Run();
 	Simulator::Destroy();
 

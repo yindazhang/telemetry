@@ -64,7 +64,10 @@ void build_leaf_spine_routing(
 	}
 
 	for(uint32_t i = 0;i < NUM_SPINE;++i){
-		spines[i]->AddHostRouteCollector(NUM_LEAF);
+		for(uint32_t k = 1;k < NUM_LEAF;++k)
+			spines[i]->AddHostRoutePolling(k);
+		for(uint32_t k = 1;k <= NUM_LEAF;++k)
+			spines[i]->AddHostRoutePushing(k);
 		for(uint32_t k = 0;k < serverAddress.size();++k){
 			uint32_t rack_id = k / SERVER_PER_LEAF;
 			spines[i]->AddHostRouteTo(serverAddress[k], rack_id + 1);
@@ -73,12 +76,15 @@ void build_leaf_spine_routing(
 
 	for(uint32_t i = 0;i < NUM_LEAF;++i){
 		if(i != NUM_LEAF - 1){
-			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
-				leaves[i]->AddHostRouteCollector(SERVER_PER_LEAF + spineId + 1);
-			}
+			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId)
+				leaves[i]->AddHostRoutePushing(SERVER_PER_LEAF + spineId + 1);
 		}
 		else{
 			leaves[i]->AddHostRouteCollector(SERVER_PER_LEAF);
+			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
+				leaves[i]->AddHostRoutePolling(SERVER_PER_LEAF + spineId + 1);
+				leaves[i]->AddHostRoutePushing(SERVER_PER_LEAF + spineId + 1);
+			}
 		}
 
 		for(uint32_t k = 0;k < serverAddress.size();++k){
@@ -113,8 +119,10 @@ void build_leaf_spine(
 		leaves[i] = CreateObject<SwitchNode>();
 		leaves[i]->SetOrbWeaver(OrbWeaver);
 		leaves[i]->SetEcmp(ecmpConfig);
-		if(i == NUM_LEAF - 1)
-			leaves[i]->SetCollectorGap(800 / collectorGbps);
+		if(i == NUM_LEAF - 1){
+			leaves[i]->SetCollectorGap(800 * 1000 / collectorMbps);
+			leaves[i]->SetFinalSwitch();
+		}
 		else
 			leaves[i]->SetCollectorGap(12000 / 40);
 	}
@@ -132,7 +140,7 @@ void build_leaf_spine(
 
 	// Initilize link
 	PointToPointHelper pp_collector;
-	pp_collector.SetDeviceAttribute("DataRate", StringValue(std::to_string(collectorGbps) + "Gbps"));
+	pp_collector.SetDeviceAttribute("DataRate", StringValue(std::to_string(collectorMbps) + "Mbps"));
 	pp_collector.SetDeviceAttribute("INT", UintegerValue(intSize));
 	pp_collector.SetChannelAttribute("Delay", StringValue("1us"));
 
@@ -172,7 +180,11 @@ void build_leaf_spine(
 	
 	for(uint32_t i = 0;i < NUM_SPINE;++i){
 		for(uint32_t j = 0;j < NUM_LEAF;++j){
-			NetDeviceContainer netDev = pp_leaf_spine.Install(leaves[j], spines[i]);
+			NetDeviceContainer netDev;
+			if((i == NUM_SPINE - 1 && j == NUM_LEAF - 1) || (i == 1 && j == 3))
+			 	netDev = pp_server_leaf.Install(leaves[j], spines[i]);
+			else
+				netDev = pp_leaf_spine.Install(leaves[j], spines[i]);
 
 			std::string ipBase = "100." + std::to_string(i) + "." + std::to_string(j) + ".0";
 			ipv4.SetBase(ipBase.c_str(), "255.255.255.0");

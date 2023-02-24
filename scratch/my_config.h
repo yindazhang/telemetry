@@ -3,7 +3,7 @@
 
 #define DEFAULT_PORT 80
 
-uint32_t collectorGbps = 10;
+uint32_t collectorMbps = 1500;
 double start_time = 2;
 double duration = 0.2;
 int record = 0;

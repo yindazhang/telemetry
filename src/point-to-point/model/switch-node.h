@@ -52,48 +52,55 @@ class SwitchNode : public Node
     void AddHostRouteTo(Ipv4Address dest, uint32_t devId);
 
     void AddHostRouteCollector(uint32_t devId);
+    void AddHostRoutePolling(uint32_t devId);
+    void AddHostRoutePushing(uint32_t devId);
 
     void SetEcmp(uint32_t Ecmp);
     void SetOrbWeaver(uint32_t OrbWeaver);
+    void SetFinalSwitch();
     void SetCollectorGap(uint32_t CollectorGap);
 
-    bool IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol);
+    bool IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
     bool EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol);
 
   protected:
 
+    int64_t m_lastTime = 2200000000;
+
+    const uint32_t batchSize = 4;
     const uint32_t arrSize = 65537;
+    const uint32_t queueSize = 1024;
 
     int m_ecmp;
     int m_collectorGap;
 
-    bool m_orbweaver;
-    bool m_localBatch;
-    bool m_cache;
+    bool m_orbweaver = false;
+    bool m_finalSwitch = false;
 
     std::queue<PathHeader> m_queue;
     std::vector<PathHeader> m_array;
 
     std::unordered_map<uint32_t, std::vector<uint32_t>> m_routeForward;
     std::vector<uint32_t> m_routeCollector;
-    std::vector<uint32_t> m_routeOrbWeaver;
+    std::vector<uint32_t> m_routePolling;
+    std::vector<uint32_t> m_routePushing;
 
-    std::unordered_map<uint32_t, bool> m_mask;
-    std::unordered_map<uint32_t, uint32_t> m_mask_counter;
+    // std::unordered_map<uint32_t, bool> m_mask;
+    // std::unordered_map<uint32_t, uint32_t> m_mask_counter;
 
     void CollectorSend();
-    Ptr<Packet> GeneratePacket();
+    Ptr<Packet> GeneratePacket(uint8_t number);
 
     bool AddPathHeader(Ptr<Packet> packet);
 
     void CacheInfo(Ptr<Packet> packet);
     void CacheInfo(PathHeader pathHeader);
 
-    void ClearOrbWeaverMask(uint32_t devId);
-    void SetOrbWeaverMask(Ptr<Packet> packet, uint32_t devId);
+    // void ClearOrbWeaverMask(uint32_t devId);
+    // void SetOrbWeaverMask(Ptr<Packet> packet, uint32_t devId);
 
     bool IngressPipelineUser(Ptr<Packet> packet);
-    bool IngressPipelineIdle(Ptr<Packet> packet);
+    bool IngressPipelineIdle(Ptr<Packet> packet, Ptr<NetDevice> dev);
 
     bool EgressPipelineUser(Ptr<Packet> packet);
     bool EgressPipelineIdle(Ptr<Packet> packet);

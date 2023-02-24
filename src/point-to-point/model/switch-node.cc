@@ -42,7 +42,7 @@ SwitchNode::GetTypeId()
 }
 
 SwitchNode::SwitchNode() : Node() {
-    m_orbweaver = m_localBatch = false;
+    m_orbweaver = false;
     m_array.resize(arrSize);
     Simulator::Schedule(Seconds(2), &SwitchNode::CollectorSend, this);
 }
@@ -50,13 +50,16 @@ SwitchNode::SwitchNode() : Node() {
 void
 SwitchNode::SetOrbWeaver(uint32_t OrbWeaver){
     m_orbweaver = ((OrbWeaver & 0x1) == 0x1);
-    m_localBatch = ((OrbWeaver & 0x3) == 0x3);
-    m_cache = ((OrbWeaver & 0x5) == 0x5);
 }
 
 void 
 SwitchNode::SetEcmp(uint32_t Ecmp){
     m_ecmp = Ecmp;
+}
+
+void 
+SwitchNode::SetFinalSwitch(){
+    m_finalSwitch = true;
 }
 
 void 
@@ -73,9 +76,25 @@ SwitchNode::AddHostRouteTo(Ipv4Address dest, uint32_t devId)
 void
 SwitchNode::AddHostRouteCollector(uint32_t devId)
 {
-    m_mask[devId] = false; 
-    m_mask_counter[devId] = 0;
+    // m_mask[devId] = false; 
+    // m_mask_counter[devId] = 0;
     m_routeCollector.push_back(devId);
+}
+
+void
+SwitchNode::AddHostRoutePolling(uint32_t devId)
+{
+    // m_mask[devId] = false; 
+    // m_mask_counter[devId] = 0;
+    m_routePolling.push_back(devId);
+}
+
+void
+SwitchNode::AddHostRoutePushing(uint32_t devId)
+{
+    // m_mask[devId] = false; 
+    // m_mask_counter[devId] = 0;
+    m_routePushing.push_back(devId);
 }
 
 uint32_t
@@ -92,6 +111,7 @@ SwitchNode::AddDevice(Ptr<NetDevice> device)
     return index;
 }
 
+/*
 void 
 SwitchNode::ClearOrbWeaverMask(uint32_t devId){
     m_mask[devId] = false;
@@ -106,14 +126,11 @@ SwitchNode::SetOrbWeaverMask(Ptr<Packet> packet, uint32_t devId){
             m_mask[devId] = true;
     }
 }
+*/
 
 bool
 SwitchNode::AddPathHeader(Ptr<Packet> packet)
-{
-    uint32_t batchSize = 1;
-    if(m_localBatch)
-        batchSize = 4;
-    
+{   
     if(m_queue.size() < batchSize)
         return false;
 
@@ -140,11 +157,11 @@ SwitchNode::AddPathHeader(Ptr<Packet> packet)
 }
 
 Ptr<Packet> 
-SwitchNode::GeneratePacket()
+SwitchNode::GeneratePacket(uint8_t number)
 {
     Ptr<Packet> packet = Create<Packet>(0);
     TelemetryHeader teleHeader;
-    teleHeader.SetNumber(0);
+    teleHeader.SetNumber(number);
     teleHeader.SetTtl(255);
     packet->AddHeader(teleHeader);
 
@@ -159,17 +176,27 @@ void
 SwitchNode::CollectorSend(){
     if(m_orbweaver){
         Simulator::Schedule(NanoSeconds(m_collectorGap), &SwitchNode::CollectorSend, this);
+
         for(auto devId : m_routeCollector){
-            if(m_mask.find(devId) == m_mask.end())
-                std::cout << "Cannot find devId " << devId << std::endl;
-            if(!m_mask[devId]){
-                Ptr<Packet> packet = GeneratePacket();
-                if(packet != nullptr){
-                    Ptr<NetDevice> dev = m_devices[devId];
-                    dev->Send(packet, dev->GetBroadcast(), 0x0700);
-                }
+            Ptr<Packet> packet = GeneratePacket(0);
+            if(packet != nullptr){
+                Ptr<NetDevice> dev = m_devices[devId];
+                dev->Send(packet, dev->GetBroadcast(), 0x0700);
             }
-            ClearOrbWeaverMask(devId);
+        }
+        for(auto devId : m_routePolling){
+            Ptr<Packet> packet = GeneratePacket(255);
+            if(packet != nullptr){
+                Ptr<NetDevice> dev = m_devices[devId];
+                dev->Send(packet, dev->GetBroadcast(), 0x0700);
+            }
+        }
+        for(auto devId : m_routePushing){
+            Ptr<Packet> packet = GeneratePacket(254);
+            if(packet != nullptr){
+                Ptr<NetDevice> dev = m_devices[devId];
+                dev->Send(packet, dev->GetBroadcast(), 0x0700);
+            }
         }
     }
 }
@@ -181,14 +208,17 @@ SwitchNode::CacheInfo(Ptr<Packet> packet){
     packet->RemoveHeader(teleHeader);
     // End Parse Header
 
-    uint32_t number = teleHeader.GetNumber();
-    for(uint32_t i = 0;i < number;++i){
+    uint8_t number = teleHeader.GetNumber();
+    if(number == 0 || number > 80)
+        return;
+
+    for(uint8_t i = 0;i < number;++i){
         PathHeader pathHeader;
         packet->RemoveHeader(pathHeader);
 
-        if(m_queue.size() > m_array.size()){
+        if(m_queue.size() > queueSize){
             m_queue.pop();
-            std::cout << "Information Loss" << std::endl;
+            std::cout << "Information Loss for IDLE" << std::endl;
         }
         m_queue.push(pathHeader);
     }
@@ -202,9 +232,9 @@ SwitchNode::CacheInfo(PathHeader pathHeader){
     if(m_array[arrIndex].Empty() || !(m_array[arrIndex] == pathHeader)){
         m_array[arrIndex] = pathHeader;
 
-        if(m_queue.size() > m_array.size()){
+        if(m_queue.size() > queueSize){
             m_queue.pop();
-            std::cout << "Information Loss" << std::endl;
+            std::cout << "Information Loss for User" << std::endl;
         }
         m_queue.push(pathHeader);
     }
@@ -252,7 +282,6 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
 
     uint32_t devId = -1;
 
-
     PathHeader pathHeader;
     memset((char*)(&pathHeader), 0, sizeof(PathHeader));
     pathHeader.SetSrcIP(src);
@@ -267,7 +296,7 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
         hash = Hash32((char*)&dst, sizeof(dst));
 
     devId = vec[hash % vec.size()];
-    SetOrbWeaverMask(packet, devId);
+    // SetOrbWeaverMask(packet, devId);
     Ptr<NetDevice> dev = m_devices[devId];
     return dev->Send(packet, dev->GetBroadcast(), 0x0800);
 }
@@ -316,29 +345,22 @@ SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
 
 
 bool
-SwitchNode::IngressPipelineIdle(Ptr<Packet> packet)
+SwitchNode::IngressPipelineIdle(Ptr<Packet> packet, Ptr<NetDevice> dev)
 {
     TelemetryHeader teleHeader;
     packet->RemoveHeader(teleHeader);
-
+    uint8_t number = teleHeader.GetNumber();
     uint8_t ttl = teleHeader.GetTtl();
     teleHeader.SetTtl(ttl - 1);
     packet->AddHeader(teleHeader);
 
-    if(m_cache){
-        CacheInfo(packet);
-        return false;
-    }
-    else{
-        if(ttl == 0)
-            return false;
-        
-        std::vector<uint32_t> devIds = m_routeCollector;
-        uint32_t devId = devIds[rand() % devIds.size()];
-        SetOrbWeaverMask(packet, devId);
-        Ptr<NetDevice> dev = m_devices[devId];
+    if(number == 0)
         return dev->Send(packet, dev->GetBroadcast(), 0x0700);
-    }
+    else if(number > 0 && number < 80)
+        CacheInfo(packet);
+    else
+        std::cout << "Unknown number in IDLE packets: " << int(number) << std::endl;
+    return false;
 }
 
 bool 
@@ -348,8 +370,43 @@ SwitchNode::EgressPipelineIdle(Ptr<Packet> packet){
     uint8_t number = teleHeader.GetNumber();
     packet->AddHeader(teleHeader);
 
-    if(number == 0)
+    if(number == 0){
         return AddPathHeader(packet);
+    }
+    else if(number == 255){
+        if(m_queue.size() < queueSize * 0.25){
+            packet->RemoveHeader(teleHeader);
+            teleHeader.SetNumber(0);
+            packet->AddHeader(teleHeader);
+            return true;
+        }
+        else
+            return false;
+    }
+    else if(number == 254){
+
+        if(m_queue.size() < batchSize){
+            int64_t nsNow = Simulator::Now().GetNanoSeconds();
+            if(nsNow - m_lastTime > 1000000000){
+                m_orbweaver = false;
+                std::cout << "Node " << m_id << " stops in " << nsNow << " ns" << std::endl;
+            }
+        }
+        else{
+            m_lastTime = Simulator::Now().GetNanoSeconds();
+        }
+
+        if(m_queue.size() > queueSize * 0.75){
+            packet->RemoveHeader(teleHeader);
+            teleHeader.SetNumber(0);
+            packet->AddHeader(teleHeader);
+            return AddPathHeader(packet);
+        }
+        else
+            return false;
+    }
+    else
+        std::cout << "Unknown number in IDLE packets: " << int(number) << std::endl;
     return true;
 }
 
@@ -372,7 +429,7 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
 }
 
 bool
-SwitchNode::IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol){
+SwitchNode::IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev){
     if(priority == 0){
         if(protocol != 0x0800){
             std::cout << "Unknown protocol for User packet" << std::endl;
@@ -385,7 +442,7 @@ SwitchNode::IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t prot
             std::cout << "Unknown protocol for IDLE packet" << std::endl;
             return false;
         }
-        return IngressPipelineIdle(packet);
+        return IngressPipelineIdle(packet, dev);
     }
 }
 
@@ -408,7 +465,7 @@ SwitchNode::ReceiveFromDevice(Ptr<NetDevice> device,
         priority = (priorityTag.GetPriority() & 0x1);
     }
 
-    return IngressPipeline(packet, priority, protocol);
+    return IngressPipeline(packet, priority, protocol, device);
 }
 
 } // namespace ns3
