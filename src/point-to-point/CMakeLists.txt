@@ -25,9 +25,11 @@ build_lib(
     model/ppp-header.cc
     model/path-header.cc
     model/telemetry-header.cc
-    model/switch-node.cc
     model/collector-node.cc
     model/my-queue.cc
+    model/best-switch.cc
+    model/buffer-switch.cc
+    model/base-switch.cc
   HEADER_FILES
     ${mpi_headers}
     helper/point-to-point-helper.h
@@ -36,9 +38,11 @@ build_lib(
     model/ppp-header.h
     model/path-header.h
     model/telemetry-header.h
-    model/switch-node.h
     model/collector-node.h
     model/my-queue.h
+    model/best-switch.h
+    model/buffer-switch.h
+    model/base-switch.h
   LIBRARIES_TO_LINK ${libnetwork}
                     ${mpi_libraries}
   TEST_SOURCES test/point-to-point-test.cc

@@ -1,5 +1,5 @@
-#ifndef SWITCH_NODE_H
-#define SWITCH_NODE_H
+#ifndef BUFFER_SWITCH_H
+#define BUFFER_SWITCH_H
 
 #include "ns3/node.h"
 #include "ns3/ipv4-header.h"
@@ -16,7 +16,7 @@ class Packet;
 class Address;
 class Time;
 
-class SwitchNode : public Node
+class BufferSwitch : public Node
 {
   public:
     /**
@@ -25,7 +25,7 @@ class SwitchNode : public Node
      */
     static TypeId GetTypeId();
 
-    SwitchNode();
+    BufferSwitch();
 
     /**
      * \brief Associate a NetDevice to this node.
@@ -51,17 +51,33 @@ class SwitchNode : public Node
 
     void AddHostRouteTo(Ipv4Address dest, uint32_t devId);
 
-    void AddHostRouteCollector(uint32_t devId);
-    void AddHostRoutePolling(uint32_t devId);
-    void AddHostRoutePushing(uint32_t devId);
+    struct DeviceProperty{
+      bool isCollector;
+      bool isPoll;
+      bool isPush;
+
+      uint32_t devId;
+      uint32_t generateGap;
+
+      int64_t m_lastTime;
+
+      DeviceProperty(){
+        isCollector = isPoll = isPush = false;
+        devId = 0;
+        generateGap = 0x7fffffff;
+        m_lastTime = 0;
+      }
+    }
+
+    void SetDeviceGenerateGap(uint32_t devId, uint32_t generateGap);
+
+    void SetDeviceCollector(uint32_t devId);
 
     void SetEcmp(uint32_t Ecmp);
     void SetOrbWeaver(uint32_t OrbWeaver);
-    void SetFinalSwitch();
-    void SetCollectorGap(uint32_t CollectorGap);
 
     bool IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
-    bool EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol);
+    bool EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
 
   protected:
 
@@ -72,41 +88,29 @@ class SwitchNode : public Node
     const uint32_t queueSize = 1024;
 
     int m_ecmp;
-    int m_collectorGap;
 
     bool m_orbweaver = false;
-    bool m_finalSwitch = false;
-
-    std::queue<PathHeader> m_queue;
-    std::vector<PathHeader> m_array;
 
     std::unordered_map<uint32_t, std::vector<uint32_t>> m_routeForward;
-    std::vector<uint32_t> m_routeCollector;
-    std::vector<uint32_t> m_routePolling;
-    std::vector<uint32_t> m_routePushing;
+    std::unordered_map<Ptr<NetDevice>, DeviceProperty> m_deviceMap;
 
-    // std::unordered_map<uint32_t, bool> m_mask;
-    // std::unordered_map<uint32_t, uint32_t> m_mask_counter;
+    std::queue<PathHeader> m_buffer;
+    std::vector<PathHeader> m_table;
 
-    void CollectorSend();
-    Ptr<Packet> GeneratePacket(uint8_t number);
+    void GeneratePacket();
+    Ptr<Packet> CreatePacket(uint8_t type);
 
     bool AddPathHeader(Ptr<Packet> packet);
-
-    void CacheInfo(Ptr<Packet> packet);
-    void CacheInfo(PathHeader pathHeader);
-
-    // void ClearOrbWeaverMask(uint32_t devId);
-    // void SetOrbWeaverMask(Ptr<Packet> packet, uint32_t devId);
+    void BufferData(Ptr<Packet> packet);
 
     bool IngressPipelineUser(Ptr<Packet> packet);
     bool IngressPipelineIdle(Ptr<Packet> packet, Ptr<NetDevice> dev);
 
     bool EgressPipelineUser(Ptr<Packet> packet);
-    bool EgressPipelineIdle(Ptr<Packet> packet);
+    bool EgressPipelineIdle(Ptr<Packet> packet, Ptr<NetDevice> dev);
 
 };
 
 } // namespace ns3
 
-#endif /* SWITCH_NODE_H */
+#endif /* BUFFER_SWITCH_H */

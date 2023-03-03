@@ -27,13 +27,13 @@ MyQueue::GetTypeId()
             .AddAttribute(
                 "MaxSize",
                 "Maximum bytes in queue",
-                UintegerValue(128 * 1024),
+                UintegerValue(256 * 1024),
                 MakeUintegerAccessor(&MyQueue::m_maxSize),
                 MakeUintegerChecker<uint32_t>())
             .AddAttribute(
                 "ECNThreshold",
                 "Threshold for ECN",
-                UintegerValue(45000),
+                UintegerValue(64 * 1024),
                 MakeUintegerAccessor(&MyQueue::m_ecnThreshold),
                 MakeUintegerChecker<uint32_t>());
     return tid;
@@ -93,7 +93,7 @@ MyQueue::Enqueue(Ptr<Packet> item)
         }
     }
     else{
-        if(m_queues[1]->GetNBytes() > 512){
+        if(m_queues[1]->GetNBytes() > 16 * 1024){
             dropIDLEPacket += 1;
             return false;
         }
