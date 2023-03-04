@@ -3,8 +3,6 @@ import argparse
 import pandas as pd
 import numpy as np
 
-import plotly.graph_objects as go
-
 dic = {0 : 0, 1 : 0}
 
 def parse_tr_file(tr_file):
@@ -75,4 +73,4 @@ if __name__=="__main__":
     args = parser.parse_args()
     
     parse_tr_file(args.file + ".tr")
-    parse_path_file(args.file + "s_ECMP1_Orb7.path")
+    parse_path_file(args.file + "s_ECMP1_Orb1.path")

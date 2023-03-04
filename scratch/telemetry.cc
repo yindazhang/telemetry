@@ -24,6 +24,7 @@ int main(int argc, char *argv[])
 	cmd.AddValue("Collector bandwitdh (Mbps)", "Bandwidth to the collector", collectorMbps);
 	cmd.AddValue("OrbWeaver", "Start OrbWeaver", OrbWeaver);
 	cmd.AddValue("ECMP", "configuration of ecmp: (0) 5-tuple (1) dst IP", ecmpConfig);
+	cmd.AddValue("Failure", "Link failure", failConfig);
     cmd.Parse(argc, argv);
 	
 	std::cout << "Run Telemetry." << std::endl;

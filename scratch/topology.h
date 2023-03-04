@@ -64,10 +64,6 @@ void build_leaf_spine_routing(
 	}
 
 	for(uint32_t i = 0;i < NUM_SPINE;++i){
-		for(uint32_t k = 1;k < NUM_LEAF;++k)
-			spines[i]->AddHostRoutePolling(k);
-		for(uint32_t k = 1;k <= NUM_LEAF;++k)
-			spines[i]->AddHostRoutePushing(k);
 		for(uint32_t k = 0;k < serverAddress.size();++k){
 			uint32_t rack_id = k / SERVER_PER_LEAF;
 			spines[i]->AddHostRouteTo(serverAddress[k], rack_id + 1);
@@ -75,18 +71,6 @@ void build_leaf_spine_routing(
 	}
 
 	for(uint32_t i = 0;i < NUM_LEAF;++i){
-		if(i != NUM_LEAF - 1){
-			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId)
-				leaves[i]->AddHostRoutePushing(SERVER_PER_LEAF + spineId + 1);
-		}
-		else{
-			leaves[i]->AddHostRouteCollector(SERVER_PER_LEAF);
-			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
-				leaves[i]->AddHostRoutePolling(SERVER_PER_LEAF + spineId + 1);
-				leaves[i]->AddHostRoutePushing(SERVER_PER_LEAF + spineId + 1);
-			}
-		}
-
 		for(uint32_t k = 0;k < serverAddress.size();++k){
 			uint32_t rack_id = k / SERVER_PER_LEAF;
 			if(rack_id != i){
@@ -97,6 +81,48 @@ void build_leaf_spine_routing(
 			else{
 				leaves[i]->AddHostRouteTo(serverAddress[k], k % SERVER_PER_LEAF + 1);
 			}
+		}
+	}
+
+	if((OrbWeaver & 0x9) == 0x9 || (OrbWeaver & 0x5) == 0x5){
+		for(uint32_t i = 0;i < NUM_SPINE;++i){
+			spines[i]->SetDeviceGenerateGap(NUM_LEAF, 12000 / 40);
+			spines[i]->SetDeviceCollector(NUM_LEAF);
+		}
+		for(uint32_t i = 0;i < NUM_LEAF - 1;++i){
+			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
+				leaves[i]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 12000 / 40);
+				leaves[i]->SetDeviceCollector(SERVER_PER_LEAF + spineId + 1);
+			}
+		}
+		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 800 * 1000 / collectorMbps);
+		leaves[NUM_LEAF - 1]->SetDeviceCollector(SERVER_PER_LEAF);
+	}
+	else if((OrbWeaver & 0x1) == 0x1){
+		for(uint32_t i = 0;i < NUM_SPINE;++i){
+			for(uint32_t k = 1;k < NUM_LEAF;++k){
+				spines[i]->SetDeviceGenerateGap(k, 12000 / 40);
+				spines[i]->SetDevicePulling(k);
+				if((OrbWeaver & 0x3) == 0x3)
+					spines[i]->SetDevicePushing(k);
+			}
+			if((OrbWeaver & 0x3) == 0x3){
+				spines[i]->SetDeviceGenerateGap(NUM_LEAF, 12000 / 40);
+				spines[i]->SetDevicePushing(NUM_LEAF);
+			}
+		}
+		for(uint32_t i = 0;i < NUM_LEAF - 1;++i){
+			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
+				leaves[i]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 12000 / 40);
+				leaves[i]->SetDevicePushing(SERVER_PER_LEAF + spineId + 1);
+			}
+		}
+		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 800 * 1000 / collectorMbps);
+		leaves[NUM_LEAF - 1]->SetDeviceCollector(SERVER_PER_LEAF);
+		for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
+			leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 12000 / 40);
+			leaves[NUM_LEAF - 1]->SetDevicePushing(SERVER_PER_LEAF + spineId + 1);
+			leaves[NUM_LEAF - 1]->SetDevicePulling(SERVER_PER_LEAF + spineId + 1);
 		}
 	}
 }
@@ -119,18 +145,11 @@ void build_leaf_spine(
 		leaves[i] = CreateObject<SwitchNode>();
 		leaves[i]->SetOrbWeaver(OrbWeaver);
 		leaves[i]->SetEcmp(ecmpConfig);
-		if(i == NUM_LEAF - 1){
-			leaves[i]->SetCollectorGap(800 * 1000 / collectorMbps);
-			leaves[i]->SetFinalSwitch();
-		}
-		else
-			leaves[i]->SetCollectorGap(12000 / 40);
 	}
 	for(uint32_t i = 0;i < NUM_SPINE;++i){
 		spines[i] = CreateObject<SwitchNode>();
 		spines[i]->SetOrbWeaver(OrbWeaver);
 		spines[i]->SetEcmp(ecmpConfig);
-		spines[i]->SetCollectorGap(12000 / 40);
 	}
 	collectors[0] = CreateObject<CollectorNode>();
 	collectors[0]->SetOutput(file_name);
@@ -181,7 +200,8 @@ void build_leaf_spine(
 	for(uint32_t i = 0;i < NUM_SPINE;++i){
 		for(uint32_t j = 0;j < NUM_LEAF;++j){
 			NetDeviceContainer netDev;
-			if((i == NUM_SPINE - 1 && j == NUM_LEAF - 1) || (i == 1 && j == 3))
+
+			if(failConfig && ((i == NUM_SPINE - 1 && j == NUM_LEAF - 1) || (i == 1 && j == 3)))
 			 	netDev = pp_server_leaf.Install(leaves[j], spines[i]);
 			else
 				netDev = pp_leaf_spine.Install(leaves[j], spines[i]);
