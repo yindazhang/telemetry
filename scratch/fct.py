@@ -3,7 +3,7 @@ import argparse
 import pandas as pd
 import numpy as np
 
-import plotly.graph_objects as go
+#import plotly.graph_objects as go
 
 def parse_tr_file(tr_file):
 	total = 0
@@ -62,20 +62,20 @@ if __name__=="__main__":
 	parse_tr_file(args.file + ".tr")
 
 	fct_files = []
-	fct_files.append(args.file + "s_ECMP1.fct")
-	# fct_files.append(args.file + "s_INT4.fct")
 	fct_files.append(args.file + "s_ECMP1_Orb1.fct")
+	# fct_files.append(args.file + "s_INT4.fct")
+	fct_files.append(args.file + "s_ECMP1_Orb3.fct")
 
 	names = ['Original', 'Ours']
 	xnames = ['<100K','100K~1M','>1M']
 
 	dic = {'id' : [], 'Mean' : [], '95%' : [], '99%' : []}
 
-	fig = go.Figure()
+	# fig = go.Figure()
 
 	for index in range(len(fct_files)):
 		y = read_fct_file(fct_files[index])
-		fig.add_trace(go.Box(y=y, x=xnames, name=names[index]))
+		# fig.add_trace(go.Box(y=y, x=xnames, name=names[index]))
 
 		q1 = [y[0][int(len(y[0])*0.05)], y[1][int(len(y[1])*0.05)], y[2][int(len(y[2])*0.05)]]
 		median = [y[0][int(len(y[0])*0.5)], y[1][int(len(y[1])*0.5)], y[2][int(len(y[2])*0.5)]]
@@ -84,8 +84,8 @@ if __name__=="__main__":
 		upperfence = [y[0][int(len(y[0])*0.99)], y[1][int(len(y[1])*0.99)], y[2][int(len(y[2])*0.99)]]
 		mean = [sum(y[0])/len(y[0]), sum(y[1])/len(y[1]), sum(y[2])/len(y[2])]
 
-		fig.update_traces(q1=q1, median=median, q3=q3, lowerfence=lowerfence,
-                  upperfence=upperfence, mean=mean)
+		# fig.update_traces(q1=q1, median=median, q3=q3, lowerfence=lowerfence,
+        #          upperfence=upperfence, mean=mean)
 
 		for j in range(len(xnames)):
 			dic['id'].append(names[index] + "_" + xnames[j])
@@ -98,7 +98,7 @@ if __name__=="__main__":
 
 	print("Finish CSV")
 
-	fig.update_yaxes(type='log', range=[3.5,8])
-	fig.update_layout(xaxis_title="Size Range", yaxis_title="FCT (ns)", boxmode='group')
+	# fig.update_yaxes(type='log', range=[3.5,8])
+	# fig.update_layout(xaxis_title="Size Range", yaxis_title="FCT (ns)", boxmode='group')
 	
-	fig.write_image("images/" + args.file + "_fct.pdf")
+	# fig.write_image("images/" + args.file + "_fct.pdf")

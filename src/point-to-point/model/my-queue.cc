@@ -93,13 +93,12 @@ MyQueue::Enqueue(Ptr<Packet> item)
         }
     }
     else{
-        if(m_queues[1]->GetNBytes() > 16 * 1024){
+        if(m_queues[1]->GetNBytes() > 512){
             dropIDLEPacket += 1;
             return false;
         }
     }
 
-    /*
     if(priority == 0 && proto == 0x0021){
         if(m_queues[0]->GetNBytes() > m_ecnThreshold){
             if(ipHeader.GetEcn() == Ipv4Header::ECN_ECT1 || 
@@ -108,7 +107,6 @@ MyQueue::Enqueue(Ptr<Packet> item)
             }
         }
     }
-    */
 
     if(proto == 0x0021)
         item->AddHeader(ipHeader);

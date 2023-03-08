@@ -258,7 +258,7 @@ PointToPointNetDevice::TransmitStart(Ptr<Packet> p)
 
         PppHeader ppp;
         p->RemoveHeader(ppp);
-        if(!node->EgressPipeline(p, priority, PppToEther(ppp.GetProtocol())))
+        if(!node->EgressPipeline(p, priority, PppToEther(ppp.GetProtocol()), this))
             return false;
         p->AddHeader(ppp);
     }
