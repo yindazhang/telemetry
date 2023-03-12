@@ -258,8 +258,14 @@ PointToPointNetDevice::TransmitStart(Ptr<Packet> p)
 
         PppHeader ppp;
         p->RemoveHeader(ppp);
-        if(!node->EgressPipeline(p, priority, PppToEther(ppp.GetProtocol()), this))
+        uint16_t protocol = ppp.GetProtocol();
+        protocol = node->EgressPipeline(p, priority, protocol, this);
+
+        if(protocol == 0)
             return false;
+        else if(protocol > 0x100 && protocol < 0x200)
+            ppp.SetProtocol(protocol);
+
         p->AddHeader(ppp);
     }
 
@@ -680,10 +686,14 @@ PointToPointNetDevice::PppToEther(uint16_t proto)
     {
     case 0x0021:
         return 0x0800; // IPv4
-    case 0x1111:
-        return 0x0700; // For collector
     case 0x0057:
         return 0x86DD; // IPv6
+    case 0x0170:
+        return 0x0170; // SEED
+    case 0x0171:
+        return 0x0171; // PUSH
+    case 0x0172:
+        return 0x0172; // PULL
     default:
         NS_ASSERT_MSG(false, "PPP Protocol number not defined!");
     }
@@ -698,10 +708,14 @@ PointToPointNetDevice::EtherToPpp(uint16_t proto)
     {
     case 0x0800:
         return 0x0021; // IPv4
-    case 0x0700:
-        return 0x1111; // For collector
     case 0x86DD:
         return 0x0057; // IPv6
+    case 0x0170:
+        return 0x0170; // SEED
+    case 0x0171:
+        return 0x0171; // PUSH
+    case 0x0172:
+        return 0x0172; // PULL
     default:
         NS_ASSERT_MSG(false, "PPP Protocol number not defined!");
     }

@@ -19,7 +19,6 @@
 #include "ns3/udp-l4-protocol.h"
 #include "ns3/socket.h"
 
-#include "telemetry-header.h"
 #include "path-header.h"
 
 namespace ns3
@@ -119,29 +118,15 @@ SwitchNode::AddDevice(Ptr<NetDevice> device)
 
 bool
 SwitchNode::AddPathHeader(Ptr<Packet> packet)
-{   
+{ 
     if(m_buffer.size() < batchSize)
         return false;
 
-    // Start Parse Header
-    TelemetryHeader teleHeader;
-    packet->RemoveHeader(teleHeader);
-    // End Parse Header
-
-    uint8_t number = teleHeader.GetNumber();
-    if(number < 75){
-        for(uint32_t i = 0;i < batchSize;++i){
-            PathHeader pathHeader = m_buffer.front();
-            m_buffer.pop();
-            packet->AddHeader(pathHeader);
-        }
-        teleHeader.SetNumber(batchSize);
+    for(uint32_t i = 0;i < batchSize;++i){
+        PathHeader pathHeader = m_buffer.front();
+        m_buffer.pop();
+        packet->AddHeader(pathHeader);
     }
-
-    // Start Deparse Header
-    packet->AddHeader(teleHeader);
-    // End Deparse Header
-
     return true;
 }
 
@@ -149,14 +134,9 @@ Ptr<Packet>
 SwitchNode::CreatePacket(uint8_t type)
 {
     Ptr<Packet> packet = Create<Packet>(0);
-    TelemetryHeader teleHeader;
-    teleHeader.SetNumber(type);
-    packet->AddHeader(teleHeader);
-
     SocketPriorityTag priorityTag;
     priorityTag.SetPriority(1);
     packet->ReplacePacketTag(priorityTag);
-
     return packet;
 }
 
@@ -171,7 +151,7 @@ SwitchNode::GeneratePacket(){
                 it->second.m_lastTime = nsNow;
                 Ptr<Packet> packet = CreatePacket(0);
                 if(packet != nullptr)
-                    (it->first)->Send(packet, (it->first)->GetBroadcast(), 0x0700);
+                    (it->first)->Send(packet, (it->first)->GetBroadcast(), 0x0170);
             }
             nextTime = std::min(nextTime, it->second.m_lastTime + it->second.generateGap);
         }
@@ -186,16 +166,7 @@ SwitchNode::BufferData(Ptr<Packet> packet){
         return;
     }
 
-    // Start Parse Header
-    TelemetryHeader teleHeader;
-    packet->RemoveHeader(teleHeader);
-    // End Parse Header
-
-    uint8_t number = teleHeader.GetNumber();
-    if(number == 0 || number > 80)
-        return;
-
-    for(uint8_t i = 0;i < number;++i){
+    for(uint8_t i = 0;i < batchSize;++i){
         PathHeader pathHeader;
         packet->RemoveHeader(pathHeader);
 
@@ -270,7 +241,7 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
 bool 
 SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
     if(!m_orbweaver)
-        return true;
+        return 1;
     
     // Start Parse Header
     Ipv4Header ipHeader;
@@ -315,84 +286,67 @@ SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
         m_buffer.push(pathHeader);
     }
 
-    return true;
-}
-
-bool
-SwitchNode::IngressPipelineIdleBasic(Ptr<Packet> packet, Ptr<NetDevice> dev)
-{
-    uint32_t devId = m_collectorDev[rand() % m_collectorDev.size()];
-    dev = m_devices[devId];
-    return dev->Send(packet, dev->GetBroadcast(), 0x0700);
-}
-
-bool
-SwitchNode::IngressPipelineIdleBest(Ptr<Packet> packet, Ptr<NetDevice> dev)
-{
-    TelemetryHeader teleHeader;
-    packet->RemoveHeader(teleHeader);
-
-    uint8_t number = teleHeader.GetNumber();
-    packet->AddHeader(teleHeader);
-
-    if(number == 255)
-        return dev->Send(packet, dev->GetBroadcast(), 0x0700);
-    else if(number > 0 && number < 80)
-        BufferData(packet);
-    else
-        std::cout << "Unknown number in IDLE packets: " << int(number) << std::endl;
-
-    return false;
+    return 1;
 }
 
 bool 
-SwitchNode::EgressPipelineIdleBasic(Ptr<Packet> packet, Ptr<NetDevice> dev){
-    TelemetryHeader teleHeader;
-    packet->RemoveHeader(teleHeader);
-    uint8_t type = teleHeader.GetNumber();
-    packet->AddHeader(teleHeader);
+SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
+    if(m_basic){
+        uint32_t devId = m_collectorDev[rand() % m_collectorDev.size()];
+        dev = m_devices[devId];
+        return dev->Send(packet, dev->GetBroadcast(), 0x0171);
+    }
+    else{
+        BufferData(packet);
+        return false;
+    }
+}
 
-    if(type == 0){
+bool 
+SwitchNode::IngressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
+    if(m_buf || m_basic){
+        std::cout << "Unknown config (pull in buf/basic)" << std::endl;
+        return false;
+    }
+    return dev->Send(packet, dev->GetBroadcast(), 0x0172);
+}
+
+uint16_t 
+SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
+    if(m_basic || m_buf){
         if(AddPathHeader(packet)){
             m_lastTime = Simulator::Now().GetNanoSeconds();
-            return true;
+            return 0x0171;
         }
         else{
             int64_t nsNow = Simulator::Now().GetNanoSeconds();
-            if(nsNow - m_lastTime > 1000000000){
+            if(nsNow - m_lastTime > 2000000000){
                 m_orbweaver = false;
                 std::cout << "Switch " << m_id << " stops in " << nsNow << " ns" << std::endl;
             }
-            return false;
+            return 0;
         }
     }
-    else if(type < 0 || type > 80){
-        std::cout << "Unknown number in IDLE packets: " << int(type) << std::endl;
-        return false;
-    }
-
-    return true;
-}
-
-bool 
-SwitchNode::EgressPipelineIdleBest(Ptr<Packet> packet, Ptr<NetDevice> dev){
-    TelemetryHeader teleHeader;
-    packet->RemoveHeader(teleHeader);
-    uint8_t type = teleHeader.GetNumber();
-    packet->AddHeader(teleHeader);
-
-    if(type == 0){
+    else{
         DeviceProperty property = m_deviceMap[dev];
 
-        if(property.isCollector)
-            return AddPathHeader(packet);
+        if(property.isCollector){
+            if(AddPathHeader(packet))
+                return 0x0171;
+            else
+                return 0;
+        }
         
-        if(property.isPush && m_buffer.size() > queueSize * 0.75)
-            return AddPathHeader(packet);
+        if(property.isPush && m_buffer.size() > queueSize * 0.75){
+            if(AddPathHeader(packet))
+                return 0x0171;
+            else
+                return 0;
+        }
         else{
             if(m_buffer.size() < batchSize){
                 int64_t nsNow = Simulator::Now().GetNanoSeconds();
-                if(nsNow - m_lastTime > 1000000000){
+                if(nsNow - m_lastTime > 2000000000){
                     m_orbweaver = false;
                     std::cout << "Switch " << m_id << " stops in " << nsNow << " ns" << std::endl;
                 }
@@ -402,67 +356,64 @@ SwitchNode::EgressPipelineIdleBest(Ptr<Packet> packet, Ptr<NetDevice> dev){
             }
         }
         
-        if(property.isPull && m_buffer.size() < queueSize * 0.25){
-            packet->RemoveHeader(teleHeader);
-            teleHeader.SetNumber(255);
-            packet->AddHeader(teleHeader);
-            return true;
-        }
+        if(property.isPull && m_buffer.size() < queueSize * 0.25)
+            return 0x172;
 
+        return 0;
     }
-    else if(type == 255){
-        packet->RemoveHeader(teleHeader);
-        teleHeader.SetNumber(0);
-        packet->AddHeader(teleHeader);
-        return AddPathHeader(packet);
-    }
-    else if(type > 0 && type < 80)
-        BufferData(packet);
-    else
-        std::cout << "Unknown number in IDLE packets: " << int(type) << std::endl;
-
-    return false;
 }
 
-bool
+uint16_t
+SwitchNode::EgressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
+    if(m_basic)
+        return 1;
+    else{
+        std::cout << "Push in egress" << std::endl;
+        return 0;
+    }
+}
+
+uint16_t
+SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
+    if(AddPathHeader(packet))
+        return 0x171;
+    else
+        return 0;
+}
+
+uint16_t
 SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev){
     if(priority == 0){
-        if(protocol != 0x0800){
-            std::cout << "Egress: Unknown protocol for User packet" << std::endl;
-            return false;
-        }
         return EgressPipelineUser(packet);
     }
     else{
-        if(protocol != 0x0700){
-            std::cout << "Egress: Unknown protocol for IDLE packet" << std::endl;
-            return false;
+        if(protocol == 0x0170)
+            return EgressPipelineSeed(packet, dev);
+        else if(protocol == 0x0171)
+            return EgressPipelinePush(packet, dev);
+        else if(protocol == 0x0172)
+            return EgressPipelinePull(packet, dev);
+        else{
+            std::cout << "Unknown Protocol for EgressPipeline" << std::endl;
+            return 0;
         }
-        if(m_buf || m_basic)
-            return EgressPipelineIdleBasic(packet, dev);
-        else
-            return EgressPipelineIdleBest(packet, dev);
     }
 }
 
 bool
 SwitchNode::IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev){
     if(priority == 0){
-        if(protocol != 0x0800){
-            std::cout << "Ingress: Unknown protocol for User packet" << std::endl;
-            return false;
-        }
         return IngressPipelineUser(packet);
     }
     else{
-        if(protocol != 0x0700){
-            std::cout << "Ingress: Unknown protocol for IDLE packet" << std::endl;
+        if(protocol == 0x0171)
+            return IngressPipelinePush(packet, dev);
+        else if(protocol == 0x0172)
+            return IngressPipelinePull(packet, dev);
+        else{
+            std::cout << "Unknown Protocol for IngressPipeline" << std::endl;
             return false;
         }
-        if(m_basic)
-            return IngressPipelineIdleBasic(packet, dev);
-        else
-            return IngressPipelineIdleBest(packet, dev);
     }
 }
 
@@ -472,18 +423,12 @@ SwitchNode::ReceiveFromDevice(Ptr<NetDevice> device,
                                   uint16_t protocol,
                                   const Address& from)
 {
-    if(protocol != 0x0700 && protocol != 0x0800){
-        std::cout << "Unknown protocol" << std::endl;
-        return false;
-    }
-
     Ptr<Packet> packet = p->Copy();
 
     uint32_t priority = 0;
     SocketPriorityTag priorityTag;
-    if(packet->PeekPacketTag(priorityTag)){
+    if(packet->PeekPacketTag(priorityTag))
         priority = (priorityTag.GetPriority() & 0x1);
-    }
 
     return IngressPipeline(packet, priority, protocol, device);
 }

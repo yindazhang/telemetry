@@ -19,7 +19,6 @@
 #include "ns3/udp-l4-protocol.h"
 #include "ns3/socket.h"
 
-#include "telemetry-header.h"
 #include "path-header.h"
 
 namespace ns3
@@ -85,35 +84,22 @@ CollectorNode::ReceiveFromDevice(Ptr<NetDevice> device,
                                   uint16_t protocol,
                                   const Address& from)
 {
-    if(protocol != 0x0700 && protocol != 0x0800){
-        std::cout << "Unknown protocol in ReceiveFromDevice" << std::endl;
+    if(protocol != 0x0171){
+        std::cout << "Unknown prorocol for colllector" << std::endl;
         return false;
     }
-    
+
     Ptr<Packet> packet = p->Copy();
 
-    if(protocol == 0x0800){
-        Ipv4Header ipHeader;
-        packet->RemoveHeader(ipHeader);
-        uint8_t proto = ipHeader.GetProtocol();
+    PathHeader pathHeader;
+    packet->RemoveHeader(pathHeader);
 
-        if(proto != 17){
-            std::cout << "Not UDP protocol for collector" << std::endl;
-            return false;
+    if(m_paths.find(pathHeader) == m_paths.end()){
+        m_paths.insert(pathHeader);
+        if(m_paths.size() % 10000 == 9999){
+            std::cout << "Receive entries: " << m_paths.size() << std::endl;
+            std::cout << "Number of duplicates: " << m_duplicates << std::endl;
         }
-
-        UdpHeader udpHeader;
-        packet->RemoveHeader(udpHeader);
-    }
-
-    TelemetryHeader teleHeader;
-    packet->RemoveHeader(teleHeader);
-
-    uint32_t number = teleHeader.GetNumber();
-    for(uint32_t i = 0;i < number;++i){
-        PathHeader pathHeader;
-        packet->RemoveHeader(pathHeader);
-
         /*
         std::cout << "PathHeader: " << pathHeader.GetSrcIP() << " "
             << pathHeader.GetDstIP() << " "
@@ -123,18 +109,9 @@ CollectorNode::ReceiveFromDevice(Ptr<NetDevice> device,
             << int(pathHeader.GetTTL()) << " "
             << std::endl;
         */
-        if(m_paths.find(pathHeader) == m_paths.end()){
-            m_paths.insert(pathHeader);
-        }
-        else{
-            m_duplicates += 1;
-        }
-        
-        if(m_paths.size() % 10000 == 9999){
-            std::cout << "Receive entries: " << m_paths.size() << std::endl;
-            std::cout << "Number of duplicates: " << m_duplicates << std::endl;
-        }
     }
+    else
+        m_duplicates += 1;
 
     return true;
 }

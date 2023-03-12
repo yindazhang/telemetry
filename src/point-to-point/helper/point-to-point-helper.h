@@ -68,6 +68,8 @@ class PointToPointHelper : public PcapHelperForDevice, public AsciiTraceHelperFo
     template <typename... Ts>
     void SetQueue(std::string type, Ts&&... args);
 
+    void SetQueueAttribute(std::string name, const AttributeValue& value);
+    
     /**
      * Set an attribute value to be propagated to each NetDevice created by the
      * helper.

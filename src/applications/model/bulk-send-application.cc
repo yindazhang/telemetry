@@ -146,50 +146,58 @@ BulkSendApplication::StartApplication() // Called at time specified by Start
     if (!m_socket)
     {
         m_socket = Socket::CreateSocket(GetNode(), m_tid);
-        int ret = -1;
-
-        // Fatal error if socket type is not NS3_SOCK_STREAM or NS3_SOCK_SEQPACKET
-        if (m_socket->GetSocketType() != Socket::NS3_SOCK_STREAM &&
-            m_socket->GetSocketType() != Socket::NS3_SOCK_SEQPACKET)
-        {
-            NS_FATAL_ERROR("Using BulkSend with an incompatible socket type. "
-                           "BulkSend requires SOCK_STREAM or SOCK_SEQPACKET. "
-                           "In other words, use TCP instead of UDP.");
-        }
-
-        if (!m_local.IsInvalid())
-        {
-            NS_ABORT_MSG_IF((Inet6SocketAddress::IsMatchingType(m_peer) &&
-                             InetSocketAddress::IsMatchingType(m_local)) ||
-                                (InetSocketAddress::IsMatchingType(m_peer) &&
-                                 Inet6SocketAddress::IsMatchingType(m_local)),
-                            "Incompatible peer and local address IP version");
-            ret = m_socket->Bind(m_local);
-        }
-        else
-        {
-            if (Inet6SocketAddress::IsMatchingType(m_peer))
-            {
-                ret = m_socket->Bind6();
-            }
-            else if (InetSocketAddress::IsMatchingType(m_peer))
-            {
-                ret = m_socket->Bind();
-            }
-        }
-
-        if (ret == -1)
-        {
+        if (m_socket->Bind(m_local) == -1)
             NS_FATAL_ERROR("Failed to bind socket");
-        }
 
         m_socket->Connect(m_peer);
         m_socket->ShutdownRecv();
         m_socket->SetConnectCallback(MakeCallback(&BulkSendApplication::ConnectionSucceeded, this),
                                      MakeCallback(&BulkSendApplication::ConnectionFailed, this));
+        m_socket->SetCloseCallbacks(MakeCallback(&BulkSendApplication::CloseSucceeded, this),
+                                     MakeCallback(&BulkSendApplication::CloseFailed, this));
         start_time_ns = Simulator::Now().GetNanoSeconds();
         m_socket->SetSendCallback(MakeCallback(&BulkSendApplication::DataSend, this));
     }
+    if (m_connected)
+    {
+        m_socket->GetSockName(from);
+        SendData(from, m_peer);
+    }
+}
+
+void 
+BulkSendApplication::CloseSucceeded(Ptr<Socket> socket){
+    if (m_totBytes < m_maxBytes)
+        std::cout << "Error in CloseSucceeded" << std::endl;
+}
+
+void 
+BulkSendApplication::CloseFailed(Ptr<Socket> socket){
+    if (m_totBytes == m_maxBytes){
+        std::cout << "Receive all data in CloseFailed" << std::endl;
+        return;
+    }
+    else{
+        std::cout << "Resend all data in CloseFailed" << std::endl;
+    }
+
+    m_connected = true;
+    m_totBytes = 0;
+    m_unsentPacket = nullptr;
+
+    m_socket = Socket::CreateSocket(GetNode(), m_tid);
+    if(m_socket->Bind(m_local) == -1)
+        NS_FATAL_ERROR("Failed to bind socket in Resend");
+
+    m_socket->Connect(m_peer);
+    m_socket->ShutdownRecv();
+    m_socket->SetConnectCallback(MakeCallback(&BulkSendApplication::ConnectionSucceeded, this),
+                                     MakeCallback(&BulkSendApplication::ConnectionFailed, this));
+    m_socket->SetCloseCallbacks(MakeCallback(&BulkSendApplication::CloseSucceeded, this),
+                                     MakeCallback(&BulkSendApplication::CloseFailed, this));
+    m_socket->SetSendCallback(MakeCallback(&BulkSendApplication::DataSend, this));
+
+    Address from;
     if (m_connected)
     {
         m_socket->GetSockName(from);
@@ -293,7 +301,7 @@ BulkSendApplication::SendData(const Address& from, const Address& to)
         }
     }
     // Check if time to close (all sent)
-    if (m_totBytes == m_maxBytes && m_connected)
+    if (m_totBytes == m_maxBytes)
     {
         end_time_ns = Simulator::Now().GetNanoSeconds();
         BulkEnd(m_maxBytes, end_time_ns - start_time_ns);
@@ -321,6 +329,8 @@ BulkSendApplication::ConnectionFailed(Ptr<Socket> socket)
 {
     NS_LOG_FUNCTION(this << socket);
     NS_LOG_LOGIC("BulkSendApplication, Connection Failed");
+    std::cout << "BulkSendApplication, Connection Failed" << std::endl;
+    CloseFailed(nullptr);
 }
 
 void

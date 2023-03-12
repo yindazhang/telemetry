@@ -73,4 +73,4 @@ if __name__=="__main__":
     args = parser.parse_args()
     
     parse_tr_file(args.file + ".tr")
-    parse_path_file(args.file + "s_ECMP1_Orb1.path")
+    parse_path_file(args.file + "s_ECMP1_Orb9.path")

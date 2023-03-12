@@ -79,13 +79,13 @@ class SwitchNode : public Node
     void SetOrbWeaver(uint32_t OrbWeaver);
 
     bool IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
-    bool EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
+    uint16_t EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
 
   protected:
 
     int64_t m_lastTime = 2200000000;
 
-    const uint32_t batchSize = 4;
+    const uint32_t batchSize = 1;
     const uint32_t arrSize = 65537;
     const uint32_t queueSize = 1024;
 
@@ -113,11 +113,12 @@ class SwitchNode : public Node
     bool IngressPipelineUser(Ptr<Packet> packet);
     bool EgressPipelineUser(Ptr<Packet> packet);
 
-    bool IngressPipelineIdleBasic(Ptr<Packet> packet, Ptr<NetDevice> dev);
-    bool IngressPipelineIdleBest(Ptr<Packet> packet, Ptr<NetDevice> dev);
+    bool IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev);
+    bool IngressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev);
 
-    bool EgressPipelineIdleBasic(Ptr<Packet> packet, Ptr<NetDevice> dev);
-    bool EgressPipelineIdleBest(Ptr<Packet> packet, Ptr<NetDevice> dev);
+    uint16_t EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev);
+    uint16_t EgressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev);
+    uint16_t EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev);
 
 };
 

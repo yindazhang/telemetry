@@ -3,9 +3,9 @@
 
 #define DEFAULT_PORT 80
 
-uint32_t collectorMbps = 1500;
+uint32_t collectorMbps = 10000;
 double start_time = 2;
-double duration = 0.2;
+double duration = 0.5;
 int record = 0;
 uint16_t intSize = 0;
 uint32_t OrbWeaver = 0;

@@ -51,6 +51,12 @@ PointToPointHelper::PointToPointHelper()
 }
 
 void
+PointToPointHelper::SetQueueAttribute(std::string n1, const AttributeValue& v1)
+{
+    m_queueFactory.Set(n1, v1);
+}
+
+void
 PointToPointHelper::SetDeviceAttribute(std::string n1, const AttributeValue& v1)
 {
     m_deviceFactory.Set(n1, v1);

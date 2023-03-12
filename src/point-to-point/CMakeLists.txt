@@ -24,7 +24,6 @@ build_lib(
     model/point-to-point-net-device.cc
     model/ppp-header.cc
     model/path-header.cc
-    model/telemetry-header.cc
     model/collector-node.cc
     model/my-queue.cc
     model/switch-node.cc
@@ -35,7 +34,6 @@ build_lib(
     model/point-to-point-net-device.h
     model/ppp-header.h
     model/path-header.h
-    model/telemetry-header.h
     model/collector-node.h
     model/my-queue.h
     model/switch-node.h

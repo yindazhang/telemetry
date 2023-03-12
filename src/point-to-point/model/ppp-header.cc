@@ -65,11 +65,17 @@ PppHeader::Print(std::ostream& os) const
     case 0x0021: /* IPv4 */
         proto = "IP (0x0021)";
         break;
-    case 0x1111: /* IPv4 */
-        proto = "Collector (0x1111)";
-        break;
     case 0x0057: /* IPv6 */
         proto = "IPv6 (0x0057)";
+        break;
+    case 0x0170:
+        proto = "Telemetry SEED (0x0170)";
+        break;
+    case 0x0171:
+        proto = "Telemetry PUSH (0x0171)";
+        break;
+    case 0x0172:
+        proto = "Telemetry PULL (0x0172)";
         break;
     default:
         NS_ASSERT_MSG(false, "PPP Protocol number not defined!");

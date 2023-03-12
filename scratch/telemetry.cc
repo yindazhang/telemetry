@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
 
 	schedule_flow(flow_file);
 
-	Simulator::Stop(Seconds(start_time + duration + 2));
+	Simulator::Stop(Seconds(start_time + duration + 5));
 	Simulator::Run();
 	Simulator::Destroy();
 

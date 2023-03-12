@@ -35,8 +35,6 @@
 #include "ns3/udp-socket-factory.h"
 #include "ns3/udp-socket.h"
 
-#include "ns3/telemetry-header.h"
-
 namespace ns3
 {
 

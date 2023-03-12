@@ -169,6 +169,9 @@ class BulkSendApplication : public Application
      * \param unused actually unused
      */
     void DataSend(Ptr<Socket> socket, uint32_t unused);
+
+    void CloseSucceeded(Ptr<Socket> socket);
+    void CloseFailed(Ptr<Socket> socket);
 };
 
 } // namespace ns3

@@ -31,9 +31,15 @@ MyQueue::GetTypeId()
                 MakeUintegerAccessor(&MyQueue::m_maxSize),
                 MakeUintegerChecker<uint32_t>())
             .AddAttribute(
+                "TeleSize",
+                "Maximum bytes in telemetry queue",
+                UintegerValue(256),
+                MakeUintegerAccessor(&MyQueue::m_teleSize),
+                MakeUintegerChecker<uint32_t>())
+            .AddAttribute(
                 "ECNThreshold",
                 "Threshold for ECN",
-                UintegerValue(64 * 1024),
+                UintegerValue(32 * 1024),
                 MakeUintegerAccessor(&MyQueue::m_ecnThreshold),
                 MakeUintegerChecker<uint32_t>());
     return tid;
@@ -57,10 +63,6 @@ MyQueue::Enqueue(Ptr<Packet> item)
     item->RemoveHeader(ppp);
 
     uint16_t proto = ppp.GetProtocol();
-    if(proto != 0x0021 && proto != 0x1111){
-        std::cout << "Unknown protocol in Enqueue" << std::endl;
-        return false;
-    }
 
     Ipv4Header ipHeader;
     if(proto == 0x0021)
@@ -93,7 +95,7 @@ MyQueue::Enqueue(Ptr<Packet> item)
         }
     }
     else{
-        if(m_queues[1]->GetNBytes() > 512){
+        if(m_queues[1]->GetNBytes() > m_teleSize){
             dropIDLEPacket += 1;
             return false;
         }

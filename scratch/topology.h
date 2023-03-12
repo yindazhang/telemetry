@@ -95,7 +95,7 @@ void build_leaf_spine_routing(
 				leaves[i]->SetDeviceCollector(SERVER_PER_LEAF + spineId + 1);
 			}
 		}
-		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 800 * 1000 / collectorMbps);
+		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 300 * 1000 / collectorMbps);
 		leaves[NUM_LEAF - 1]->SetDeviceCollector(SERVER_PER_LEAF);
 	}
 	else if((OrbWeaver & 0x1) == 0x1){
@@ -117,7 +117,7 @@ void build_leaf_spine_routing(
 				leaves[i]->SetDevicePushing(SERVER_PER_LEAF + spineId + 1);
 			}
 		}
-		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 800 * 1000 / collectorMbps);
+		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 300 * 1000 / collectorMbps);
 		leaves[NUM_LEAF - 1]->SetDeviceCollector(SERVER_PER_LEAF);
 		for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
 			leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 12000 / 40);
@@ -162,16 +162,22 @@ void build_leaf_spine(
 	pp_collector.SetDeviceAttribute("DataRate", StringValue(std::to_string(collectorMbps) + "Mbps"));
 	pp_collector.SetDeviceAttribute("INT", UintegerValue(intSize));
 	pp_collector.SetChannelAttribute("Delay", StringValue("1us"));
+	if((OrbWeaver & 0x9) == 0x9)
+		pp_collector.SetQueueAttribute("TeleSize", UintegerValue(16 * 1024));
 
 	PointToPointHelper pp_server_leaf;
 	pp_server_leaf.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
 	pp_server_leaf.SetDeviceAttribute("INT", UintegerValue(intSize));
 	pp_server_leaf.SetChannelAttribute("Delay", StringValue("1us"));
+	if((OrbWeaver & 0x9) == 0x9)
+		pp_server_leaf.SetQueueAttribute("TeleSize", UintegerValue(16 * 1024));
 
 	PointToPointHelper pp_leaf_spine;
 	pp_leaf_spine.SetDeviceAttribute("DataRate", StringValue("40Gbps"));
 	pp_leaf_spine.SetDeviceAttribute("INT", UintegerValue(intSize));
 	pp_leaf_spine.SetChannelAttribute("Delay", StringValue("1us"));
+	if((OrbWeaver & 0x9) == 0x9)
+		pp_leaf_spine.SetQueueAttribute("TeleSize", UintegerValue(16 * 1024));
 
 	TrafficControlHelper tch;
 	tch.SetRootQueueDisc("ns3::FifoQueueDisc", "MaxSize", 
@@ -221,7 +227,7 @@ void start_sink_app(){
                          InetSocketAddress(Ipv4Address::GetAny(), DEFAULT_PORT));
   		ApplicationContainer sinkApps = sink.Install(servers[i]);
 		sinkApps.Start(Seconds(start_time - 1));
-  		sinkApps.Stop(Seconds(start_time + duration + 2));
+  		sinkApps.Stop(Seconds(start_time + duration + 4));
 	}
 }
 

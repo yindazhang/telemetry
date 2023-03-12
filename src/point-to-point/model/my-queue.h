@@ -34,6 +34,7 @@ public:
 protected:
     std::vector<Ptr<DropTailQueue<Packet>>> m_queues;
     uint32_t m_maxSize;
+    uint32_t m_teleSize;
     uint32_t m_ecnThreshold;
 
     uint64_t totalUserPacket;

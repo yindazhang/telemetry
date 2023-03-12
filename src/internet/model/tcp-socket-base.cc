@@ -1135,11 +1135,6 @@ TcpSocketBase::CloseAndNotify()
 {
     NS_LOG_FUNCTION(this);
 
-    if (!m_closeNotified)
-    {
-        NotifyNormalClose();
-        m_closeNotified = true;
-    }
     if (m_lastAckEvent.IsRunning())
     {
         m_lastAckEvent.Cancel();
@@ -1147,6 +1142,11 @@ TcpSocketBase::CloseAndNotify()
     NS_LOG_DEBUG(TcpStateName[m_state] << " -> CLOSED");
     m_state = CLOSED;
     DeallocateEndPoint();
+    if (!m_closeNotified)
+    {
+        NotifyNormalClose();
+        m_closeNotified = true;
+    }
 }
 
 /* Tell if a sequence number range is out side the range that my rx buffer can
@@ -2799,9 +2799,9 @@ TcpSocketBase::SendEmptyPacket(uint8_t flags)
         { // No more connection retries, give up
             NS_LOG_LOGIC("Connection failed.");
             m_rtt->Reset(); // According to recommendation -> RFC 6298
-            NotifyConnectionFailed();
             m_state = CLOSED;
             DeallocateEndPoint();
+            NotifyConnectionFailed();
             return;
         }
         else
@@ -2873,8 +2873,8 @@ TcpSocketBase::SendRST()
 {
     NS_LOG_FUNCTION(this);
     SendEmptyPacket(TcpHeader::RST);
-    NotifyErrorClose();
     DeallocateEndPoint();
+    NotifyErrorClose();
 }
 
 /* Deallocate the end point and cancel all the timers */
@@ -3772,8 +3772,8 @@ TcpSocketBase::ReTxTimeout()
     if (m_dataRetrCount == 0)
     {
         NS_LOG_INFO("No more data retries available. Dropping connection");
-        NotifyErrorClose();
         DeallocateEndPoint();
+        NotifyErrorClose();
         return;
     }
     else
@@ -3882,8 +3882,8 @@ TcpSocketBase::LastAckTimeout()
         if (m_dataRetrCount == 0)
         {
             NS_LOG_INFO("LAST-ACK: No more data retries available. Dropping connection");
-            NotifyErrorClose();
             DeallocateEndPoint();
+            NotifyErrorClose();
             return;
         }
         m_dataRetrCount--;

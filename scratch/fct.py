@@ -30,12 +30,16 @@ def read_fct_file(fct_file):
 	text = f.read()
 	lines = text.split('\n')
 
+	fcts = []
 	packet_number = 0
 	total_packet_size = 0
+
 	ret = [[], [], []]
 	for line in lines:
 		numbers = line.split(' ')
 		if len(numbers) == 2:
+			fcts.append(int(numbers[1]))
+
 			flow_size = int(numbers[0])
 			packet_number += (flow_size + 1439) // 1440
 			total_packet_size += flow_size
@@ -45,12 +49,21 @@ def read_fct_file(fct_file):
 				ret[1].append(int(numbers[1]))
 			else:
 				ret[2].append(int(numbers[1]))
+			
 
 	for i in range(len(ret)):
 		ret[i] = sorted(ret[i])
+	fcts = sorted(fcts)
 
 	print("Total packet number: " + str(packet_number))
 	print("Avg packet size: " + str(total_packet_size / packet_number))
+	print("Avg FCT: " + str(sum(fcts) / len(fcts)))
+	print("99% FCT: " + str(fcts[int(0.99*len(fcts))]))
+	print("99.9% FCT: " + str(fcts[int(0.999*len(fcts))]))
+
+	#for i in range(100):
+	#	print(str(fcts[int(i/100.0*len(fcts))]), end = ",")
+	print()
 
 	return ret
 
@@ -62,11 +75,14 @@ if __name__=="__main__":
 	parse_tr_file(args.file + ".tr")
 
 	fct_files = []
+	fct_files.append(args.file + "s_ECMP1.fct")
+	fct_files.append(args.file + "s_ECMP1_Orb9.fct")
+	fct_files.append(args.file + "s_ECMP1_Orb5.fct")
 	fct_files.append(args.file + "s_ECMP1_Orb1.fct")
 	# fct_files.append(args.file + "s_INT4.fct")
 	fct_files.append(args.file + "s_ECMP1_Orb3.fct")
 
-	names = ['Original', 'Ours']
+	names = ['Original', 'Baseline', 'Ours1', 'Ours2', 'Ours3']
 	xnames = ['<100K','100K~1M','>1M']
 
 	dic = {'id' : [], 'Mean' : [], '95%' : [], '99%' : []}
