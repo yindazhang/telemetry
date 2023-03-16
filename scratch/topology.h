@@ -145,11 +145,13 @@ void build_leaf_spine(
 		leaves[i] = CreateObject<SwitchNode>();
 		leaves[i]->SetOrbWeaver(OrbWeaver);
 		leaves[i]->SetEcmp(ecmpConfig);
+		leaves[i]->SetOutput(file_name);
 	}
 	for(uint32_t i = 0;i < NUM_SPINE;++i){
 		spines[i] = CreateObject<SwitchNode>();
 		spines[i]->SetOrbWeaver(OrbWeaver);
 		spines[i]->SetEcmp(ecmpConfig);
+		spines[i]->SetOutput(file_name);
 	}
 	collectors[0] = CreateObject<CollectorNode>();
 	collectors[0]->SetOutput(file_name);

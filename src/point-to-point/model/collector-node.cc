@@ -46,22 +46,22 @@ CollectorNode::~CollectorNode(){
     if(m_paths.size() > 0){
         std::cout << "Receive entries: " << m_paths.size() << std::endl;
         std::cout << "Number of duplicates: " << m_duplicates << std::endl;
-    }
 
-    FILE* fout = fopen(output_file.c_str(), "w");
-    for(auto path : m_paths){
-        fprintf(fout, "%d %d ", path.GetSrcIP(), path.GetDstIP());
-        fprintf(fout, "%d %d ", path.GetSrcPort(), path.GetDstPort());
-        fprintf(fout, "%d %d ", path.GetNodeId(), (int)path.GetProtocol());
-        fprintf(fout, "%d\n", (int)path.GetTTL());
-        fflush(fout);
+        FILE* fout = fopen(output_file.c_str(), "w");
+        for(auto path : m_paths){
+            fprintf(fout, "%d %d ", path.GetSrcIP(), path.GetDstIP());
+            fprintf(fout, "%d %d ", path.GetSrcPort(), path.GetDstPort());
+            fprintf(fout, "%d %d ", path.GetNodeId(), (int)path.GetProtocol());
+            fprintf(fout, "%d\n", (int)path.GetTTL());
+            fflush(fout);
+        }
+        fclose(fout);
     }
-    fclose(fout);
 }
 
 void 
 CollectorNode::SetOutput(std::string output){
-    output_file = output + ".path";
+    output_file = output + ".collector.path";
 }
 
 uint32_t

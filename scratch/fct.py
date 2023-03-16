@@ -3,118 +3,67 @@ import argparse
 import pandas as pd
 import numpy as np
 
-#import plotly.graph_objects as go
-
-def parse_tr_file(tr_file):
-	total = 0
-	f = open(tr_file, "r")
-	text = f.read()
-	lines = text.split('\n')
-
-	for line in lines:
-		numbers = line.split(' ')
-		if len(numbers) == 4:
-			src = int(numbers[0])
-			dst = int(numbers[1])
-			src_rack = src // 16
-			dst_rack = dst // 16
-			if src_rack == dst_rack:
-				total += 2
-			else:
-				total += 6
-	
-	print("Total telemetry data: " + str(total))
-
+'''
 def read_fct_file(fct_file):
-	f = open(fct_file, "r")
-	text = f.read()
-	lines = text.split('\n')
+	ret = {'Mean' : [], '99%' : [], '99.9%': []}
+	dfs = []
 
-	fcts = []
-	packet_number = 0
-	total_packet_size = 0
+	dfs.append(df[df[0] < 100000][1].sort_values())
+	dfs.append(df[(df[0] >= 100000) & (df[0] <= 1000000)][1].sort_values())
+	dfs.append(df[df[0] > 1000000][1].sort_values())
+	dfs.append(df[1].sort_values())
 
-	ret = [[], [], []]
-	for line in lines:
-		numbers = line.split(' ')
-		if len(numbers) == 2:
-			fcts.append(int(numbers[1]))
-
-			flow_size = int(numbers[0])
-			packet_number += (flow_size + 1439) // 1440
-			total_packet_size += flow_size
-			if flow_size < 1e5:
-				ret[0].append(int(numbers[1]))
-			elif flow_size < 1e6:
-				ret[1].append(int(numbers[1]))
-			else:
-				ret[2].append(int(numbers[1]))
-			
-
-	for i in range(len(ret)):
-		ret[i] = sorted(ret[i])
-	fcts = sorted(fcts)
-
-	print("Total packet number: " + str(packet_number))
-	print("Avg packet size: " + str(total_packet_size / packet_number))
-	print("Avg FCT: " + str(sum(fcts) / len(fcts)))
-	print("99% FCT: " + str(fcts[int(0.99*len(fcts))]))
-	print("99.9% FCT: " + str(fcts[int(0.999*len(fcts))]))
-
-	#for i in range(100):
-	#	print(str(fcts[int(i/100.0*len(fcts))]), end = ",")
-	print()
+	for tmp in dfs:
+		ret['Mean'].append(tmp.mean())
+		ret['99%'].append(tmp.iloc[int(0.99 * len(tmp))])
+		ret['99.9%'].append(tmp.iloc[int(0.999 * len(tmp))])
 
 	return ret
+'''
 
 if __name__=="__main__":
 	parser = argparse.ArgumentParser(description='')
 	parser.add_argument('-f', dest='file', action='store', help="Specify the fct file.")
 	args = parser.parse_args()
 
-	parse_tr_file(args.file + ".tr")
-
-	fct_files = []
-	fct_files.append(args.file + "s_ECMP1.fct")
-	fct_files.append(args.file + "s_ECMP1_Orb9.fct")
-	fct_files.append(args.file + "s_ECMP1_Orb5.fct")
-	fct_files.append(args.file + "s_ECMP1_Orb1.fct")
-	# fct_files.append(args.file + "s_INT4.fct")
-	fct_files.append(args.file + "s_ECMP1_Orb3.fct")
-
 	names = ['Original', 'Baseline', 'Ours1', 'Ours2', 'Ours3']
-	xnames = ['<100K','100K~1M','>1M']
+	stats = ['Number', 'Mean', '99%', '99.9%']
 
-	dic = {'id' : [], 'Mean' : [], '95%' : [], '99%' : []}
+	#appends = ["s_ECMP1.fct", "s_ECMP1_Orb9.fct", "s_ECMP1_Orb5.fct", \
+	#			 "s_ECMP1_Orb1.fct", "s_ECMP1_Orb3.fct"]
+	appends = ["s_ECMP1_Fail.fct", "s_ECMP1_Fail_Orb9.fct", "s_ECMP1_Fail_Orb5.fct", \
+				 "s_ECMP1_Fail_Orb1.fct", "s_ECMP1_Fail_Orb3.fct"]
 
-	# fig = go.Figure()
+	if len(appends) != len(names):
+		print("Error in length")
 
-	for index in range(len(fct_files)):
-		y = read_fct_file(fct_files[index])
-		# fig.add_trace(go.Box(y=y, x=xnames, name=names[index]))
+	dfs = {}
+	for i in range(len(appends)):
+		dfs[names[i]] = pd.read_csv(args.file + appends[i], header=None, delimiter=r"\s+")
 
-		q1 = [y[0][int(len(y[0])*0.05)], y[1][int(len(y[1])*0.05)], y[2][int(len(y[2])*0.05)]]
-		median = [y[0][int(len(y[0])*0.5)], y[1][int(len(y[1])*0.5)], y[2][int(len(y[2])*0.5)]]
-		q3 = [y[0][int(len(y[0])*0.95)], y[1][int(len(y[1])*0.95)], y[2][int(len(y[2])*0.95)]]
-		lowerfence = [y[0][int(len(y[0])*0.01)], y[1][int(len(y[1])*0.01)], y[2][int(len(y[2])*0.01)]]
-		upperfence = [y[0][int(len(y[0])*0.99)], y[1][int(len(y[1])*0.99)], y[2][int(len(y[2])*0.99)]]
-		mean = [sum(y[0])/len(y[0]), sum(y[1])/len(y[1]), sum(y[2])/len(y[2])]
+	dic = {'Time' : []}
+	for name in names:
+		for stat in stats:
+			dic[name + "_" + stat] = []
 
-		# fig.update_traces(q1=q1, median=median, q3=q3, lowerfence=lowerfence,
-        #          upperfence=upperfence, mean=mean)
+	for t in range(2000000000, 3500000000, 10000000):
+		dic['Time'].append(t)
+		for name in names:
+			df = dfs[name]
+			df = df[df[2] < t][1].sort_values()
+			size = len(df)
+			if size != 0:
+				dic[name + "_Number"].append(size)
+				dic[name + "_Mean"].append(df.mean())
+				dic[name + "_99%"].append(df.iloc[int(0.99 * size)])
+				dic[name + "_99.9%"].append(df.iloc[int(0.999 * size)])
+			else:
+				dic[name + "_Number"].append(0)
+				dic[name + "_Mean"].append(0)
+				dic[name + "_99%"].append(0)
+				dic[name + "_99.9%"].append(0)
 
-		for j in range(len(xnames)):
-			dic['id'].append(names[index] + "_" + xnames[j])
-			dic['Mean'].append(int(mean[j]))
-			dic['95%'].append(int(q3[j]))
-			dic['99%'].append(int(upperfence[j]))
-	
 	df = pd.DataFrame.from_dict(dic)
 	df.to_csv('csv/' + args.file + ".csv", index=False)
 
 	print("Finish CSV")
-
-	# fig.update_yaxes(type='log', range=[3.5,8])
-	# fig.update_layout(xaxis_title="Size Range", yaxis_title="FCT (ns)", boxmode='group')
-	
-	# fig.write_image("images/" + args.file + "_fct.pdf")

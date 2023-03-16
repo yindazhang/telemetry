@@ -6,17 +6,15 @@
 FILE *fct_output;
 std::ifstream flow_input;
 
-std::unordered_map<uint32_t, uint16_t> connectionPort;
-
 struct Flows{
     uint32_t index, total_size;
     uint32_t src, dst, bytes, start_time;
 };
 Flows flow = {0};
 
-void record_fct(FILE* fout, int64_t size, int64_t fct){
+void record_fct(FILE* fout, int64_t size, int64_t fct, int64_t end_time){
 	if(record){
-		fprintf(fout, "%ld %ld\n", size, fct);
+		fprintf(fout, "%ld %ld %ld\n", size, fct, end_time);
     	fflush(fout);
 	}
 }
@@ -29,17 +27,8 @@ void ReadFlowInput(){
 
 void ScheduleFlowInputs(){
 	while(flow.index < flow.total_size && NanoSeconds(flow.start_time) == Simulator::Now()){
-		uint32_t port = 0;
-		if(connectionPort.find(flow.src) == connectionPort.end())
-			connectionPort[flow.src] = port;
-		else{
-			port = (connectionPort[flow.src] + 1) % 50000;
-			connectionPort[flow.src] = port;
-		}
-
 		BulkSendHelper source ("ns3::TcpSocketFactory",
                          InetSocketAddress(serverAddress[flow.dst], DEFAULT_PORT));
-		source.SetAttribute("Local", AddressValue(InetSocketAddress(serverAddress[flow.src], port + 10000)));
 		source.SetAttribute("MaxBytes", UintegerValue(flow.bytes));
 
 		ApplicationContainer sourceApps = source.Install(servers[flow.src]);

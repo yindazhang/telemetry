@@ -106,7 +106,7 @@ class BulkSendApplication : public Application
      */
     Ptr<Socket> GetSocket() const;
 
-    void BulkEnd(int64_t size, int64_t fct);
+    void BulkEnd(int64_t size, int64_t fct, int64_t end_time);
 
   protected:
     void DoDispose() override;
@@ -142,7 +142,7 @@ class BulkSendApplication : public Application
     TracedCallback<Ptr<const Packet>> m_txTrace;
 
     /// Trace FCT
-    TracedCallback<int64_t, int64_t> m_fctTrace;
+    TracedCallback<int64_t, int64_t, int64_t> m_fctTrace;
 
     /// Callback for tracing the packet Tx events, includes source, destination,  the packet sent,
     /// and header
@@ -172,6 +172,7 @@ class BulkSendApplication : public Application
 
     void CloseSucceeded(Ptr<Socket> socket);
     void CloseFailed(Ptr<Socket> socket);
+    void Nop(Ptr<Socket> socket);
 };
 
 } // namespace ns3

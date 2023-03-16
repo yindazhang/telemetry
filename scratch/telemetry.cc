@@ -30,6 +30,8 @@ int main(int argc, char *argv[])
 	std::cout << "Run Telemetry." << std::endl;
 
 	file_name = "scratch/" + flow_file + "s_ECMP" + std::to_string(ecmpConfig);
+	if(failConfig)
+		file_name += "_Fail";
 	if(intSize > 0)
 		file_name += "_INT" + std::to_string(intSize);
 	else if(OrbWeaver > 0)

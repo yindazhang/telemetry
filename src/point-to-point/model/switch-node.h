@@ -26,6 +26,7 @@ class SwitchNode : public Node
     static TypeId GetTypeId();
 
     SwitchNode();
+    virtual ~SwitchNode();
 
     /**
      * \brief Associate a NetDevice to this node.
@@ -77,6 +78,7 @@ class SwitchNode : public Node
 
     void SetEcmp(uint32_t Ecmp);
     void SetOrbWeaver(uint32_t OrbWeaver);
+    void SetOutput(std::string output);
 
     bool IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
     uint16_t EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
@@ -88,6 +90,8 @@ class SwitchNode : public Node
     const uint32_t batchSize = 1;
     const uint32_t arrSize = 65537;
     const uint32_t queueSize = 1024;
+
+    std::string output_file;
 
     int m_ecmp;
 
@@ -103,6 +107,8 @@ class SwitchNode : public Node
 
     std::queue<PathHeader> m_buffer;
     std::vector<PathHeader> m_table;
+
+    std::set<PathHeader> m_paths;
 
     void GeneratePacket();
     Ptr<Packet> CreatePacket(uint8_t type);

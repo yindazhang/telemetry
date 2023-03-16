@@ -146,7 +146,7 @@ BulkSendApplication::StartApplication() // Called at time specified by Start
     if (!m_socket)
     {
         m_socket = Socket::CreateSocket(GetNode(), m_tid);
-        if (m_socket->Bind(m_local) == -1)
+        if (m_socket->Bind() == -1)
             NS_FATAL_ERROR("Failed to bind socket");
 
         m_socket->Connect(m_peer);
@@ -158,50 +158,43 @@ BulkSendApplication::StartApplication() // Called at time specified by Start
         start_time_ns = Simulator::Now().GetNanoSeconds();
         m_socket->SetSendCallback(MakeCallback(&BulkSendApplication::DataSend, this));
     }
-    if (m_connected)
-    {
-        m_socket->GetSockName(from);
-        SendData(from, m_peer);
-    }
 }
 
 void 
 BulkSendApplication::CloseSucceeded(Ptr<Socket> socket){
-    if (m_totBytes < m_maxBytes)
-        std::cout << "Error in CloseSucceeded" << std::endl;
+    if (m_totBytes < m_maxBytes){
+        std::cout << "Send " << m_totBytes << " in " << m_maxBytes << std::endl;
+        std::cout << "Resend all data in CloseSucceed" << std::endl;
+        CloseFailed(socket);
+    }
 }
 
 void 
 BulkSendApplication::CloseFailed(Ptr<Socket> socket){
-    if (m_totBytes == m_maxBytes){
+    if (m_totBytes == m_maxBytes) {
         std::cout << "Receive all data in CloseFailed" << std::endl;
         return;
     }
-    else{
+
+    if(m_totBytes < m_maxBytes){
+        std::cout << "Send " << m_totBytes << " in " << m_maxBytes << std::endl;
         std::cout << "Resend all data in CloseFailed" << std::endl;
-    }
 
-    m_connected = true;
-    m_totBytes = 0;
-    m_unsentPacket = nullptr;
+        m_connected = false;
+        m_totBytes = 0;
+        m_unsentPacket = nullptr;
 
-    m_socket = Socket::CreateSocket(GetNode(), m_tid);
-    if(m_socket->Bind(m_local) == -1)
-        NS_FATAL_ERROR("Failed to bind socket in Resend");
+        m_socket = Socket::CreateSocket(GetNode(), m_tid);
+        if(m_socket->Bind() == -1)
+            NS_FATAL_ERROR("Failed to bind socket in Resend");
 
-    m_socket->Connect(m_peer);
-    m_socket->ShutdownRecv();
-    m_socket->SetConnectCallback(MakeCallback(&BulkSendApplication::ConnectionSucceeded, this),
-                                     MakeCallback(&BulkSendApplication::ConnectionFailed, this));
-    m_socket->SetCloseCallbacks(MakeCallback(&BulkSendApplication::CloseSucceeded, this),
-                                     MakeCallback(&BulkSendApplication::CloseFailed, this));
-    m_socket->SetSendCallback(MakeCallback(&BulkSendApplication::DataSend, this));
-
-    Address from;
-    if (m_connected)
-    {
-        m_socket->GetSockName(from);
-        SendData(from, m_peer);
+        m_socket->Connect(m_peer);
+        m_socket->ShutdownRecv();
+        m_socket->SetConnectCallback(MakeCallback(&BulkSendApplication::ConnectionSucceeded, this),
+                                        MakeCallback(&BulkSendApplication::ConnectionFailed, this));
+        m_socket->SetCloseCallbacks(MakeCallback(&BulkSendApplication::CloseSucceeded, this),
+                                        MakeCallback(&BulkSendApplication::CloseFailed, this));
+        m_socket->SetSendCallback(MakeCallback(&BulkSendApplication::DataSend, this));
     }
 }
 
@@ -304,7 +297,7 @@ BulkSendApplication::SendData(const Address& from, const Address& to)
     if (m_totBytes == m_maxBytes)
     {
         end_time_ns = Simulator::Now().GetNanoSeconds();
-        BulkEnd(m_maxBytes, end_time_ns - start_time_ns);
+        BulkEnd(m_maxBytes, end_time_ns - start_time_ns, end_time_ns);
         
         m_socket->Close();
         m_connected = false;
@@ -330,7 +323,16 @@ BulkSendApplication::ConnectionFailed(Ptr<Socket> socket)
     NS_LOG_FUNCTION(this << socket);
     NS_LOG_LOGIC("BulkSendApplication, Connection Failed");
     std::cout << "BulkSendApplication, Connection Failed" << std::endl;
-    CloseFailed(nullptr);
+    if (m_totBytes < m_maxBytes){
+        std::cout << "Send " << m_totBytes << " in " << m_maxBytes << std::endl;
+        CloseFailed(socket);
+    }
+}
+
+void 
+BulkSendApplication::Nop(Ptr<Socket> socket)
+{
+    return;
 }
 
 void
@@ -349,8 +351,8 @@ BulkSendApplication::DataSend(Ptr<Socket> socket, uint32_t)
 }
 
 void
-BulkSendApplication::BulkEnd(int64_t size, int64_t fct){
-	m_fctTrace(size, fct);
+BulkSendApplication::BulkEnd(int64_t size, int64_t fct, int64_t end_time){
+	m_fctTrace(size, fct, end_time);
 }
 
 } // Namespace ns3

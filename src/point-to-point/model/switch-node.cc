@@ -46,6 +46,22 @@ SwitchNode::SwitchNode() : Node() {
     Simulator::Schedule(Seconds(2), &SwitchNode::GeneratePacket, this);
 }
 
+SwitchNode::~SwitchNode(){
+    if(m_paths.size() > 0){
+        std::cout << "Receive entries: " << m_paths.size() << std::endl;
+
+        FILE* fout = fopen(output_file.c_str(), "a");
+        for(auto path : m_paths){
+            fprintf(fout, "%d %d ", path.GetSrcIP(), path.GetDstIP());
+            fprintf(fout, "%d %d ", path.GetSrcPort(), path.GetDstPort());
+            fprintf(fout, "%d %d ", path.GetNodeId(), (int)path.GetProtocol());
+            fprintf(fout, "%d\n", (int)path.GetTTL());
+            fflush(fout);
+        }
+        fclose(fout);
+    }
+}
+
 void
 SwitchNode::SetOrbWeaver(uint32_t OrbWeaver){
     m_orbweaver = ((OrbWeaver & 0x1) == 0x1);
@@ -57,6 +73,13 @@ SwitchNode::SetOrbWeaver(uint32_t OrbWeaver){
 void 
 SwitchNode::SetEcmp(uint32_t Ecmp){
     m_ecmp = Ecmp;
+}
+
+void 
+SwitchNode::SetOutput(std::string output){
+    output_file = output + ".switch.path";
+    FILE* fout = fopen(output_file.c_str(), "w");
+    fclose(fout);
 }
 
 void
@@ -274,7 +297,10 @@ SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
     pathHeader.SetProtocol(proto);
 
     pathHeader.SetNodeId(m_id);
-    pathHeader.SetTTL(ttl);       
+    pathHeader.SetTTL(ttl);
+
+    if(m_paths.find(pathHeader) == m_paths.end())
+        m_paths.insert(pathHeader);   
     
     uint32_t arrIndex = pathHeader.Hash() % m_table.size();
     if(m_table[arrIndex].Empty() || !(m_table[arrIndex] == pathHeader)){
