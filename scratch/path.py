@@ -64,8 +64,8 @@ if __name__=="__main__":
     parser.add_argument('-f', dest='file', action='store', help="Specify the fct file.")
     args = parser.parse_args()
 
-    parse_switch_file(args.file + "s_ECMP1_Fail_Orb5.switch.path")
-    parse_collector_file(args.file + "s_ECMP1_Fail_Orb5.collector.path")
+    parse_switch_file(args.file + "s_ECMP1_Orb9.switch.path")
+    parse_collector_file(args.file + "s_ECMP1_Orb9.collector.path")
 
     totalUnit = 0
     unitLoss = 0
