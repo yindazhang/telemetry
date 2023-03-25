@@ -4,6 +4,7 @@
 #include "ns3/node.h"
 #include "ns3/ipv4-header.h"
 #include "ns3/path-header.h"
+#include "ns3/util-header.h"
 
 #include <queue>
 #include <unordered_map>
@@ -51,13 +52,21 @@ class CollectorNode : public Node
                                 const Address& from);
 
     void SetOutput(std::string output);
+    void SetRecord(uint32_t record);
+    void SetTask(uint32_t task);
 
   protected:
 
     std::set<PathHeader> m_paths;
+    std::vector<UtilHeader> m_utils;
+
     uint64_t m_duplicates = 0;
     
     std::string output_file;
+
+    int m_task;
+
+    bool m_record = false;
 
 };
 

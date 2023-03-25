@@ -4,6 +4,7 @@
 #include "ns3/node.h"
 #include "ns3/ipv4-header.h"
 #include "ns3/path-header.h"
+#include "ns3/util-header.h"
 
 #include <queue>
 #include <unordered_map>
@@ -76,7 +77,10 @@ class SwitchNode : public Node
     void SetDevicePulling(uint32_t devId);
     void SetDevicePushing(uint32_t devId);
 
-    void SetEcmp(uint32_t Ecmp);
+    void SetUtilGap(uint32_t utilGap);
+    void SetEcmp(uint32_t ecmp);
+    void SetRecord(uint32_t record);
+    void SetTask(uint32_t task);
     void SetOrbWeaver(uint32_t OrbWeaver);
     void SetOutput(std::string output);
 
@@ -94,6 +98,10 @@ class SwitchNode : public Node
     std::string output_file;
 
     int m_ecmp;
+    int m_task;
+    uint32_t m_utilGap = 10000;
+
+    bool m_record = false;
 
     bool m_orbweaver = false;
     bool m_push = false;
@@ -102,18 +110,25 @@ class SwitchNode : public Node
 
     std::vector<uint32_t> m_collectorDev;
 
+    uint64_t m_utilSend = 0;
+    std::unordered_map<uint32_t, uint32_t> m_bytes;
+
     std::unordered_map<uint32_t, std::vector<uint32_t>> m_routeForward;
     std::unordered_map<Ptr<NetDevice>, DeviceProperty> m_deviceMap;
 
-    std::queue<PathHeader> m_buffer;
+    std::queue<PathHeader> m_pathBuffer;
+    std::queue<UtilHeader> m_utilBuffer;
+
     std::vector<PathHeader> m_table;
 
     std::set<PathHeader> m_paths;
 
     void GeneratePacket();
+    void RecordUtil();
+
     Ptr<Packet> CreatePacket(uint8_t type);
 
-    bool AddPathHeader(Ptr<Packet> packet);
+    bool AddTeleHeader(Ptr<Packet> packet);
     void BufferData(Ptr<Packet> packet);
 
     bool IngressPipelineUser(Ptr<Packet> packet);

@@ -86,7 +86,7 @@ void build_leaf_spine_routing(
 
 	if((OrbWeaver & 0x9) == 0x9 || (OrbWeaver & 0x5) == 0x5){
 		for(uint32_t i = 0;i < NUM_SPINE;++i){
-			spines[i]->SetDeviceGenerateGap(NUM_LEAF, 12000 / 40);
+			spines[i]->SetDeviceGenerateGap(NUM_LEAF, NUM_SPINE * 200 * 1000 / collectorMbps);
 			spines[i]->SetDeviceCollector(NUM_LEAF);
 		}
 		for(uint32_t i = 0;i < NUM_LEAF - 1;++i){
@@ -95,7 +95,7 @@ void build_leaf_spine_routing(
 				leaves[i]->SetDeviceCollector(SERVER_PER_LEAF + spineId + 1);
 			}
 		}
-		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 300 * 1000 / collectorMbps);
+		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 200 * 1000 / collectorMbps);
 		leaves[NUM_LEAF - 1]->SetDeviceCollector(SERVER_PER_LEAF);
 	}
 	else if((OrbWeaver & 0x1) == 0x1){
@@ -117,10 +117,10 @@ void build_leaf_spine_routing(
 				leaves[i]->SetDevicePushing(SERVER_PER_LEAF + spineId + 1);
 			}
 		}
-		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 300 * 1000 / collectorMbps);
+		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 200 * 1000 / collectorMbps);
 		leaves[NUM_LEAF - 1]->SetDeviceCollector(SERVER_PER_LEAF);
 		for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
-			leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 12000 / 40);
+			leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, NUM_SPINE * 200 * 1000 / collectorMbps);
 			leaves[NUM_LEAF - 1]->SetDevicePushing(SERVER_PER_LEAF + spineId + 1);
 			leaves[NUM_LEAF - 1]->SetDevicePulling(SERVER_PER_LEAF + spineId + 1);
 		}
@@ -145,15 +145,26 @@ void build_leaf_spine(
 		leaves[i] = CreateObject<SwitchNode>();
 		leaves[i]->SetOrbWeaver(OrbWeaver);
 		leaves[i]->SetEcmp(ecmpConfig);
+
+		leaves[i]->SetTask(taskId);
+		leaves[i]->SetRecord(recordConfig);
 		leaves[i]->SetOutput(file_name);
+		leaves[i]->SetUtilGap(utilGap);
 	}
 	for(uint32_t i = 0;i < NUM_SPINE;++i){
 		spines[i] = CreateObject<SwitchNode>();
 		spines[i]->SetOrbWeaver(OrbWeaver);
 		spines[i]->SetEcmp(ecmpConfig);
+
+		spines[i]->SetTask(taskId);
+		spines[i]->SetRecord(recordConfig);
 		spines[i]->SetOutput(file_name);
+		spines[i]->SetUtilGap(utilGap);
 	}
 	collectors[0] = CreateObject<CollectorNode>();
+
+	collectors[0]->SetTask(taskId);
+	collectors[0]->SetRecord(recordConfig);
 	collectors[0]->SetOutput(file_name);
 
 	InternetStackHelper internet;

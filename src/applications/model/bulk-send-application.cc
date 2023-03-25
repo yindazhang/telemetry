@@ -71,6 +71,11 @@ BulkSendApplication::GetTypeId()
                           UintegerValue(0),
                           MakeUintegerAccessor(&BulkSendApplication::m_maxBytes),
                           MakeUintegerChecker<uint64_t>())
+            .AddAttribute("ApplicationID",
+                          "ID of application",
+                          UintegerValue(0),
+                          MakeUintegerAccessor(&BulkSendApplication::m_aid),
+                          MakeUintegerChecker<uint64_t>())
             .AddAttribute("Protocol",
                           "The type of protocol to use.",
                           TypeIdValue(TcpSocketFactory::GetTypeId()),
@@ -297,7 +302,7 @@ BulkSendApplication::SendData(const Address& from, const Address& to)
     if (m_totBytes == m_maxBytes)
     {
         end_time_ns = Simulator::Now().GetNanoSeconds();
-        BulkEnd(m_maxBytes, end_time_ns - start_time_ns, end_time_ns);
+        BulkEnd(m_aid, m_maxBytes, end_time_ns - start_time_ns, end_time_ns);
         
         m_socket->Close();
         m_connected = false;
@@ -351,8 +356,8 @@ BulkSendApplication::DataSend(Ptr<Socket> socket, uint32_t)
 }
 
 void
-BulkSendApplication::BulkEnd(int64_t size, int64_t fct, int64_t end_time){
-	m_fctTrace(size, fct, end_time);
+BulkSendApplication::BulkEnd(uint64_t id, int64_t size, int64_t fct, int64_t end_time){
+	m_fctTrace(id, size, fct, end_time);
 }
 
 } // Namespace ns3

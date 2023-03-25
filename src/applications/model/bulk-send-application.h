@@ -106,7 +106,7 @@ class BulkSendApplication : public Application
      */
     Ptr<Socket> GetSocket() const;
 
-    void BulkEnd(int64_t size, int64_t fct, int64_t end_time);
+    void BulkEnd(uint64_t id, int64_t size, int64_t fct, int64_t end_time);
 
   protected:
     void DoDispose() override;
@@ -135,6 +135,7 @@ class BulkSendApplication : public Application
     Ptr<Packet> m_unsentPacket;          //!< Variable to cache unsent packet
     bool m_enableSeqTsSizeHeader{false}; //!< Enable or disable the SeqTsSizeHeader
 
+    uint64_t m_aid;
     int64_t start_time_ns;
     int64_t end_time_ns;
 
@@ -142,7 +143,7 @@ class BulkSendApplication : public Application
     TracedCallback<Ptr<const Packet>> m_txTrace;
 
     /// Trace FCT
-    TracedCallback<int64_t, int64_t, int64_t> m_fctTrace;
+    TracedCallback<uint64_t, int64_t, int64_t, int64_t> m_fctTrace;
 
     /// Callback for tracing the packet Tx events, includes source, destination,  the packet sent,
     /// and header

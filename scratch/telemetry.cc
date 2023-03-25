@@ -17,10 +17,13 @@ int main(int argc, char *argv[])
 	std::string flow_file = "Hadoop_143_0.5_10G_0.2";
 
 	CommandLine cmd(__FILE__);
-	cmd.AddValue("time", "the total run time (s), by default 0.2", duration);
+	cmd.AddValue("time", "the total run time (s), by default 0.5", duration);
 	cmd.AddValue("flow", "the flow file", flow_file);
-	cmd.AddValue("record", "record fct", record);
+	cmd.AddValue("fctRecord", "record fct", fct_record);
+	cmd.AddValue("record", "record telemetry", recordConfig);
 	cmd.AddValue("INT", "the size of INT header", intSize);
+	cmd.AddValue("taskId", "ID of task: (1) path tracing (2) port utilization", taskId);
+	cmd.AddValue("utilGap", "Generate gap of port utilization", utilGap);
 	cmd.AddValue("Collector bandwitdh (Mbps)", "Bandwidth to the collector", collectorMbps);
 	cmd.AddValue("OrbWeaver", "Start OrbWeaver", OrbWeaver);
 	cmd.AddValue("ECMP", "configuration of ecmp: (0) 5-tuple (1) dst IP", ecmpConfig);
@@ -55,6 +58,6 @@ int main(int argc, char *argv[])
 	std::cout << "Used time: " << diff.count() << "s." << std::endl;
 
 	flow_input.close();
-	if(record)
+	if(fct_record)
 		fclose(fct_output);
 }

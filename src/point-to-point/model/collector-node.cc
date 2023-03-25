@@ -43,25 +43,48 @@ CollectorNode::GetTypeId()
 CollectorNode::CollectorNode() : Node() {}
 
 CollectorNode::~CollectorNode(){
-    if(m_paths.size() > 0){
-        std::cout << "Receive entries: " << m_paths.size() << std::endl;
-        std::cout << "Number of duplicates: " << m_duplicates << std::endl;
+    if(m_task == 1){
+        if(m_record){
+            std::cout << "Receive entries: " << m_paths.size() << std::endl;
+            std::cout << "Number of duplicates: " << m_duplicates << std::endl;
 
-        FILE* fout = fopen(output_file.c_str(), "w");
-        for(auto path : m_paths){
-            fprintf(fout, "%d %d ", path.GetSrcIP(), path.GetDstIP());
-            fprintf(fout, "%d %d ", path.GetSrcPort(), path.GetDstPort());
-            fprintf(fout, "%d %d ", path.GetNodeId(), (int)path.GetProtocol());
-            fprintf(fout, "%d\n", (int)path.GetTTL());
-            fflush(fout);
+            FILE* fout = fopen(output_file.c_str(), "w");
+            for(auto path : m_paths){
+                fprintf(fout, "%d %d ", path.GetSrcIP(), path.GetDstIP());
+                fprintf(fout, "%d %d ", path.GetSrcPort(), path.GetDstPort());
+                fprintf(fout, "%d %d ", path.GetNodeId(), (int)path.GetProtocol());
+                fprintf(fout, "%d\n", (int)path.GetTTL());
+                fflush(fout);
+            }
+            fclose(fout);
         }
-        fclose(fout);
+    }
+    else if(m_task == 2){
+        std::cout << "Receive entries: " << m_duplicates << std::endl;
+    }
+    else{
+        std::cout << "Unknown task " << m_task << std::endl;
     }
 }
 
 void 
+CollectorNode::SetTask(uint32_t task){
+    m_task = task;
+}
+
+void 
+CollectorNode::SetRecord(uint32_t record){
+    m_record = record;
+}
+
+void 
 CollectorNode::SetOutput(std::string output){
-    output_file = output + ".collector.path";
+    if(m_task == 1)
+        output_file = output + ".collector.path";
+    else if(m_task == 2)
+        output_file = output + ".collector.util";
+    else
+        std::cout << "Unknown task" << std::endl;
 }
 
 uint32_t
@@ -91,27 +114,52 @@ CollectorNode::ReceiveFromDevice(Ptr<NetDevice> device,
 
     Ptr<Packet> packet = p->Copy();
 
-    PathHeader pathHeader;
-    packet->RemoveHeader(pathHeader);
+    if(m_task == 1){
+        PathHeader pathHeader;
+        packet->RemoveHeader(pathHeader);
 
-    if(m_paths.find(pathHeader) == m_paths.end()){
-        m_paths.insert(pathHeader);
-        if(m_paths.size() % 10000 == 9999){
-            std::cout << "Receive entries: " << m_paths.size() << std::endl;
-            std::cout << "Number of duplicates: " << m_duplicates << std::endl;
+        if(m_record && m_paths.find(pathHeader) == m_paths.end()){
+            m_paths.insert(pathHeader);
+            if(m_paths.size() % 10000 == 9999){
+                std::cout << "Receive entries: " << m_paths.size() << std::endl;
+                std::cout << "Number of duplicates: " << m_duplicates << std::endl;
+            }
+            /*
+            std::cout << "PathHeader: " << pathHeader.GetSrcIP() << " "
+                << pathHeader.GetDstIP() << " "
+                << pathHeader.GetSrcPort() << " "
+                << pathHeader.GetDstPort() << " "
+                << pathHeader.GetNodeId() << " "
+                << int(pathHeader.GetTTL()) << " "
+                << std::endl;
+            */
         }
+        else
+            m_duplicates += 1;
+    }
+    else if(m_task == 2){
+        UtilHeader utilHeader;
+        packet->RemoveHeader(utilHeader);
+
+        m_duplicates += 1;
+        if(m_record)
+            m_utils.push_back(utilHeader);
+        
+        if(m_duplicates % 10000 == 9999)
+            std::cout << "Receive entries: " << m_duplicates << std::endl;
+        
         /*
-        std::cout << "PathHeader: " << pathHeader.GetSrcIP() << " "
-            << pathHeader.GetDstIP() << " "
-            << pathHeader.GetSrcPort() << " "
-            << pathHeader.GetDstPort() << " "
-            << pathHeader.GetNodeId() << " "
-            << int(pathHeader.GetTTL()) << " "
-            << std::endl;
+        std::cout << "UtilHeader: " << utilHeader.GetNodeId() << " "
+                << utilHeader.GetPortId() << " "
+                << utilHeader.GetTime() << " "
+                << utilHeader.GetByte() << " "
+                << std::endl;
         */
     }
-    else
-        m_duplicates += 1;
+    else{
+        std::cout << "Unknown task" << std::endl;
+    }
+
 
     return true;
 }

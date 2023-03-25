@@ -12,9 +12,9 @@ struct Flows{
 };
 Flows flow = {0};
 
-void record_fct(FILE* fout, int64_t size, int64_t fct, int64_t end_time){
-	if(record){
-		fprintf(fout, "%ld %ld %ld\n", size, fct, end_time);
+void record_fct(FILE* fout, uint64_t app_id, int64_t size, int64_t fct, int64_t end_time){
+	if(fct_record){
+		fprintf(fout, "%ld %ld %ld %ld\n", app_id, size, fct, end_time);
     	fflush(fout);
 	}
 }
@@ -30,6 +30,7 @@ void ScheduleFlowInputs(){
 		BulkSendHelper source ("ns3::TcpSocketFactory",
                          InetSocketAddress(serverAddress[flow.dst], DEFAULT_PORT));
 		source.SetAttribute("MaxBytes", UintegerValue(flow.bytes));
+		source.SetAttribute("ApplicationID", UintegerValue(flow.index));
 
 		ApplicationContainer sourceApps = source.Install(servers[flow.src]);
 		sourceApps.Get(0)->TraceConnectWithoutContext("BulkEnd", MakeBoundCallback(record_fct, fct_output));
@@ -46,7 +47,7 @@ void ScheduleFlowInputs(){
 }
 
 void schedule_flow(std::string flow_file){
-	if(record)
+	if(fct_record)
 		fct_output = fopen((file_name + ".fct").c_str(), "w");
     	
 	flow_input.open("scratch/" + flow_file + ".tr");
