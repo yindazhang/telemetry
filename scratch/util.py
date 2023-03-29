@@ -54,7 +54,7 @@ if __name__=="__main__":
 
     common = "s_ECMP1_Orb"
     back = []
-    for i in ["1", "3", "5", "9"]:
+    for i in ["3", "5", "9"]:
         back.append(common + i + ".switch.util")
 
     for b in back:

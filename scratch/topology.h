@@ -84,7 +84,7 @@ void build_leaf_spine_routing(
 		}
 	}
 
-	if((OrbWeaver & 0x9) == 0x9 || (OrbWeaver & 0x5) == 0x5){
+	if((OrbWeaver & 0x3) == 0x3 || (OrbWeaver & 0x5) == 0x5){
 		for(uint32_t i = 0;i < NUM_SPINE;++i){
 			spines[i]->SetDeviceGenerateGap(NUM_LEAF, NUM_SPINE * 200 * 1000 / collectorMbps);
 			spines[i]->SetDeviceCollector(NUM_LEAF);
@@ -98,31 +98,27 @@ void build_leaf_spine_routing(
 		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 200 * 1000 / collectorMbps);
 		leaves[NUM_LEAF - 1]->SetDeviceCollector(SERVER_PER_LEAF);
 	}
-	else if((OrbWeaver & 0x1) == 0x1){
+	else if((OrbWeaver & 0x9) == 0x9){
 		for(uint32_t i = 0;i < NUM_SPINE;++i){
 			for(uint32_t k = 1;k < NUM_LEAF;++k){
 				spines[i]->SetDeviceGenerateGap(k, 12000 / 40);
-				spines[i]->SetDevicePulling(k);
-				if((OrbWeaver & 0x3) == 0x3)
-					spines[i]->SetDevicePushing(k);
+				spines[i]->SetDeviceLowerPull(k);
 			}
-			if((OrbWeaver & 0x3) == 0x3){
-				spines[i]->SetDeviceGenerateGap(NUM_LEAF, 12000 / 40);
-				spines[i]->SetDevicePushing(NUM_LEAF);
-			}
+			spines[i]->SetDeviceGenerateGap(NUM_LEAF, 12000 / 40);
+			spines[i]->SetDeviceUpperPull(NUM_LEAF);
 		}
+
 		for(uint32_t i = 0;i < NUM_LEAF - 1;++i){
 			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
 				leaves[i]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 12000 / 40);
-				leaves[i]->SetDevicePushing(SERVER_PER_LEAF + spineId + 1);
+				leaves[i]->SetDeviceUpperPull(SERVER_PER_LEAF + spineId + 1);
 			}
 		}
 		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 200 * 1000 / collectorMbps);
 		leaves[NUM_LEAF - 1]->SetDeviceCollector(SERVER_PER_LEAF);
 		for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
 			leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, NUM_SPINE * 200 * 1000 / collectorMbps);
-			leaves[NUM_LEAF - 1]->SetDevicePushing(SERVER_PER_LEAF + spineId + 1);
-			leaves[NUM_LEAF - 1]->SetDevicePulling(SERVER_PER_LEAF + spineId + 1);
+			leaves[NUM_LEAF - 1]->SetDeviceLowerPull(SERVER_PER_LEAF + spineId + 1);
 		}
 	}
 }
@@ -175,21 +171,21 @@ void build_leaf_spine(
 	pp_collector.SetDeviceAttribute("DataRate", StringValue(std::to_string(collectorMbps) + "Mbps"));
 	pp_collector.SetDeviceAttribute("INT", UintegerValue(intSize));
 	pp_collector.SetChannelAttribute("Delay", StringValue("1us"));
-	if((OrbWeaver & 0x9) == 0x9)
+	if((OrbWeaver & 0x3) == 0x3)
 		pp_collector.SetQueueAttribute("TeleSize", UintegerValue(16 * 1024));
 
 	PointToPointHelper pp_server_leaf;
 	pp_server_leaf.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
 	pp_server_leaf.SetDeviceAttribute("INT", UintegerValue(intSize));
 	pp_server_leaf.SetChannelAttribute("Delay", StringValue("1us"));
-	if((OrbWeaver & 0x9) == 0x9)
+	if((OrbWeaver & 0x3) == 0x3)
 		pp_server_leaf.SetQueueAttribute("TeleSize", UintegerValue(16 * 1024));
 
 	PointToPointHelper pp_leaf_spine;
 	pp_leaf_spine.SetDeviceAttribute("DataRate", StringValue("40Gbps"));
 	pp_leaf_spine.SetDeviceAttribute("INT", UintegerValue(intSize));
 	pp_leaf_spine.SetChannelAttribute("Delay", StringValue("1us"));
-	if((OrbWeaver & 0x9) == 0x9)
+	if((OrbWeaver & 0x3) == 0x3)
 		pp_leaf_spine.SetQueueAttribute("TeleSize", UintegerValue(16 * 1024));
 
 	TrafficControlHelper tch;

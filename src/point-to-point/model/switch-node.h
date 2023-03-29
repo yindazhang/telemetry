@@ -55,8 +55,8 @@ class SwitchNode : public Node
 
     struct DeviceProperty{
       bool isCollector;
-      bool isPull;
-      bool isPush;
+      bool isUpperPull;
+      bool isLowerPull;
 
       uint32_t devId;
       uint32_t generateGap;
@@ -64,7 +64,7 @@ class SwitchNode : public Node
       int64_t m_lastTime;
 
       DeviceProperty(){
-        isCollector = isPull = isPush = false;
+        isCollector = isUpperPull = isLowerPull = false;
         devId = 0;
         generateGap = 0x7fffffff;
         m_lastTime = 0;
@@ -74,8 +74,8 @@ class SwitchNode : public Node
     void SetDeviceGenerateGap(uint32_t devId, uint32_t generateGap);
 
     void SetDeviceCollector(uint32_t devId);
-    void SetDevicePulling(uint32_t devId);
-    void SetDevicePushing(uint32_t devId);
+    void SetDeviceUpperPull(uint32_t devId);
+    void SetDeviceLowerPull(uint32_t devId);
 
     void SetUtilGap(uint32_t utilGap);
     void SetEcmp(uint32_t ecmp);
@@ -104,9 +104,9 @@ class SwitchNode : public Node
     bool m_record = false;
 
     bool m_orbweaver = false;
-    bool m_push = false;
-    bool m_buf = false;
     bool m_basic = false;
+    bool m_push = false;
+    bool m_pull = false;
 
     std::vector<uint32_t> m_collectorDev;
 

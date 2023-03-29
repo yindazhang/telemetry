@@ -19,7 +19,7 @@
 #include "ns3/udp-l4-protocol.h"
 #include "ns3/socket.h"
 
-#include "path-header.h"
+#include "buffer-header.h"
 
 namespace ns3
 {
@@ -75,9 +75,9 @@ SwitchNode::~SwitchNode(){
 void
 SwitchNode::SetOrbWeaver(uint32_t OrbWeaver){
     m_orbweaver = ((OrbWeaver & 0x1) == 0x1);
-    m_push = ((OrbWeaver & 0x3) == 0x3);
-    m_buf = ((OrbWeaver & 0x5) == 0x5);
-    m_basic = ((OrbWeaver & 0x9) == 0x9);
+    m_basic = ((OrbWeaver & 0x3) == 0x3);
+    m_push = ((OrbWeaver & 0x5) == 0x5);
+    m_pull = ((OrbWeaver & 0x9) == 0x9);
 }
 
 void 
@@ -140,21 +140,21 @@ SwitchNode::SetDeviceCollector(uint32_t devId)
 }
 
 void
-SwitchNode::SetDevicePulling(uint32_t devId)
+SwitchNode::SetDeviceUpperPull(uint32_t devId)
 {
     if(m_deviceMap.find(m_devices[devId]) == m_deviceMap.end())
-        std::cout << "Unknown devId " << devId << " in deviceMap for pulling" << std::endl;
+        std::cout << "Unknown devId " << devId << " in deviceMap for upper pull" << std::endl;
     else
-        m_deviceMap[m_devices[devId]].isPull = true;
+        m_deviceMap[m_devices[devId]].isUpperPull = true;
 }
 
 void
-SwitchNode::SetDevicePushing(uint32_t devId)
+SwitchNode::SetDeviceLowerPull(uint32_t devId)
 {
     if(m_deviceMap.find(m_devices[devId]) == m_deviceMap.end())
-        std::cout << "Unknown devId " << devId << " in deviceMap for pushing" << std::endl;
-    else if(m_push)
-        m_deviceMap[m_devices[devId]].isPush = true;
+        std::cout << "Unknown devId " << devId << " in deviceMap for lower pull" << std::endl;
+    else
+        m_deviceMap[m_devices[devId]].isLowerPull = true;
 }
 
 uint32_t
@@ -195,7 +195,8 @@ SwitchNode::RecordUtil(){
                 utilHeader.SetByte(it->second);
                 if(m_utilBuffer.size() > queueSize){
                     m_utilBuffer.pop();
-                    // std::cout << "Information Loss for User" << std::endl;
+                    if(m_pull)
+                        std::cout << "Information Loss for Pull" << std::endl;
                 }
                 m_utilBuffer.push(utilHeader);
                 it->second = 0;
@@ -266,8 +267,11 @@ SwitchNode::BufferData(Ptr<Packet> packet){
         for(uint8_t i = 0;i < batchSize;++i){
             PathHeader pathHeader;
             packet->RemoveHeader(pathHeader);
-            if(m_pathBuffer.size() > queueSize)
+            if(m_pathBuffer.size() > queueSize){
                 m_pathBuffer.pop();
+                if(m_pull)
+                    std::cout << "Information Loss for Pull" << std::endl;
+            }
             m_pathBuffer.push(pathHeader);
         }
     }
@@ -275,8 +279,11 @@ SwitchNode::BufferData(Ptr<Packet> packet){
         for(uint8_t i = 0;i < batchSize;++i){
             UtilHeader utilHeader;
             packet->RemoveHeader(utilHeader);
-            if(m_utilBuffer.size() > queueSize)
+            if(m_utilBuffer.size() > queueSize){
                 m_utilBuffer.pop();
+                if(m_pull)
+                    std::cout << "Information Loss for Pull" << std::endl;
+            }
             m_utilBuffer.push(utilHeader);
         }
     }
@@ -350,8 +357,8 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
 
 bool 
 SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
-    if(!m_orbweaver && m_task != 1)
-        return 1;
+    if(!m_orbweaver || m_task != 1)
+        return true;
     
     // Start Parse Header
     Ipv4Header ipHeader;
@@ -386,7 +393,7 @@ SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
     pathHeader.SetNodeId(m_id);
     pathHeader.SetTTL(ttl);
 
-    if(m_record && m_task == 1 && m_paths.find(pathHeader) == m_paths.end())
+    if(m_record && m_paths.find(pathHeader) == m_paths.end())
         m_paths.insert(pathHeader);   
     
     uint32_t arrIndex = pathHeader.Hash() % m_table.size();
@@ -394,12 +401,13 @@ SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
         m_table[arrIndex] = pathHeader;
         if(m_pathBuffer.size() > queueSize){
             m_pathBuffer.pop();
-            // std::cout << "Information Loss for User" << std::endl;
+            if(m_pull)
+                std::cout << "Information Loss for Pull" << std::endl;
         }
         m_pathBuffer.push(pathHeader);
     }
 
-    return 1;
+    return true;
 }
 
 bool 
@@ -417,8 +425,8 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
 
 bool 
 SwitchNode::IngressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
-    if(m_buf || m_basic){
-        std::cout << "Unknown config (pull in buf/basic)" << std::endl;
+    if(m_basic || m_push){
+        std::cout << "Unknown config (pull in basic/push)" << std::endl;
         return false;
     }
     return dev->Send(packet, dev->GetBroadcast(), 0x0172);
@@ -426,7 +434,7 @@ SwitchNode::IngressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
 
 uint16_t 
 SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
-    if(m_basic || m_buf){
+    if(m_basic || m_push){
         if(AddTeleHeader(packet)){
             m_lastTime = Simulator::Now().GetNanoSeconds();
             return 0x0171;
@@ -450,17 +458,11 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
                 return 0;
         }
 
-        uint32_t bufferSize = m_pathBuffer.size();
-        if(m_task == 2)
-            bufferSize = m_utilBuffer.size();
-        
-        if(property.isPush && bufferSize > queueSize * 0.75){
-            if(AddTeleHeader(packet))
-                return 0x0171;
-            else
-                return 0;
-        }
-        else{
+        if(property.isUpperPull || property.isLowerPull){
+            uint32_t bufferSize = m_pathBuffer.size();
+            if(m_task == 2)
+                bufferSize = m_utilBuffer.size();
+            
             if(bufferSize < batchSize){
                 int64_t nsNow = Simulator::Now().GetNanoSeconds();
                 if(nsNow - m_lastTime > 2000000000){
@@ -471,10 +473,12 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
             else{
                 m_lastTime = Simulator::Now().GetNanoSeconds();
             }
-        }
-        
-        if(property.isPull && bufferSize < queueSize * 0.25)
+            
+            BufferHeader bufferHeader;
+            bufferHeader.SetBuffer(bufferSize);
+            packet->AddHeader(bufferHeader);
             return 0x172;
+        }
 
         return 0;
     }
@@ -492,10 +496,28 @@ SwitchNode::EgressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
 
 uint16_t
 SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
-    if(AddTeleHeader(packet))
-        return 0x171;
+    DeviceProperty property = m_deviceMap[dev];
+
+    BufferHeader bufferHeader;
+    packet->RemoveHeader(bufferHeader);
+
+    uint16_t size = bufferHeader.GetBuffer();
+    uint32_t bufferSize = m_pathBuffer.size();
+    if(m_task == 2)
+        bufferSize = m_utilBuffer.size();
+
+    if(property.isUpperPull){
+        if(size < bufferSize && AddTeleHeader(packet))
+            return 0x171;
+    }
+    else if(property.isLowerPull){
+        if(size + 1 < bufferSize && AddTeleHeader(packet))
+            return 0x171;
+    }
     else
-        return 0;
+        std::cout << "Unknown Protocol for EgressPipelinePull" << std::endl;
+        
+    return 0;
 }
 
 uint16_t

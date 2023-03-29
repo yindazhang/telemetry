@@ -25,6 +25,7 @@ build_lib(
     model/ppp-header.cc
     model/path-header.cc
     model/util-header.cc
+    model/buffer-header.cc
     model/collector-node.cc
     model/my-queue.cc
     model/switch-node.cc
@@ -36,6 +37,7 @@ build_lib(
     model/ppp-header.h
     model/path-header.h
     model/util-header.h
+    model/buffer-header.h
     model/collector-node.h
     model/my-queue.h
     model/switch-node.h
