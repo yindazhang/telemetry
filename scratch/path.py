@@ -65,8 +65,8 @@ if __name__=="__main__":
     args = parser.parse_args()
 
     common = "s_ECMP0_Fail"
-    parse_switch_file(args.file + common + "_Orb9.switch.path")
-    parse_collector_file(args.file + common + "_Orb9.collector.path")
+    parse_switch_file(args.file + common + "_Orb17.switch.path")
+    parse_collector_file(args.file + common + "_Orb17.collector.path")
 
     totalUnit = 0
     unitLoss = 0

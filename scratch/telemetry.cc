@@ -27,12 +27,13 @@ int main(int argc, char *argv[])
 	cmd.AddValue("Collector bandwitdh (Mbps)", "Bandwidth to the collector", collectorMbps);
 	cmd.AddValue("OrbWeaver", "Start OrbWeaver", OrbWeaver);
 	cmd.AddValue("ECMP", "configuration of ecmp: (0) 5-tuple (1) dst IP", ecmpConfig);
+	cmd.AddValue("Topology", "configuration of topology: (0) leaf-spine (1) fat-tree", topology);
 	cmd.AddValue("Failure", "Link failure", failConfig);
     cmd.Parse(argc, argv);
 	
 	std::cout << "Run Telemetry." << std::endl;
 
-	file_name = "scratch/" + flow_file + "s_ECMP" + std::to_string(ecmpConfig);
+	file_name = "scratch/" + flow_file + "s_Topo" + std::to_string(topology) + "_ECMP" + std::to_string(ecmpConfig);
 	if(failConfig)
 		file_name += "_Fail";
 	if(intSize > 0)
@@ -41,7 +42,12 @@ int main(int argc, char *argv[])
 		file_name += "_Orb" + std::to_string(OrbWeaver);
 
 	build_dctcp();
-	build_leaf_spine();
+
+	if(topology == 0)
+		build_leaf_spine();
+	else
+		build_fat_tree();
+
 	start_sink_app();
 	std::cout << "Finish Topology." << std::endl;
 

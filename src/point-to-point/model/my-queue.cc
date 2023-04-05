@@ -9,6 +9,8 @@
 #include "ns3/ipv4-header.h"
 #include "ns3/ppp-header.h"
 
+#include "point-to-point-net-device.h"
+
 namespace ns3
 {
 
@@ -25,18 +27,6 @@ MyQueue::GetTypeId()
             .SetGroupName("PointToPoint")
             .AddConstructor<MyQueue>()
             .AddAttribute(
-                "MaxSize",
-                "Maximum bytes in queue",
-                UintegerValue(256 * 1024),
-                MakeUintegerAccessor(&MyQueue::m_maxSize),
-                MakeUintegerChecker<uint32_t>())
-            .AddAttribute(
-                "TeleSize",
-                "Maximum bytes in telemetry queue",
-                UintegerValue(256),
-                MakeUintegerAccessor(&MyQueue::m_teleSize),
-                MakeUintegerChecker<uint32_t>())
-            .AddAttribute(
                 "ECNThreshold",
                 "Threshold for ECN",
                 UintegerValue(32 * 1024),
@@ -49,9 +39,10 @@ MyQueue::MyQueue()
 {
     m_queues.push_back(CreateObject<DropTailQueue<Packet>>());
     m_queues.push_back(CreateObject<DropTailQueue<Packet>>());
-    m_queues[0]->SetMaxSize(QueueSize("1MiB"));
-    m_queues[1]->SetMaxSize(QueueSize("1MiB"));
-    totalUserPacket = dropUserPacket = totalIDLEPacket = dropIDLEPacket = 0;
+    m_queues.push_back(CreateObject<DropTailQueue<Packet>>());
+    m_queues[0]->SetMaxSize(QueueSize("16MiB"));
+    m_queues[1]->SetMaxSize(QueueSize("16MiB"));
+    m_queues[2]->SetMaxSize(QueueSize("16MiB"));
 }
 
 MyQueue::~MyQueue() {}
@@ -70,52 +61,34 @@ MyQueue::Enqueue(Ptr<Packet> item)
     
     uint32_t priority = 0;
     SocketPriorityTag priorityTag;
-    if(item->PeekPacketTag(priorityTag)){
-        priority = (priorityTag.GetPriority() & 0x1);
-    }
+    if(item->PeekPacketTag(priorityTag))
+        priority = priorityTag.GetPriority();
 
-    /*
-    if(priority == 0)
-        totalUserPacket += 1;
-    else
-        totalIDLEPacket += 1;
-    
-    if(totalUserPacket % 100000 == 99999){
-        if(totalUserPacket > 0)
-            std::cout << "Drop rate of user packets: " << dropUserPacket << "/" << totalUserPacket << std::endl;
-        if(totalIDLEPacket > 0)
-            std::cout << "Drop rate of idle packets: " << dropIDLEPacket << "/" << totalIDLEPacket << std::endl;
-    }
-    */
-
-    if(priority == 0){
-        if(m_queues[0]->GetNBytes() > m_maxSize){
-            dropUserPacket += 1;
-            return false;
-        }
-    }
-    else{
-        if(m_queues[1]->GetNBytes() > m_teleSize){
-            dropIDLEPacket += 1;
-            return false;
-        }
-    }
-
-    if(priority == 0 && proto == 0x0021){
-        if(m_queues[0]->GetNBytes() > m_ecnThreshold){
-            if(ipHeader.GetEcn() == Ipv4Header::ECN_ECT1 || 
-                    ipHeader.GetEcn() == Ipv4Header::ECN_ECT0){
-                ipHeader.SetEcn(Ipv4Header::ECN_CE);
+    switch(priority){
+        case 0 : 
+            if(proto == 0x0021 && m_queues[0]->GetNBytes() > m_ecnThreshold){
+                if(ipHeader.GetEcn() == Ipv4Header::ECN_ECT1 || 
+                    ipHeader.GetEcn() == Ipv4Header::ECN_ECT0)
+                    ipHeader.SetEcn(Ipv4Header::ECN_CE);
             }
-        }
+            break;
+        case 1 : break;
+        case 2 : 
+            if(m_queues[2]->GetNBytes() > 256)
+                return false;
+            break;
+        default : std::cout << "Unknown priority for queue" << std::endl; return false;
     }
 
     if(proto == 0x0021)
         item->AddHeader(ipHeader);
-
     item->AddHeader(ppp);
 
-    return m_queues[priority]->Enqueue(item);
+    bool ret = m_queues[priority]->Enqueue(item);
+    if(!ret)
+        std::cout << "Error in buffer" << std::endl;
+
+    return ret;
 }
 
 Ptr<Packet>
@@ -147,13 +120,13 @@ MyQueue::Peek() const
 bool 
 MyQueue::IsEmpty() const
 {
-    return (m_queues[0]->IsEmpty() && m_queues[1]->IsEmpty());
+    return (m_queues[0]->IsEmpty() && m_queues[1]->IsEmpty() && m_queues[2]->IsEmpty());
 }
 
 uint32_t
 MyQueue::GetNBytes() const
 {
-    return (m_queues[0]->GetNBytes() + m_queues[1]->GetNBytes());
+    return (m_queues[0]->GetNBytes() + m_queues[1]->GetNBytes() + m_queues[2]->GetNBytes());
 }
 
 } // namespace ns3

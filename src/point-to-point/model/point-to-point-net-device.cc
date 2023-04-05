@@ -254,7 +254,7 @@ PointToPointNetDevice::TransmitStart(Ptr<Packet> p)
         uint32_t priority = 0;
         SocketPriorityTag priorityTag;
         if(p->PeekPacketTag(priorityTag))
-            priority = (priorityTag.GetPriority() & 0x1);
+            priority = priorityTag.GetPriority();
 
         PppHeader ppp;
         p->RemoveHeader(ppp);

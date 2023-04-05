@@ -20,6 +20,9 @@
 #include "ns3/socket.h"
 
 #include "buffer-header.h"
+#include "point-to-point-net-device.h"
+#include "my-queue.h"
+#include "ppp-header.h"
 
 namespace ns3
 {
@@ -48,10 +51,19 @@ SwitchNode::SwitchNode() : Node() {
 }
 
 SwitchNode::~SwitchNode(){
-    if(m_record && m_task == 1){
-        std::cout << "Receive entries: " << m_paths.size() << std::endl;
+    uint32_t send = m_utilSend;
+    if(m_task == 1)
+        send = m_paths.size();
 
+    if(m_record){
         FILE* fout = fopen(output_file.c_str(), "a");
+        fprintf(fout, "%d,%d,%d,%d\n", m_id, m_queueLoss, m_bufferLoss, send);
+        fflush(fout);
+        fclose(fout);
+    }
+
+    if(m_record && m_task == 1){
+        FILE* fout = fopen((output_file + ".data").c_str(), "a");
         for(auto path : m_paths){
             fprintf(fout, "%d %d ", path.GetSrcIP(), path.GetDstIP());
             fprintf(fout, "%d %d ", path.GetSrcPort(), path.GetDstPort());
@@ -61,15 +73,6 @@ SwitchNode::~SwitchNode(){
         }
         fclose(fout);
     }
-    else if(m_task == 2){
-        std::cout << "Receive entries: " << m_utilSend << std::endl;
-        if(m_record){
-            FILE* fout = fopen(output_file.c_str(), "a");
-            fprintf(fout, "%ld\n", m_utilSend);
-            fflush(fout);
-            fclose(fout);
-        }
-    }
 }
 
 void
@@ -78,11 +81,22 @@ SwitchNode::SetOrbWeaver(uint32_t OrbWeaver){
     m_basic = ((OrbWeaver & 0x3) == 0x3);
     m_push = ((OrbWeaver & 0x5) == 0x5);
     m_pull = ((OrbWeaver & 0x9) == 0x9);
+    m_final = ((OrbWeaver & 0x11) == 0x11);
+
+    if(m_basic){
+        m_queueThd += 14 * 1024;
+        m_bufferThd -= 14 * 1024;
+    }
 }
 
 void 
 SwitchNode::SetUtilGap(uint32_t utilGap){
     m_utilGap = utilGap;
+}
+
+void
+SwitchNode::SetHashSeed(uint32_t hashSeed){
+    m_hashSeed = hashSeed;
 }
 
 void 
@@ -103,8 +117,11 @@ SwitchNode::SetRecord(uint32_t record){
 void 
 SwitchNode::SetOutput(std::string output){
     if(m_record){
-        if(m_task == 1)
+        if(m_task == 1){
             output_file = output + ".switch.path";
+            FILE* fout = fopen((output_file + ".data").c_str(), "w");
+            fclose(fout);
+        }
         else if(m_task == 2)
             output_file = output + ".switch.util";
         else
@@ -176,7 +193,7 @@ SwitchNode::CreatePacket(uint8_t type)
 {
     Ptr<Packet> packet = Create<Packet>(0);
     SocketPriorityTag priorityTag;
-    priorityTag.SetPriority(1);
+    priorityTag.SetPriority(2);
     packet->ReplacePacketTag(priorityTag);
     return packet;
 }
@@ -193,12 +210,13 @@ SwitchNode::RecordUtil(){
                 utilHeader.SetPortId(it->first);
                 utilHeader.SetTime(Simulator::Now().GetMicroSeconds());
                 utilHeader.SetByte(it->second);
-                if(m_utilBuffer.size() > queueSize){
-                    m_utilBuffer.pop();
-                    if(m_pull)
-                        std::cout << "Information Loss for Pull" << std::endl;
-                }
+
                 m_utilBuffer.push(utilHeader);
+                if(m_utilBuffer.size() * sizeof(UtilHeader) > m_bufferThd){
+                    m_utilBuffer.pop();
+                    m_bufferLoss += 1;
+                }
+
                 it->second = 0;
             }
         }
@@ -216,8 +234,13 @@ SwitchNode::GeneratePacket(){
             if(nsNow >= it->second.m_lastTime + it->second.generateGap){
                 it->second.m_lastTime = nsNow;
                 Ptr<Packet> packet = CreatePacket(0);
-                if(packet != nullptr)
+                if(packet != nullptr){
+                    //if(m_seedSize + packet->GetSize() <= m_seedThd){
+                    //    m_seedSize += packet->GetSize();
+                    //    (it->first)->Send(packet, (it->first)->GetBroadcast(), 0x0170);
+                    //}
                     (it->first)->Send(packet, (it->first)->GetBroadcast(), 0x0170);
+                }
             }
             nextTime = std::min(nextTime, it->second.m_lastTime + it->second.generateGap);
         }
@@ -227,11 +250,13 @@ SwitchNode::GeneratePacket(){
 
 bool
 SwitchNode::AddTeleHeader(Ptr<Packet> packet)
-{ 
+{
+    SocketPriorityTag priorityTag;
+    priorityTag.SetPriority(1);
+    packet->ReplacePacketTag(priorityTag);
     if(m_task == 1){
         if(m_pathBuffer.size() < batchSize)
             return false;
-
         for(uint32_t i = 0;i < batchSize;++i){
             PathHeader pathHeader = m_pathBuffer.front();
             m_pathBuffer.pop();
@@ -242,7 +267,6 @@ SwitchNode::AddTeleHeader(Ptr<Packet> packet)
     else if(m_task == 2){
         if(m_utilBuffer.size() < batchSize)
             return false;
-
         for(uint32_t i = 0;i < batchSize;++i){
             UtilHeader utilHeader = m_utilBuffer.front();
             m_utilBuffer.pop();
@@ -267,24 +291,22 @@ SwitchNode::BufferData(Ptr<Packet> packet){
         for(uint8_t i = 0;i < batchSize;++i){
             PathHeader pathHeader;
             packet->RemoveHeader(pathHeader);
-            if(m_pathBuffer.size() > queueSize){
-                m_pathBuffer.pop();
-                if(m_pull)
-                    std::cout << "Information Loss for Pull" << std::endl;
-            }
             m_pathBuffer.push(pathHeader);
+            if(m_pathBuffer.size() * sizeof(PathHeader) > m_bufferThd){
+                m_pathBuffer.pop();
+                m_bufferLoss += 1;
+            }
         }
     }
     else if(m_task == 2){
         for(uint8_t i = 0;i < batchSize;++i){
             UtilHeader utilHeader;
             packet->RemoveHeader(utilHeader);
-            if(m_utilBuffer.size() > queueSize){
-                m_utilBuffer.pop();
-                if(m_pull)
-                    std::cout << "Information Loss for Pull" << std::endl;
-            }
             m_utilBuffer.push(utilHeader);
+            if(m_utilBuffer.size() * sizeof(UtilHeader) > m_bufferThd){
+                m_utilBuffer.pop();
+                m_bufferLoss += 1;
+            }
         }
     }
     else{
@@ -334,13 +356,15 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
     uint32_t devId = -1;
     uint32_t hash = 0;
 
-    if(m_ecmp == 1)
+    if(m_ecmp == 1){
+        dst = dst + m_hashSeed;
         hash = Hash32((char*)&dst, sizeof(dst));
+    }
     else{
         PathHeader pathHeader;
         memset((char*)(&pathHeader), 0, sizeof(PathHeader));
-        pathHeader.SetSrcIP(src);
-        pathHeader.SetDstIP(dst);
+        pathHeader.SetSrcIP(src + m_hashSeed);
+        pathHeader.SetDstIP(dst + m_hashSeed);
         pathHeader.SetSrcPort(srcPort);
         pathHeader.SetDstPort(dstPort);
         pathHeader.SetProtocol(proto);
@@ -348,11 +372,16 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
     }
 
     devId = vec[hash % vec.size()];
-    if(m_task == 2){
+    if(m_task == 2)
         m_bytes[devId] += packet->GetSize();
-    }
+
     Ptr<NetDevice> dev = m_devices[devId];
-    return dev->Send(packet, dev->GetBroadcast(), 0x0800);
+
+    if(m_userSize + packet->GetSize() <= m_userThd){
+        m_userSize += packet->GetSize();
+        return dev->Send(packet, dev->GetBroadcast(), 0x0800);
+    }
+    return false;
 }
 
 bool 
@@ -399,12 +428,11 @@ SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
     uint32_t arrIndex = pathHeader.Hash() % m_table.size();
     if(m_table[arrIndex].Empty() || !(m_table[arrIndex] == pathHeader)){
         m_table[arrIndex] = pathHeader;
-        if(m_pathBuffer.size() > queueSize){
-            m_pathBuffer.pop();
-            if(m_pull)
-                std::cout << "Information Loss for Pull" << std::endl;
-        }
         m_pathBuffer.push(pathHeader);
+        if(m_pathBuffer.size() * sizeof(PathHeader) > m_bufferThd){
+            m_pathBuffer.pop();
+            m_bufferLoss += 1;
+        }
     }
 
     return true;
@@ -415,12 +443,17 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
     if(m_basic){
         uint32_t devId = m_collectorDev[rand() % m_collectorDev.size()];
         dev = m_devices[devId];
-        return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
     else{
-        BufferData(packet);
-        return false;
+        dev = m_devices[m_devices.size() - 1];
     }
+
+    if(m_queueSize + packet->GetSize() <= m_queueThd){
+        m_queueSize += packet->GetSize();
+        return dev->Send(packet, dev->GetBroadcast(), 0x0171);
+    }
+    m_queueLoss += 1;
+    return false;
 }
 
 bool 
@@ -429,6 +462,11 @@ SwitchNode::IngressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
         std::cout << "Unknown config (pull in basic/push)" << std::endl;
         return false;
     }
+    //if(m_seedSize + packet->GetSize() <= m_seedThd){
+    //    m_seedSize += packet->GetSize();
+    //    return dev->Send(packet, dev->GetBroadcast(), 0x0172);
+    //}
+    //return false;
     return dev->Send(packet, dev->GetBroadcast(), 0x0172);
 }
 
@@ -458,22 +496,26 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
                 return 0;
         }
 
-        if(property.isUpperPull || property.isLowerPull){
-            uint32_t bufferSize = m_pathBuffer.size();
-            if(m_task == 2)
-                bufferSize = m_utilBuffer.size();
+        uint32_t bufferSize = m_pathBuffer.size() * sizeof(PathHeader);
+        if(m_task == 2)
+            bufferSize = m_utilBuffer.size() * sizeof(UtilHeader);
             
-            if(bufferSize < batchSize){
-                int64_t nsNow = Simulator::Now().GetNanoSeconds();
-                if(nsNow - m_lastTime > 2000000000){
-                    m_orbweaver = false;
-                    std::cout << "Switch " << m_id << " stops in " << nsNow << " ns" << std::endl;
-                }
+        if(bufferSize < batchSize){
+            int64_t nsNow = Simulator::Now().GetNanoSeconds();
+            if(nsNow - m_lastTime > 2000000000){
+                m_orbweaver = false;
+                std::cout << "Switch " << m_id << " stops in " << nsNow << " ns" << std::endl;
             }
-            else{
-                m_lastTime = Simulator::Now().GetNanoSeconds();
-            }
-            
+        }
+        else{
+            m_lastTime = Simulator::Now().GetNanoSeconds();
+        }
+
+        if(m_pull && property.isLowerPull){
+            if(bufferSize < m_bufferThd * 0.5)
+                return 0x172;
+        }
+        else if(m_final && (property.isUpperPull || property.isLowerPull)){
             BufferHeader bufferHeader;
             bufferHeader.SetBuffer(bufferSize);
             packet->AddHeader(bufferHeader);
@@ -489,7 +531,7 @@ SwitchNode::EgressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
     if(m_basic)
         return 1;
     else{
-        std::cout << "Push in egress" << std::endl;
+        BufferData(packet);
         return 0;
     }
 }
@@ -497,35 +539,73 @@ SwitchNode::EgressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
 uint16_t
 SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
     DeviceProperty property = m_deviceMap[dev];
+    if(m_final){
+        BufferHeader bufferHeader;
+        packet->RemoveHeader(bufferHeader);
 
-    BufferHeader bufferHeader;
-    packet->RemoveHeader(bufferHeader);
+        uint16_t size = bufferHeader.GetBuffer();
+        uint32_t bufferSize = m_pathBuffer.size();
+        if(m_task == 2)
+            bufferSize = m_utilBuffer.size();
 
-    uint16_t size = bufferHeader.GetBuffer();
-    uint32_t bufferSize = m_pathBuffer.size();
-    if(m_task == 2)
-        bufferSize = m_utilBuffer.size();
-
-    if(property.isUpperPull){
-        if(size < bufferSize && AddTeleHeader(packet))
-            return 0x171;
+        if(property.isUpperPull){
+            if(size < bufferSize){
+                if(AddTeleHeader(packet))
+                    return 0x171;
+            }
+            else{
+                bufferHeader.SetBuffer(bufferSize);
+                packet->AddHeader(bufferHeader);
+                return 0x172;
+            }
+        }
+        else if(property.isLowerPull){
+            if(size + 1 < bufferSize){
+                if(AddTeleHeader(packet))
+                    return 0x171;
+            }
+            else{
+                bufferHeader.SetBuffer(bufferSize);
+                packet->AddHeader(bufferHeader);
+                return 0x172;
+            }
+        }
+        else
+            std::cout << "Unknown Protocol for EgressPipelinePull for Final" << std::endl;
     }
-    else if(property.isLowerPull){
-        if(size + 1 < bufferSize && AddTeleHeader(packet))
+    else if(m_pull){
+        if(property.isLowerPull)
+            std::cout << "Unknown Protocol for EgressPipelinePull for Pull" << std::endl;
+        if(AddTeleHeader(packet))
             return 0x171;
     }
     else
-        std::cout << "Unknown Protocol for EgressPipelinePull" << std::endl;
-        
+        std::cout << "EgressPipelinePull for other protocol?" << std::endl;
+       
     return 0;
 }
 
 uint16_t
 SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev){
     if(priority == 0){
-        return EgressPipelineUser(packet);
+        m_userSize -= packet->GetSize();
+        if(m_userSize < 0)
+            std::cout << "Error for userSize" << std::endl;
+        return EgressPipelineUser(packet); 
     }
     else{
+        if(protocol == 0x0171){
+            m_queueSize -= packet->GetSize();
+            if(m_queueSize < 0)
+                std::cout << "Error for queueSize" << std::endl;
+        }
+
+        //else{
+        //    m_seedSize -= packet->GetSize();
+        //    if(m_seedSize < 0)
+        //        std::cout << "Error for seedSize" << std::endl;
+        //}
+
         if(protocol == 0x0170)
             return EgressPipelineSeed(packet, dev);
         else if(protocol == 0x0171)
@@ -567,7 +647,7 @@ SwitchNode::ReceiveFromDevice(Ptr<NetDevice> device,
     uint32_t priority = 0;
     SocketPriorityTag priorityTag;
     if(packet->PeekPacketTag(priorityTag))
-        priority = (priorityTag.GetPriority() & 0x1);
+        priority = priorityTag.GetPriority();
 
     return IngressPipeline(packet, priority, protocol, device);
 }

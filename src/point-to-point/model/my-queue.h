@@ -2,6 +2,7 @@
 #define MYQUEUE_H
 
 #include "ns3/drop-tail-queue.h"
+#include "point-to-point-net-device.h"
 
 #include <vector>
 
@@ -33,14 +34,7 @@ public:
 
 protected:
     std::vector<Ptr<DropTailQueue<Packet>>> m_queues;
-    uint32_t m_maxSize;
-    uint32_t m_teleSize;
     uint32_t m_ecnThreshold;
-
-    uint64_t totalUserPacket;
-    uint64_t dropUserPacket;
-    uint64_t totalIDLEPacket;
-    uint64_t dropIDLEPacket;
 };
 
 } // namespace ns3

@@ -78,6 +78,7 @@ class SwitchNode : public Node
     void SetDeviceLowerPull(uint32_t devId);
 
     void SetUtilGap(uint32_t utilGap);
+    void SetHashSeed(uint32_t hashSeed);
     void SetEcmp(uint32_t ecmp);
     void SetRecord(uint32_t record);
     void SetTask(uint32_t task);
@@ -93,7 +94,20 @@ class SwitchNode : public Node
 
     const uint32_t batchSize = 1;
     const uint32_t arrSize = 65537;
-    const uint32_t queueSize = 1024;
+
+    int32_t m_userThd = 4*1024*1024;
+    int32_t m_userSize = 0;
+
+    //int32_t m_seedThd = 4*1024;
+    //int32_t m_seedSize = 0;
+
+    int32_t m_queueThd = 2*1024;
+    int32_t m_queueSize = 0;
+
+    int32_t m_bufferThd = 30*1024;
+
+    uint32_t m_bufferLoss = 0;
+    uint32_t m_queueLoss = 0;
 
     std::string output_file;
 
@@ -101,12 +115,15 @@ class SwitchNode : public Node
     int m_task;
     uint32_t m_utilGap = 10000;
 
+    uint32_t m_hashSeed = 0;
+
     bool m_record = false;
 
     bool m_orbweaver = false;
     bool m_basic = false;
     bool m_push = false;
     bool m_pull = false;
+    bool m_final = false;
 
     std::vector<uint32_t> m_collectorDev;
 

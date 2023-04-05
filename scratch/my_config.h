@@ -11,7 +11,9 @@ uint32_t utilGap = 10000;
 uint16_t intSize = 0;
 uint32_t OrbWeaver = 0;
 
-uint32_t taskId = 1;
+uint32_t taskId = 2;
+
+uint32_t topology = 0;
 
 uint32_t ecmpConfig = 0;
 uint32_t failConfig = 0;
