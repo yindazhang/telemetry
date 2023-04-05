@@ -127,7 +127,7 @@ class SwitchNode : public Node
 
     std::vector<uint32_t> m_collectorDev;
 
-    uint64_t m_utilSend = 0;
+    uint64_t m_teleSend = 0;
     std::unordered_map<uint32_t, uint32_t> m_bytes;
 
     std::unordered_map<uint32_t, std::vector<uint32_t>> m_routeForward;

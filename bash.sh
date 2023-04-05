@@ -53,6 +53,7 @@ nohup ./ns3 run "scratch/telemetry --flow=Hadoop_143_0.6_10G_0.5 --ECMP=1 --reco
 nohup ./ns3 run "scratch/telemetry --flow=Hadoop_143_0.7_10G_0.5 --ECMP=1 --record=1 --taskId=1 --OrbWeaver=17" > 7-ECMP1-Orb17-1.out &
 
 
+./ns3 run "scratch/telemetry --flow=Hadoop_143_0.5_10G_0.5 --ECMP=1 --taskId=2 --Topology=0 --utilGap=10000 --OrbWeaver=17"
 
 nohup ./ns3 run "scratch/telemetry --flow=Hadoop_143_0.5_10G_0.5 --ECMP=1 --record=1 --fctRecord=1 --taskId=2 --Topology=0 --utilGap=10000 --OrbWeaver=3" > 5-Topo0-ECMP1-Orb3-2.out &
 nohup ./ns3 run "scratch/telemetry --flow=Hadoop_143_0.6_10G_0.5 --ECMP=1 --record=1 --fctRecord=1 --taskId=2 --Topology=0 --utilGap=10000 --OrbWeaver=3" > 6-Topo0-ECMP1-Orb3-2.out &
@@ -87,9 +88,6 @@ nohup ./ns3 run "scratch/telemetry --flow=Hadoop_143_0.7_10G_0.5 --ECMP=1 --reco
 nohup ./ns3 run "scratch/telemetry --flow=Hadoop_143_0.5_10G_0.5 --ECMP=1 --record=1 --fctRecord=1 --taskId=2 --Topology=1 --utilGap=10000 --OrbWeaver=17" > 5-Topo1-ECMP1-Orb17-2.out &
 nohup ./ns3 run "scratch/telemetry --flow=Hadoop_143_0.6_10G_0.5 --ECMP=1 --record=1 --fctRecord=1 --taskId=2 --Topology=1 --utilGap=10000 --OrbWeaver=17" > 6-Topo1-ECMP1-Orb17-2.out &
 nohup ./ns3 run "scratch/telemetry --flow=Hadoop_143_0.7_10G_0.5 --ECMP=1 --record=1 --fctRecord=1 --taskId=2 --Topology=1 --utilGap=10000 --OrbWeaver=17" > 7-Topo1-ECMP1-Orb17-2.out &
-
-
-
 
 
 nohup ./ns3 run "scratch/telemetry --flow=Hadoop_143_0.2_10G_0.2 --record=1 --INT=4" > 5-INT4.out &

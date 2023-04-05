@@ -51,13 +51,9 @@ SwitchNode::SwitchNode() : Node() {
 }
 
 SwitchNode::~SwitchNode(){
-    uint32_t send = m_utilSend;
-    if(m_task == 1)
-        send = m_paths.size();
-
     if(m_record){
         FILE* fout = fopen(output_file.c_str(), "a");
-        fprintf(fout, "%d,%d,%d,%d\n", m_id, m_queueLoss, m_bufferLoss, send);
+        fprintf(fout, "%d,%d,%d,%d\n", m_id, m_queueLoss, m_bufferLoss, m_teleSend, m_paths.size());
         fflush(fout);
         fclose(fout);
     }
@@ -203,7 +199,7 @@ SwitchNode::RecordUtil(){
     if(m_orbweaver){
         for(auto it = m_bytes.begin();it != m_bytes.end();++it){
             if(it->second > 0){
-                m_utilSend += 1;
+                m_teleSend += 1;
                 UtilHeader utilHeader;
                 memset((char*)(&utilHeader), 0, sizeof(UtilHeader));
                 utilHeader.SetNodeId(m_id);
@@ -212,7 +208,7 @@ SwitchNode::RecordUtil(){
                 utilHeader.SetByte(it->second);
 
                 m_utilBuffer.push(utilHeader);
-                if(m_utilBuffer.size() * sizeof(UtilHeader) > m_bufferThd){
+                if(m_utilBuffer.size() * utilHeader.GetSerializedSize() > m_bufferThd){
                     m_utilBuffer.pop();
                     m_bufferLoss += 1;
                 }
@@ -292,7 +288,7 @@ SwitchNode::BufferData(Ptr<Packet> packet){
             PathHeader pathHeader;
             packet->RemoveHeader(pathHeader);
             m_pathBuffer.push(pathHeader);
-            if(m_pathBuffer.size() * sizeof(PathHeader) > m_bufferThd){
+            if(m_pathBuffer.size() * pathHeader.GetSerializedSize() > m_bufferThd){
                 m_pathBuffer.pop();
                 m_bufferLoss += 1;
             }
@@ -303,7 +299,7 @@ SwitchNode::BufferData(Ptr<Packet> packet){
             UtilHeader utilHeader;
             packet->RemoveHeader(utilHeader);
             m_utilBuffer.push(utilHeader);
-            if(m_utilBuffer.size() * sizeof(UtilHeader) > m_bufferThd){
+            if(m_utilBuffer.size() * utilHeader.GetSerializedSize() > m_bufferThd){
                 m_utilBuffer.pop();
                 m_bufferLoss += 1;
             }
@@ -429,7 +425,8 @@ SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
     if(m_table[arrIndex].Empty() || !(m_table[arrIndex] == pathHeader)){
         m_table[arrIndex] = pathHeader;
         m_pathBuffer.push(pathHeader);
-        if(m_pathBuffer.size() * sizeof(PathHeader) > m_bufferThd){
+        m_teleSend += 1;
+        if(m_pathBuffer.size() * pathHeader.GetSerializedSize() > m_bufferThd){
             m_pathBuffer.pop();
             m_bufferLoss += 1;
         }
@@ -473,18 +470,8 @@ SwitchNode::IngressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
 uint16_t 
 SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
     if(m_basic || m_push){
-        if(AddTeleHeader(packet)){
-            m_lastTime = Simulator::Now().GetNanoSeconds();
+        if(AddTeleHeader(packet))
             return 0x0171;
-        }
-        else{
-            int64_t nsNow = Simulator::Now().GetNanoSeconds();
-            if(nsNow - m_lastTime > 2000000000){
-                m_orbweaver = false;
-                std::cout << "Switch " << m_id << " stops in " << nsNow << " ns" << std::endl;
-            }
-            return 0;
-        }
     }
     else{
         DeviceProperty property = m_deviceMap[dev];
@@ -496,20 +483,9 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
                 return 0;
         }
 
-        uint32_t bufferSize = m_pathBuffer.size() * sizeof(PathHeader);
+        uint32_t bufferSize = m_pathBuffer.size() * 18;
         if(m_task == 2)
-            bufferSize = m_utilBuffer.size() * sizeof(UtilHeader);
-            
-        if(bufferSize < batchSize){
-            int64_t nsNow = Simulator::Now().GetNanoSeconds();
-            if(nsNow - m_lastTime > 2000000000){
-                m_orbweaver = false;
-                std::cout << "Switch " << m_id << " stops in " << nsNow << " ns" << std::endl;
-            }
-        }
-        else{
-            m_lastTime = Simulator::Now().GetNanoSeconds();
-        }
+            bufferSize = m_utilBuffer.size() * 16;
 
         if(m_pull && property.isLowerPull){
             if(bufferSize < m_bufferThd * 0.5)
@@ -521,9 +497,8 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
             packet->AddHeader(bufferHeader);
             return 0x172;
         }
-
-        return 0;
     }
+    return 0;
 }
 
 uint16_t
@@ -553,7 +528,7 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
                 if(AddTeleHeader(packet))
                     return 0x171;
             }
-            else{
+            else if(bufferSize + 1 < size){
                 bufferHeader.SetBuffer(bufferSize);
                 packet->AddHeader(bufferHeader);
                 return 0x172;
@@ -564,7 +539,7 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
                 if(AddTeleHeader(packet))
                     return 0x171;
             }
-            else{
+            else if(bufferSize < size){
                 bufferHeader.SetBuffer(bufferSize);
                 packet->AddHeader(bufferHeader);
                 return 0x172;
@@ -600,11 +575,20 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
                 std::cout << "Error for queueSize" << std::endl;
         }
 
-        //else{
-        //    m_seedSize -= packet->GetSize();
-        //    if(m_seedSize < 0)
-        //        std::cout << "Error for seedSize" << std::endl;
-        //}
+        uint32_t bufferSize = m_pathBuffer.size();
+        if(m_task == 2)
+            bufferSize = m_utilBuffer.size();
+            
+        if(bufferSize < batchSize){
+            int64_t nsNow = Simulator::Now().GetNanoSeconds();
+            if(nsNow - m_lastTime > 2000000000){
+                m_orbweaver = false;
+                std::cout << "Switch " << m_id << " stops in " << nsNow << " ns" << std::endl;
+            }
+        }
+        else{
+            m_lastTime = Simulator::Now().GetNanoSeconds();
+        }
 
         if(protocol == 0x0170)
             return EgressPipelineSeed(packet, dev);
