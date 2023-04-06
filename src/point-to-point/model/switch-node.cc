@@ -575,19 +575,21 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
                 std::cout << "Error for queueSize" << std::endl;
         }
 
-        uint32_t bufferSize = m_pathBuffer.size();
-        if(m_task == 2)
-            bufferSize = m_utilBuffer.size();
-            
-        if(bufferSize < batchSize){
-            int64_t nsNow = Simulator::Now().GetNanoSeconds();
-            if(nsNow - m_lastTime > 2000000000){
-                m_orbweaver = false;
-                std::cout << "Switch " << m_id << " stops in " << nsNow << " ns" << std::endl;
+        if(m_orbweaver){
+            uint32_t bufferSize = m_pathBuffer.size();
+            if(m_task == 2)
+                bufferSize = m_utilBuffer.size();
+
+            if(bufferSize < batchSize){
+                int64_t nsNow = Simulator::Now().GetNanoSeconds();
+                if(nsNow - m_lastTime > 1000000000){
+                    m_orbweaver = false;
+                    std::cout << "Switch " << m_id << " stops in " << nsNow << " ns" << std::endl;
+                }
             }
-        }
-        else{
-            m_lastTime = Simulator::Now().GetNanoSeconds();
+            else{
+                m_lastTime = Simulator::Now().GetNanoSeconds();
+            }
         }
 
         if(protocol == 0x0170)

@@ -541,12 +541,16 @@ void build_fat_tree(
 		}
 	}
 	
-	//TODO: failConfig?
 	for(uint32_t i = 0;i < NUM_BLOCK;++i){
 		for(uint32_t j = 0;j < K;++j){
 			for(uint32_t k = 0;k < K;++k){
 				NetDeviceContainer netDev;
-				netDev = pp_switch_switch.Install(edges[i*K+j], aggregations[i*K+k]);
+
+				if(failConfig && (i == NUM_BLOCK - 1 && j == K - 1 && k == K - 1))
+					netDev = pp_server_switch.Install(edges[i*K+j], aggregations[i*K+k]);
+				else
+					netDev = pp_switch_switch.Install(edges[i*K+j], aggregations[i*K+k]);
+
 				std::string ipBase = std::to_string(i + NUM_BLOCK) + "." + std::to_string(j) + 
 									"." + std::to_string(k) + ".0";
 				ipv4.SetBase(ipBase.c_str(), "255.255.255.0");
@@ -559,7 +563,12 @@ void build_fat_tree(
 		for(uint32_t j = 0;j < K;++j){
 			for(uint32_t k = 0;k < K;++k){
 				NetDeviceContainer netDev;
-				netDev = pp_switch_switch.Install(aggregations[i*K+j], cores[j*K+k]);
+
+				if(failConfig && (i == NUM_BLOCK - 1 && j == 0 && k == 0))
+					netDev = pp_server_switch.Install(aggregations[i*K+j], cores[j*K+k]);
+				else
+					netDev = pp_switch_switch.Install(aggregations[i*K+j], cores[j*K+k]);
+
 				std::string ipBase = std::to_string(i + 2*NUM_BLOCK) + "." + std::to_string(j) + 
 									"." + std::to_string(k) + ".0";
 				ipv4.SetBase(ipBase.c_str(), "255.255.255.0");
