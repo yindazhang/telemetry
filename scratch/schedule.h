@@ -30,9 +30,11 @@ void OutputTime(){
 	std::cout << "Now: " << nsNow << std::endl;
 
 	for(auto node : switches){
-		if(node->GetBufferSize() > 0){
-			Simulator::Schedule(NanoSeconds(100000000), OutputTime);
-			return;
+		if(node != nullptr){
+			if(node->GetBufferSize() > 0){
+				Simulator::Schedule(NanoSeconds(100000000), OutputTime);
+				return;
+			}
 		}
 	}
 

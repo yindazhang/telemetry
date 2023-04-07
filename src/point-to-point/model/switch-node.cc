@@ -74,12 +74,13 @@ SwitchNode::~SwitchNode(){
 uint32_t 
 SwitchNode::GetBufferSize(){
     uint32_t bufferSize = m_pathBuffer.size();
-     if(m_task == 2)
+    if(m_task == 2)
         bufferSize = m_utilBuffer.size();
     
-    for(auto dev : m_devices){
-        auto que = DynamicCast<PointToPointNetDevice>(dev)->GetQueue();
-        bufferSize += que->GetNBytes();
+    for(uint32_t i = 0;i < m_devices.size();++i){
+        auto dev = DynamicCast<PointToPointNetDevice>(m_devices[i]);
+        if(dev != nullptr)
+            bufferSize += dev->GetQueue()->GetNBytes();
     }
     return bufferSize;
 }
