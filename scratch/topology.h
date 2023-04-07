@@ -27,6 +27,9 @@ std::vector<Ptr<SwitchNode>> cores;
 std::vector<Ptr<SwitchNode>> edges;
 std::vector<Ptr<SwitchNode>> aggregations;
 
+//All switches
+std::vector<Ptr<SwitchNode>> switches;
+
 std::vector<Ptr<CollectorNode>> collectors;
 
 std::vector<Ipv4Address> serverAddress;
@@ -176,6 +179,8 @@ void build_leaf_spine(
 		leaves[i]->SetRecord(recordConfig);
 		leaves[i]->SetOutput(file_name);
 		leaves[i]->SetUtilGap(utilGap);
+
+		switches.push_back(leaves[i]);
 	}
 	for(uint32_t i = 0;i < NUM_SPINE;++i){
 		spines[i] = CreateObject<SwitchNode>();
@@ -187,6 +192,8 @@ void build_leaf_spine(
 		spines[i]->SetRecord(recordConfig);
 		spines[i]->SetOutput(file_name);
 		spines[i]->SetUtilGap(utilGap);
+
+		switches.push_back(spines[i]);
 	}
 
 	InternetStackHelper internet;
@@ -469,6 +476,8 @@ void build_fat_tree(
 		edges[i]->SetRecord(recordConfig);
 		edges[i]->SetOutput(file_name);
 		edges[i]->SetUtilGap(utilGap);
+
+		switches.push_back(edges[i]);
 	}
 	for(uint32_t i = 0;i < K * NUM_BLOCK;++i){
 		aggregations[i] = CreateObject<SwitchNode>();
@@ -480,6 +489,8 @@ void build_fat_tree(
 		aggregations[i]->SetRecord(recordConfig);
 		aggregations[i]->SetOutput(file_name);
 		aggregations[i]->SetUtilGap(utilGap);
+
+		switches.push_back(aggregations[i]);
 	}
 	for(uint32_t i = 0;i < K * K;++i){
 		cores[i] = CreateObject<SwitchNode>();
@@ -491,6 +502,8 @@ void build_fat_tree(
 		cores[i]->SetRecord(recordConfig);
 		cores[i]->SetOutput(file_name);
 		cores[i]->SetUtilGap(utilGap);
+
+		switches.push_back(cores[i]);
 	}
 
 	InternetStackHelper internet;

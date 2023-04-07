@@ -25,6 +25,22 @@ void ReadFlowInput(){
 	}
 }
 
+void OutputTime(){
+	int64_t nsNow = Simulator::Now().GetNanoSeconds();
+	std::cout << "Now: " << nsNow << std::endl;
+
+	for(auto node : switches){
+		if(node->GetBufferSize() > 0){
+			Simulator::Schedule(NanoSeconds(100000000), OutputTime);
+			return;
+		}
+	}
+
+	for(auto node : switches)
+		node->m_orbweaver = false;
+	std::cout << "Stop here" << std::endl;
+}
+
 void ScheduleFlowInputs(){
 	while(flow.index < flow.total_size && NanoSeconds(flow.start_time) == Simulator::Now()){
 		BulkSendHelper source ("ns3::TcpSocketFactory",
@@ -62,6 +78,7 @@ void schedule_flow(std::string flow_file){
 	if(flow.total_size > 0){
 		ReadFlowInput();
 		Simulator::Schedule(NanoSeconds(flow.start_time), ScheduleFlowInputs);
+		Simulator::Schedule(NanoSeconds(flow.start_time + 100000000), OutputTime);
 	}
 }
 

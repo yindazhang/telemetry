@@ -71,6 +71,19 @@ SwitchNode::~SwitchNode(){
     }
 }
 
+uint32_t 
+SwitchNode::GetBufferSize(){
+    uint32_t bufferSize = m_pathBuffer.size();
+     if(m_task == 2)
+        bufferSize = m_utilBuffer.size();
+    
+    for(auto dev : m_devices){
+        auto que = DynamicCast<PointToPointNetDevice>(dev)->GetQueue();
+        bufferSize += que->GetNBytes();
+    }
+    return bufferSize;
+}
+
 void
 SwitchNode::SetOrbWeaver(uint32_t OrbWeaver){
     m_orbweaver = ((OrbWeaver & 0x1) == 0x1);
@@ -231,10 +244,6 @@ SwitchNode::GeneratePacket(){
                 it->second.m_lastTime = nsNow;
                 Ptr<Packet> packet = CreatePacket(0);
                 if(packet != nullptr){
-                    //if(m_seedSize + packet->GetSize() <= m_seedThd){
-                    //    m_seedSize += packet->GetSize();
-                    //    (it->first)->Send(packet, (it->first)->GetBroadcast(), 0x0170);
-                    //}
                     (it->first)->Send(packet, (it->first)->GetBroadcast(), 0x0170);
                 }
             }
@@ -459,11 +468,6 @@ SwitchNode::IngressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
         std::cout << "Unknown config (pull in basic/push)" << std::endl;
         return false;
     }
-    //if(m_seedSize + packet->GetSize() <= m_seedThd){
-    //    m_seedSize += packet->GetSize();
-    //    return dev->Send(packet, dev->GetBroadcast(), 0x0172);
-    //}
-    //return false;
     return dev->Send(packet, dev->GetBroadcast(), 0x0172);
 }
 
@@ -573,23 +577,6 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
             m_queueSize -= packet->GetSize();
             if(m_queueSize < 0)
                 std::cout << "Error for queueSize" << std::endl;
-        }
-
-        if(m_orbweaver){
-            uint32_t bufferSize = m_pathBuffer.size();
-            if(m_task == 2)
-                bufferSize = m_utilBuffer.size();
-
-            if(bufferSize < batchSize){
-                int64_t nsNow = Simulator::Now().GetNanoSeconds();
-                if(nsNow - m_lastTime > 1000000000){
-                    m_orbweaver = false;
-                    std::cout << "Switch " << m_id << " stops in " << nsNow << " ns" << std::endl;
-                }
-            }
-            else{
-                m_lastTime = Simulator::Now().GetNanoSeconds();
-            }
         }
 
         if(protocol == 0x0170)

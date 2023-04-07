@@ -120,13 +120,13 @@ MyQueue::Peek() const
 bool 
 MyQueue::IsEmpty() const
 {
-    return (m_queues[0]->IsEmpty() && m_queues[1]->IsEmpty() && m_queues[2]->IsEmpty());
+    return (m_queues[0]->IsEmpty() && m_queues[1]->IsEmpty());
 }
 
 uint32_t
 MyQueue::GetNBytes() const
 {
-    return (m_queues[0]->GetNBytes() + m_queues[1]->GetNBytes() + m_queues[2]->GetNBytes());
+    return (m_queues[0]->GetNBytes() + m_queues[1]->GetNBytes());
 }
 
 } // namespace ns3

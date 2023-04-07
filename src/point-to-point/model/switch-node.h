@@ -71,6 +71,8 @@ class SwitchNode : public Node
       }
     };
 
+    uint32_t GetBufferSize();
+
     void SetDeviceGenerateGap(uint32_t devId, uint32_t generateGap);
 
     void SetDeviceCollector(uint32_t devId);
@@ -87,6 +89,8 @@ class SwitchNode : public Node
 
     bool IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
     uint16_t EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
+
+    bool m_orbweaver = false;
 
   protected:
 
@@ -119,7 +123,6 @@ class SwitchNode : public Node
 
     bool m_record = false;
 
-    bool m_orbweaver = false;
     bool m_basic = false;
     bool m_push = false;
     bool m_pull = false;
