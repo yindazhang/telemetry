@@ -88,6 +88,7 @@ SwitchNode::GetBufferSize(){
 void
 SwitchNode::SetOrbWeaver(uint32_t OrbWeaver){
     m_orbweaver = ((OrbWeaver & 0x1) == 0x1);
+    m_postcard = (OrbWeaver == 0x2);
     m_basic = ((OrbWeaver & 0x3) == 0x3);
     m_push = ((OrbWeaver & 0x5) == 0x5);
     m_pull = ((OrbWeaver & 0x9) == 0x9);
@@ -199,39 +200,88 @@ SwitchNode::AddDevice(Ptr<NetDevice> device)
 }
 
 Ptr<Packet> 
-SwitchNode::CreatePacket(uint8_t type)
+SwitchNode::CreatePacket(uint8_t priority = 2)
 {
-    Ptr<Packet> packet = Create<Packet>(0);
+    Ptr<Packet> packet = Create<Packet>();
     SocketPriorityTag priorityTag;
-    priorityTag.SetPriority(2);
+    priorityTag.SetPriority(priority);
     packet->ReplacePacketTag(priorityTag);
     return packet;
 }
 
 void 
+SwitchNode::SendPostcard(){
+    if(m_pathBuffer.size() < 1){
+        std::cout << "SendPostcard Error" << std::endl;
+        return;
+    }
+
+    Ptr<Packet> postcard = CreatePacket(0);
+    PathHeader pathHeader = m_pathBuffer.front();
+    m_pathBuffer.pop();
+
+    if(postcard == nullptr){
+        m_bufferLoss += 1;
+        std::cout << "Fail to create postcard" << std::endl;
+    }
+    else{
+        postcard->AddHeader(pathHeader);
+        if(m_userSize + postcard->GetSize() <= m_userThd){
+            m_userSize += postcard->GetSize();
+            uint32_t devId = m_collectorDev[rand() % m_collectorDev.size()];
+            Ptr<NetDevice> dev = m_devices[devId];
+            dev->Send(postcard, dev->GetBroadcast(), 0x0171);
+        }
+        else{
+            m_queueLoss += 1;
+        }       
+    }
+}
+
+void 
 SwitchNode::RecordUtil(){
-    if(m_orbweaver){
+    if(m_orbweaver || m_postcard){
         for(auto it = m_bytes.begin();it != m_bytes.end();++it){
             if(it->second > 0){
                 m_teleSend += 1;
                 UtilHeader utilHeader;
-                memset((char*)(&utilHeader), 0, sizeof(UtilHeader));
                 utilHeader.SetNodeId(m_id);
                 utilHeader.SetPortId(it->first);
                 utilHeader.SetTime(Simulator::Now().GetMicroSeconds());
                 utilHeader.SetByte(it->second);
 
-                m_utilBuffer.push(utilHeader);
-                if(m_utilBuffer.size() * utilHeader.GetSerializedSize() > m_bufferThd){
-                    m_utilBuffer.pop();
-                    m_bufferLoss += 1;
+                if(m_orbweaver){
+                    m_utilBuffer.push(utilHeader);
+                    if(m_utilBuffer.size() * utilHeader.GetSerializedSize() > m_bufferThd){
+                        m_utilBuffer.pop();
+                        m_bufferLoss += 1;
+                    }
+                }
+                else if(m_postcard){
+                    Ptr<Packet> packet = CreatePacket(0);
+                    if(packet == nullptr){
+                        m_bufferLoss += 1;
+                        std::cout << "Fail to create packet" << std::endl;
+                    }
+                    else{
+                        packet->AddHeader(utilHeader);
+                        if(m_userSize + packet->GetSize() <= m_userThd){
+                            m_userSize += packet->GetSize();
+                            uint32_t devId = m_collectorDev[rand() % m_collectorDev.size()];
+                            Ptr<NetDevice> dev = m_devices[devId];
+                            dev->Send(packet, dev->GetBroadcast(), 0x0171);
+                        }
+                        else{
+                            m_queueLoss += 1;
+                        }
+                    }
                 }
 
                 it->second = 0;
             }
         }
         Simulator::Schedule(NanoSeconds(m_utilGap), &SwitchNode::RecordUtil, this);
-    }
+    }           
 }
 
 void
@@ -243,7 +293,7 @@ SwitchNode::GeneratePacket(){
         for(auto it = m_deviceMap.begin();it != m_deviceMap.end();++it){
             if(nsNow >= it->second.m_lastTime + it->second.generateGap){
                 it->second.m_lastTime = nsNow;
-                Ptr<Packet> packet = CreatePacket(0);
+                Ptr<Packet> packet = CreatePacket();
                 if(packet != nullptr){
                     (it->first)->Send(packet, (it->first)->GetBroadcast(), 0x0170);
                 }
@@ -392,7 +442,7 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
 
 bool 
 SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
-    if(!m_orbweaver || m_task != 1)
+    if((!m_orbweaver && !m_postcard) || m_task != 1)
         return true;
     
     // Start Parse Header
@@ -434,11 +484,18 @@ SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
     uint32_t arrIndex = pathHeader.Hash() % m_table.size();
     if(m_table[arrIndex].Empty() || !(m_table[arrIndex] == pathHeader)){
         m_table[arrIndex] = pathHeader;
-        m_pathBuffer.push(pathHeader);
         m_teleSend += 1;
-        if(m_pathBuffer.size() * pathHeader.GetSerializedSize() > m_bufferThd){
-            m_pathBuffer.pop();
-            m_bufferLoss += 1;
+
+        if(m_orbweaver){
+            m_pathBuffer.push(pathHeader);
+            if(m_pathBuffer.size() * pathHeader.GetSerializedSize() > m_bufferThd){
+                m_pathBuffer.pop();
+                m_bufferLoss += 1;
+            }
+        }
+        else if(m_postcard){
+            m_pathBuffer.push(pathHeader);
+            Simulator::Schedule(NanoSeconds(1), &SwitchNode::SendPostcard, this);
         }
     }
 
@@ -470,6 +527,19 @@ SwitchNode::IngressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
         return false;
     }
     return dev->Send(packet, dev->GetBroadcast(), 0x0172);
+}
+
+bool 
+SwitchNode::IngressPipelinePostcard(Ptr<Packet> packet, Ptr<NetDevice> dev){
+    if(m_userSize + packet->GetSize() <= m_userThd){
+        m_userSize += packet->GetSize();
+
+        uint32_t devId = m_collectorDev[rand() % m_collectorDev.size()];
+        dev = m_devices[devId];
+        return dev->Send(packet, dev->GetBroadcast(), 0x0171);
+    }
+    m_queueLoss += 1;
+    return false;
 }
 
 uint16_t 
@@ -571,6 +641,9 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
         m_userSize -= packet->GetSize();
         if(m_userSize < 0)
             std::cout << "Error for userSize" << std::endl;
+        
+        if(protocol == 0x0171)
+            return true;
         return EgressPipelineUser(packet); 
     }
     else{
@@ -596,6 +669,8 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
 bool
 SwitchNode::IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev){
     if(priority == 0){
+        if(protocol == 0x0171)
+            return IngressPipelinePostcard(packet, dev);
         return IngressPipelineUser(packet);
     }
     else{

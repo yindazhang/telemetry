@@ -96,7 +96,7 @@ void build_leaf_spine_routing(
 		}
 	}
 
-	if((OrbWeaver & 0x3) == 0x3 || (OrbWeaver & 0x5) == 0x5){
+	if((OrbWeaver == 0x2) || (OrbWeaver & 0x3) == 0x3 || (OrbWeaver & 0x5) == 0x5){
 		for(uint32_t i = 0;i < NUM_SPINE;++i){
 			spines[i]->SetDeviceGenerateGap(NUM_LEAF, 500 * 1000 / collectorMbps);
 			spines[i]->SetDeviceCollector(NUM_LEAF);
@@ -330,7 +330,7 @@ void build_fat_tree_routing(
 		}
 	}
 
-	if((OrbWeaver & 0x3) == 0x3 || (OrbWeaver & 0x5) == 0x5){
+	if((OrbWeaver == 0x2) || (OrbWeaver & 0x3) == 0x3 || (OrbWeaver & 0x5) == 0x5){
 		edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO, 200 * 1000 / collectorMbps);
 		edges[K * RATIO - 1]->SetDeviceCollector(K * RATIO);
 

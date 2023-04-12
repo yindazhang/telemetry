@@ -102,9 +102,6 @@ class SwitchNode : public Node
     int32_t m_userThd = 4*1024*1024;
     int32_t m_userSize = 0;
 
-    //int32_t m_seedThd = 4*1024;
-    //int32_t m_seedSize = 0;
-
     int32_t m_queueThd = 2*1024;
     int32_t m_queueSize = 0;
 
@@ -122,6 +119,8 @@ class SwitchNode : public Node
     uint32_t m_hashSeed = 0;
 
     bool m_record = false;
+
+    bool m_postcard = false;
 
     bool m_basic = false;
     bool m_push = false;
@@ -146,13 +145,17 @@ class SwitchNode : public Node
     void GeneratePacket();
     void RecordUtil();
 
-    Ptr<Packet> CreatePacket(uint8_t type);
+    Ptr<Packet> CreatePacket(uint8_t priority);
+
+    void SendPostcard();
 
     bool AddTeleHeader(Ptr<Packet> packet);
     void BufferData(Ptr<Packet> packet);
 
     bool IngressPipelineUser(Ptr<Packet> packet);
     bool EgressPipelineUser(Ptr<Packet> packet);
+
+    bool IngressPipelinePostcard(Ptr<Packet> packet, Ptr<NetDevice> dev);
 
     bool IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev);
     bool IngressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev);
