@@ -99,11 +99,11 @@ class SwitchNode : public Node
     const uint32_t batchSize = 1;
     const uint32_t arrSize = 65537;
 
-    int32_t m_userThd = 4*1024*1024;
-    int32_t m_userSize = 0;
+    int32_t m_userThd = 128*1024;
+    std::unordered_map<Ptr<NetDevice>, int32_t> m_userSize;
 
     int32_t m_queueThd = 2*1024;
-    int32_t m_queueSize = 0;
+    std::unordered_map<Ptr<NetDevice>, int32_t> m_queueSize;
 
     int32_t m_bufferThd = 30*1024;
 
@@ -123,7 +123,6 @@ class SwitchNode : public Node
     bool m_postcard = false;
 
     bool m_basic = false;
-    bool m_push = false;
     bool m_pull = false;
     bool m_final = false;
 
@@ -141,6 +140,8 @@ class SwitchNode : public Node
     std::vector<PathHeader> m_table;
 
     std::set<PathHeader> m_paths;
+
+    void SetQueueThd();
 
     void GeneratePacket();
     void RecordUtil();

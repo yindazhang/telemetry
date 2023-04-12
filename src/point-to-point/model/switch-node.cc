@@ -48,6 +48,7 @@ SwitchNode::SwitchNode() : Node() {
     m_table.resize(arrSize);
     Simulator::Schedule(Seconds(2), &SwitchNode::GeneratePacket, this);
     Simulator::Schedule(Seconds(2), &SwitchNode::RecordUtil, this);
+    Simulator::Schedule(Seconds(1), &SwitchNode::SetQueueThd, this);
 }
 
 SwitchNode::~SwitchNode(){
@@ -90,13 +91,21 @@ SwitchNode::SetOrbWeaver(uint32_t OrbWeaver){
     m_orbweaver = ((OrbWeaver & 0x1) == 0x1);
     m_postcard = (OrbWeaver == 0x2);
     m_basic = ((OrbWeaver & 0x3) == 0x3);
-    m_push = ((OrbWeaver & 0x5) == 0x5);
     m_pull = ((OrbWeaver & 0x9) == 0x9);
     m_final = ((OrbWeaver & 0x11) == 0x11);
 
     if(m_basic){
         m_queueThd += 14 * 1024;
         m_bufferThd -= 14 * 1024;
+    }
+}
+
+void
+SwitchNode::SetQueueThd(){
+    if(m_basic){
+        if(m_collectorDev.size() > 0)
+            m_queueThd /= m_collectorDev.size();
+        std::cout << m_id << " queue thd: " << m_queueThd << std::endl;
     }
 }
 
@@ -226,10 +235,11 @@ SwitchNode::SendPostcard(){
     }
     else{
         postcard->AddHeader(pathHeader);
-        if(m_userSize + postcard->GetSize() <= m_userThd){
-            m_userSize += postcard->GetSize();
-            uint32_t devId = m_collectorDev[rand() % m_collectorDev.size()];
-            Ptr<NetDevice> dev = m_devices[devId];
+
+        uint32_t devId = m_collectorDev[rand() % m_collectorDev.size()];
+        Ptr<NetDevice> dev = m_devices[devId];
+        if(m_userSize[dev] + postcard->GetSize() <= m_userThd){
+            m_userSize[dev] += postcard->GetSize();
             dev->Send(postcard, dev->GetBroadcast(), 0x0171);
         }
         else{
@@ -240,6 +250,9 @@ SwitchNode::SendPostcard(){
 
 void 
 SwitchNode::RecordUtil(){
+    if(m_task != 2)
+        return;
+
     if(m_orbweaver || m_postcard){
         for(auto it = m_bytes.begin();it != m_bytes.end();++it){
             if(it->second > 0){
@@ -265,10 +278,12 @@ SwitchNode::RecordUtil(){
                     }
                     else{
                         packet->AddHeader(utilHeader);
-                        if(m_userSize + packet->GetSize() <= m_userThd){
-                            m_userSize += packet->GetSize();
-                            uint32_t devId = m_collectorDev[rand() % m_collectorDev.size()];
-                            Ptr<NetDevice> dev = m_devices[devId];
+
+                        uint32_t devId = m_collectorDev[rand() % m_collectorDev.size()];
+                        Ptr<NetDevice> dev = m_devices[devId];
+
+                        if(m_userSize[dev] + packet->GetSize() <= m_userThd){
+                            m_userSize[dev] += packet->GetSize();
                             dev->Send(packet, dev->GetBroadcast(), 0x0171);
                         }
                         else{
@@ -433,8 +448,8 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
 
     Ptr<NetDevice> dev = m_devices[devId];
 
-    if(m_userSize + packet->GetSize() <= m_userThd){
-        m_userSize += packet->GetSize();
+    if(m_userSize[dev] + packet->GetSize() <= m_userThd){
+        m_userSize[dev] += packet->GetSize();
         return dev->Send(packet, dev->GetBroadcast(), 0x0800);
     }
     return false;
@@ -512,8 +527,8 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
         dev = m_devices[m_devices.size() - 1];
     }
 
-    if(m_queueSize + packet->GetSize() <= m_queueThd){
-        m_queueSize += packet->GetSize();
+    if(m_queueSize[dev] + packet->GetSize() <= m_queueThd){
+        m_queueSize[dev] += packet->GetSize();
         return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
     m_queueLoss += 1;
@@ -522,7 +537,7 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
 
 bool 
 SwitchNode::IngressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
-    if(m_basic || m_push){
+    if(m_basic){
         std::cout << "Unknown config (pull in basic/push)" << std::endl;
         return false;
     }
@@ -531,11 +546,11 @@ SwitchNode::IngressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
 
 bool 
 SwitchNode::IngressPipelinePostcard(Ptr<Packet> packet, Ptr<NetDevice> dev){
-    if(m_userSize + packet->GetSize() <= m_userThd){
-        m_userSize += packet->GetSize();
+    uint32_t devId = m_collectorDev[rand() % m_collectorDev.size()];
+    dev = m_devices[devId];
 
-        uint32_t devId = m_collectorDev[rand() % m_collectorDev.size()];
-        dev = m_devices[devId];
+    if(m_userSize[dev] + packet->GetSize() <= m_userThd){
+        m_userSize[dev] += packet->GetSize();
         return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
     m_queueLoss += 1;
@@ -544,7 +559,7 @@ SwitchNode::IngressPipelinePostcard(Ptr<Packet> packet, Ptr<NetDevice> dev){
 
 uint16_t 
 SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
-    if(m_basic || m_push){
+    if(m_basic){
         if(AddTeleHeader(packet))
             return 0x0171;
     }
@@ -638,8 +653,8 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
 uint16_t
 SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev){
     if(priority == 0){
-        m_userSize -= packet->GetSize();
-        if(m_userSize < 0)
+        m_userSize[dev] -= packet->GetSize();
+        if(m_userSize[dev] < 0)
             std::cout << "Error for userSize" << std::endl;
         
         if(protocol == 0x0171)
@@ -648,8 +663,8 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
     }
     else{
         if(protocol == 0x0171){
-            m_queueSize -= packet->GetSize();
-            if(m_queueSize < 0)
+            m_queueSize[dev] -= packet->GetSize();
+            if(m_queueSize[dev] < 0)
                 std::cout << "Error for queueSize" << std::endl;
         }
 
