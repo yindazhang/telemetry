@@ -10,12 +10,12 @@ if __name__=="__main__":
     parser.add_argument('-f', dest='file', action='store', help="Specify the fct file.")
     args = parser.parse_args()
     
-    names = ['Original', 'Baseline', 'Ours1', 'Ours2', 'Ours3']
-    stats = ['Number', 'Mean', '99%', '99.9%']
+    names = ['Ours']
+    stats = ['Number', 'Sum', 'Mean', '99%', '99.9%']
     
-    common = "s_ECMP1"
+    common = "s_Topo1_ECMP1"
     # common = "s_ECMP1_Fail"
-    appends = [common + ".fct", common + "_Orb9.fct", common + "_Orb5.fct", common + "_Orb1.fct",common + "_Orb3.fct"]
+    appends = [common + "_Orb2.fct"]
     
     if len(appends) != len(names):
         print("Error in length")
@@ -29,11 +29,12 @@ if __name__=="__main__":
         for stat in stats:
             dic[name + "_" + stat] = []
             
-    for t in range(2000000000, 3500000000, 10000000):
+    for t in range(2000000000, 3000000000, 10000000):
         dic['Time'].append(t)
         for name in names:
             df = dfs[name]
-            df = df[df[2] < t][1].sort_values()
+            dic[name + "_Sum"].append(df[df[3] < t][1].sum())
+            df = df[df[3] < t][2].sort_values()
             size = len(df)
             if size != 0:
                 dic[name + "_Number"].append(size)
