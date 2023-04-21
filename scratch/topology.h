@@ -149,9 +149,9 @@ void build_leaf_spine_routing(
 }
 
 void build_leaf_spine(
-    uint32_t SERVER_PER_LEAF = 16, 
-    uint32_t NUM_LEAF = 9, 
-    uint32_t NUM_SPINE = 4){
+    uint32_t SERVER_PER_LEAF = 36, 
+    uint32_t NUM_LEAF = 4, 
+    uint32_t NUM_SPINE = 3){
 
 	// Initilize node
 	serverAddress.resize(SERVER_PER_LEAF * NUM_LEAF);
@@ -248,7 +248,7 @@ void build_leaf_spine(
 		for(uint32_t j = 0;j < NUM_LEAF;++j){
 			NetDeviceContainer netDev;
 
-			if(failConfig && ((i == NUM_SPINE - 1 && j == NUM_LEAF - 1) || (i == 1 && j == 3)))
+			if(failConfig && ((i == NUM_SPINE - 1 && j == NUM_LEAF - 1) || (i == 0 && j == 0)))
 			 	netDev = pp_server_switch.Install(leaves[j], spines[i]);
 			else
 				netDev = pp_switch_switch.Install(leaves[j], spines[i]);

@@ -45,8 +45,10 @@ int main(int argc, char *argv[])
 
 	if(topology == 0)
 		build_leaf_spine();
-	else
+	else if(topology == 1)
 		build_fat_tree();
+	else
+		std::cout << "Unknown Topology." << std::endl;
 
 	start_sink_app();
 	std::cout << "Finish Topology." << std::endl;
