@@ -256,17 +256,14 @@ PointToPointNetDevice::TransmitStart(Ptr<Packet> p)
         if(p->PeekPacketTag(priorityTag))
             priority = priorityTag.GetPriority();
 
+
         PppHeader ppp;
-        p->RemoveHeader(ppp);
+        p->PeekHeader(ppp);
         uint16_t protocol = ppp.GetProtocol();
-        protocol = node->EgressPipeline(p, priority, protocol, this);
+        p = node->EgressPipeline(p, priority, protocol, this);
 
-        if(protocol == 0)
+        if(p == nullptr)
             return false;
-        else if(protocol > 0x100 && protocol < 0x200)
-            ppp.SetProtocol(protocol);
-
-        p->AddHeader(ppp);
     }
 
     //

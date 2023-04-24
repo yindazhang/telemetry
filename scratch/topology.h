@@ -96,55 +96,52 @@ void build_leaf_spine_routing(
 		}
 	}
 
-	if((OrbWeaver == 0x2) || (OrbWeaver & 0x3) == 0x3 || (OrbWeaver & 0x5) == 0x5){
+	collectors[0]->SetDeviceGenerateGap(1, 200 * 1000 / collectorMbps);
+	if((OrbWeaver == 0x2) || (OrbWeaver & 0x3) == 0x3){
 		for(uint32_t i = 0;i < NUM_SPINE;++i){
 			spines[i]->SetDeviceGenerateGap(NUM_LEAF, 500 * 1000 / collectorMbps);
-			spines[i]->SetDeviceCollector(NUM_LEAF);
+			spines[i]->AddTeleRouteTo(0, NUM_LEAF);
 		}
 		for(uint32_t i = 0;i < NUM_LEAF - 1;++i){
 			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
 				leaves[i]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 100);
-				leaves[i]->SetDeviceCollector(SERVER_PER_LEAF + spineId + 1);
+				leaves[i]->AddTeleRouteTo(0, SERVER_PER_LEAF + spineId + 1);
 			}
 		}
 		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 200 * 1000 / collectorMbps);
-		leaves[NUM_LEAF - 1]->SetDeviceCollector(SERVER_PER_LEAF);
+		leaves[NUM_LEAF - 1]->AddTeleRouteTo(0, SERVER_PER_LEAF);
 	}
 	else if((OrbWeaver & 0x9) == 0x9){
 		for(uint32_t i = 0;i < NUM_SPINE;++i){
 			for(uint32_t k = 1;k < NUM_LEAF;++k){
 				spines[i]->SetDeviceGenerateGap(k, 100);
-				spines[i]->SetDeviceLowerPull(k);
+				spines[i]->SetDeviceLowerPull(0, k);
 			}
 		}
 		for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
 			leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 500 * 1000 / collectorMbps);
-			leaves[NUM_LEAF - 1]->SetDeviceLowerPull(SERVER_PER_LEAF + spineId + 1);
+			leaves[NUM_LEAF - 1]->SetDeviceLowerPull(0, SERVER_PER_LEAF + spineId + 1);
 		}
-		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 200 * 1000 / collectorMbps);
-		leaves[NUM_LEAF - 1]->SetDeviceCollector(SERVER_PER_LEAF);
 	}
 	else if((OrbWeaver & 0x11) == 0x11){
 		for(uint32_t i = 0;i < NUM_SPINE;++i){
 			for(uint32_t k = 1;k < NUM_LEAF;++k){
 				spines[i]->SetDeviceGenerateGap(k, 100);
-				spines[i]->SetDeviceLowerPull(k);
+				spines[i]->SetDeviceLowerPull(0, k);
 			}
 			spines[i]->SetDeviceGenerateGap(NUM_LEAF, 100);
-			spines[i]->SetDeviceUpperPull(NUM_LEAF);
+			spines[i]->SetDeviceUpperPull(0, NUM_LEAF);
 		}
 		for(uint32_t i = 0;i < NUM_LEAF - 1;++i){
 			for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
 				leaves[i]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 100);
-				leaves[i]->SetDeviceUpperPull(SERVER_PER_LEAF + spineId + 1);
+				leaves[i]->SetDeviceUpperPull(0, SERVER_PER_LEAF + spineId + 1);
 			}
 		}
 		for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
 			leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 500 * 1000 / collectorMbps);
-			leaves[NUM_LEAF - 1]->SetDeviceLowerPull(SERVER_PER_LEAF + spineId + 1);
+			leaves[NUM_LEAF - 1]->SetDeviceLowerPull(0, SERVER_PER_LEAF + spineId + 1);
 		}
-		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 200 * 1000 / collectorMbps);
-		leaves[NUM_LEAF - 1]->SetDeviceCollector(SERVER_PER_LEAF);
 	}
 }
 
@@ -165,9 +162,10 @@ void build_leaf_spine(
 		servers[i] = CreateObject<Node>();
 
 	collectors[0] = CreateObject<CollectorNode>();
-	collectors[0]->SetTask(taskId);
 	collectors[0]->SetRecord(recordConfig);
 	collectors[0]->SetOutput(file_name);
+	collectors[0]->SetDest(0);
+	collectors[0]->SetOrbWeaver(OrbWeaver);
 
 	for(uint32_t i = 0;i < NUM_LEAF;++i){
 		leaves[i] = CreateObject<SwitchNode>();
@@ -175,7 +173,11 @@ void build_leaf_spine(
 		leaves[i]->SetEcmp(ecmpConfig);
 		leaves[i]->SetHashSeed(1);
 
-		leaves[i]->SetTask(taskId);
+		if(taskId & 1)
+			leaves[i]->SetPath(1);
+		if(taskId & 2)
+			leaves[i]->SetPort(2);
+
 		leaves[i]->SetRecord(recordConfig);
 		leaves[i]->SetOutput(file_name);
 		leaves[i]->SetUtilGap(utilGap);
@@ -188,7 +190,11 @@ void build_leaf_spine(
 		spines[i]->SetEcmp(ecmpConfig);
 		spines[i]->SetHashSeed(2);
 
-		spines[i]->SetTask(taskId);
+		if(taskId & 1)
+			spines[i]->SetPath(1);
+		if(taskId & 2)
+			spines[i]->SetPort(2);
+
 		spines[i]->SetRecord(recordConfig);
 		spines[i]->SetOutput(file_name);
 		spines[i]->SetUtilGap(utilGap);
@@ -330,14 +336,15 @@ void build_fat_tree_routing(
 		}
 	}
 
-	if((OrbWeaver == 0x2) || (OrbWeaver & 0x3) == 0x3 || (OrbWeaver & 0x5) == 0x5){
+	collectors[0]->SetDeviceGenerateGap(1, 200 * 1000 / collectorMbps);
+	if((OrbWeaver == 0x2) || (OrbWeaver & 0x3) == 0x3){
 		edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO, 200 * 1000 / collectorMbps);
-		edges[K * RATIO - 1]->SetDeviceCollector(K * RATIO);
+		edges[K * RATIO - 1]->AddTeleRouteTo(0, K * RATIO);
 
 		for(uint32_t i = 0;i < K * RATIO - 1;++i){
 			for(uint32_t aggId = 1;aggId <= K;++aggId){
 				edges[i]->SetDeviceGenerateGap(K * RATIO + aggId, 100);
-				edges[i]->SetDeviceCollector(K * RATIO + aggId);
+				edges[i]->AddTeleRouteTo(0, K * RATIO + aggId);
 			}
 		}
 
@@ -345,33 +352,31 @@ void build_fat_tree_routing(
 			for(uint32_t j = 0;j < K;++j){
 				for(uint32_t coreId = 1;coreId <= K;++coreId){
 					aggregations[i*K+j]->SetDeviceGenerateGap(K + coreId, 100);
-					aggregations[i*K+j]->SetDeviceCollector(K + coreId);
+					aggregations[i*K+j]->AddTeleRouteTo(0, K + coreId);
 				}
 			}
 		}
 		for(uint32_t j = 0;j < K;++j){
 			aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(K, 400 * 1000 / collectorMbps);
-			aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceCollector(K);
+			aggregations[(NUM_BLOCK-1)*K+j]->AddTeleRouteTo(0, K);
 		}
 
 		for(uint32_t i = 0;i < K * K;++i){
 			cores[i]->SetDeviceGenerateGap(NUM_BLOCK, 100);
-			cores[i]->SetDeviceCollector(NUM_BLOCK);
+			cores[i]->AddTeleRouteTo(0, NUM_BLOCK);
 		}
 	}
 	else if((OrbWeaver & 0x9) == 0x9){
-		edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO, 200 * 1000 / collectorMbps);
-		edges[K * RATIO - 1]->SetDeviceCollector(K * RATIO);
 		for(uint32_t aggId = 1;aggId <= K;++aggId){
 			edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO + aggId, 400 * 1000 / collectorMbps);
-			edges[K * RATIO - 1]->SetDeviceLowerPull(K * RATIO + aggId);
+			edges[K * RATIO - 1]->SetDeviceLowerPull(0, K * RATIO + aggId);
 		}
 
 		for(uint32_t i = 0;i < NUM_BLOCK - 1;++i){
 			for(uint32_t j = 0;j < K;++j){
 				for(uint32_t edgeId = 1;edgeId <= K;++edgeId){
 					aggregations[i*K+j]->SetDeviceGenerateGap(edgeId, 100);
-					aggregations[i*K+j]->SetDeviceLowerPull(edgeId);
+					aggregations[i*K+j]->SetDeviceLowerPull(0, edgeId);
 				}
 			}
 		}
@@ -379,7 +384,7 @@ void build_fat_tree_routing(
 			for(uint32_t k = 1; k <= 2*K;++k){
 				if(k != K){
 					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(k, 100);
-					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceLowerPull(k);
+					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceLowerPull(0, k);
 				}
 			}
 		}
@@ -387,22 +392,20 @@ void build_fat_tree_routing(
 		for(uint32_t i = 0;i < K * K;++i){
 			for(uint32_t j = 1;j < NUM_BLOCK;++j){
 				cores[i]->SetDeviceGenerateGap(j, 100);
-				cores[i]->SetDeviceLowerPull(j);
+				cores[i]->SetDeviceLowerPull(0, j);
 			}
 		}
 	}
 	else if((OrbWeaver & 0x11) == 0x11){
-		edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO, 200 * 1000 / collectorMbps);
-		edges[K * RATIO - 1]->SetDeviceCollector(K * RATIO);
 		for(uint32_t aggId = 1;aggId <= K;++aggId){
 			edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO + aggId, 400 * 1000 / collectorMbps);
-			edges[K * RATIO - 1]->SetDeviceLowerPull(K * RATIO + aggId);
+			edges[K * RATIO - 1]->SetDeviceLowerPull(0, K * RATIO + aggId);
 		}
 
 		for(uint32_t i = 0;i < K * RATIO - 1;++i){
 			for(uint32_t aggId = 1;aggId <= K;++aggId){
 				edges[i]->SetDeviceGenerateGap(K * RATIO + aggId, 100);
-				edges[i]->SetDeviceUpperPull(K * RATIO + aggId);
+				edges[i]->SetDeviceUpperPull(0, K * RATIO + aggId);
 			}
 		}
 
@@ -410,11 +413,11 @@ void build_fat_tree_routing(
 			for(uint32_t j = 0;j < K;++j){
 				for(uint32_t edgeId = 1;edgeId <= K;++edgeId){
 					aggregations[i*K+j]->SetDeviceGenerateGap(edgeId, 100);
-					aggregations[i*K+j]->SetDeviceLowerPull(edgeId);
+					aggregations[i*K+j]->SetDeviceLowerPull(0, edgeId);
 				}
 				for(uint32_t coreId = 1;coreId <= K;++coreId){
 					aggregations[i*K+j]->SetDeviceGenerateGap(K+coreId, 100);
-					aggregations[i*K+j]->SetDeviceUpperPull(K+coreId);
+					aggregations[i*K+j]->SetDeviceUpperPull(0, K+coreId);
 				}
 			}
 		}
@@ -422,11 +425,11 @@ void build_fat_tree_routing(
 			for(uint32_t k = 1; k <= 2*K;++k){
 				if(k != K){
 					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(k, 100);
-					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceLowerPull(k);
+					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceLowerPull(0, k);
 				}
 				else{
 					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(k, 100);
-					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceUpperPull(k);
+					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceUpperPull(0, k);
 				}
 			}
 		}
@@ -434,10 +437,10 @@ void build_fat_tree_routing(
 		for(uint32_t i = 0;i < K * K;++i){
 			for(uint32_t j = 1;j < NUM_BLOCK;++j){
 				cores[i]->SetDeviceGenerateGap(j, 100);
-				cores[i]->SetDeviceLowerPull(j);
+				cores[i]->SetDeviceLowerPull(0, j);
 			}
 			cores[i]->SetDeviceGenerateGap(NUM_BLOCK, 100);
-			cores[i]->SetDeviceUpperPull(NUM_BLOCK);
+			cores[i]->SetDeviceUpperPull(0, NUM_BLOCK);
 		}
 	}
 }
@@ -462,9 +465,10 @@ void build_fat_tree(
 		servers[i] = CreateObject<Node>();
 	
 	collectors[0] = CreateObject<CollectorNode>();
-	collectors[0]->SetTask(taskId);
 	collectors[0]->SetRecord(recordConfig);
 	collectors[0]->SetOutput(file_name);
+	collectors[0]->SetDest(0);
+	collectors[0]->SetOrbWeaver(OrbWeaver);
 
 	for(uint32_t i = 0;i < K * NUM_BLOCK;++i){
 		edges[i] = CreateObject<SwitchNode>();
@@ -472,7 +476,11 @@ void build_fat_tree(
 		edges[i]->SetEcmp(ecmpConfig);
 		edges[i]->SetHashSeed(1);
 
-		edges[i]->SetTask(taskId);
+		if(taskId & 1)
+			edges[i]->SetPath(1);
+		if(taskId & 2)
+			edges[i]->SetPort(2);
+		
 		edges[i]->SetRecord(recordConfig);
 		edges[i]->SetOutput(file_name);
 		edges[i]->SetUtilGap(utilGap);
@@ -485,7 +493,11 @@ void build_fat_tree(
 		aggregations[i]->SetEcmp(ecmpConfig);
 		aggregations[i]->SetHashSeed(2);
 
-		aggregations[i]->SetTask(taskId);
+		if(taskId & 1)
+			aggregations[i]->SetPath(1);
+		if(taskId & 2)
+			aggregations[i]->SetPort(2);
+
 		aggregations[i]->SetRecord(recordConfig);
 		aggregations[i]->SetOutput(file_name);
 		aggregations[i]->SetUtilGap(utilGap);
@@ -498,7 +510,11 @@ void build_fat_tree(
 		cores[i]->SetEcmp(ecmpConfig);
 		cores[i]->SetHashSeed(3);
 
-		cores[i]->SetTask(taskId);
+		if(taskId & 1)
+			cores[i]->SetPath(1);
+		if(taskId & 2)
+			cores[i]->SetPort(2);
+
 		cores[i]->SetRecord(recordConfig);
 		cores[i]->SetOutput(file_name);
 		cores[i]->SetUtilGap(utilGap);

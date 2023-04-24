@@ -7,6 +7,7 @@
 #include "ns3/util-header.h"
 
 #include <queue>
+#include <unordered_set>
 #include <unordered_map>
 
 namespace ns3
@@ -53,21 +54,55 @@ class CollectorNode : public Node
 
     void SetOutput(std::string output);
     void SetRecord(uint32_t record);
-    void SetTask(uint32_t task);
+
+    void SetDest(uint8_t dest);
+    void SetOrbWeaver(uint32_t OrbWeaver);
+
+    struct DeviceProperty{
+      std::vector<uint8_t> collectorDst;
+      bool isUpperPull;
+      bool isLowerPull;
+
+      uint32_t devId;
+      uint32_t generateGap;
+
+      int64_t m_lastTime;
+
+      DeviceProperty(){
+        isUpperPull = isLowerPull = false;
+        devId = 0;
+        generateGap = 0x7fffffff;
+        m_lastTime = 0;
+      }
+    };
+
+    void SetDeviceGenerateGap(uint32_t devId, uint32_t generateGap);
 
   protected:
+  
+    Ptr<Packet> CreatePacket(uint8_t priority);
+    void GeneratePacket();
+
+    std::unordered_map<Ptr<NetDevice>, DeviceProperty> m_deviceMap;
 
     std::set<PathHeader> m_paths;
-    std::vector<UtilHeader> m_utils;
+    //std::vector<UtilHeader> m_utils;
 
     uint64_t m_duplicates = 0;
     
     std::string output_file;
 
-    int m_task;
+    std::unordered_set<uint8_t> m_types;
+
+    uint8_t m_dest;
+
+    bool m_orbweaver = false;
+    bool m_postcard = false;
+    bool m_basic = false;
+    bool m_pull = false;
+    bool m_final = false;
 
     bool m_record = false;
-
 };
 
 } // namespace ns3

@@ -13,7 +13,7 @@ if __name__=="__main__":
     names = ['Ours']
     stats = ['Number', 'Sum', 'Mean', '99%', '99.9%']
     
-    common = "s_Topo1_ECMP1"
+    common = "s_Topo0_ECMP0"
     # common = "s_ECMP1_Fail"
     appends = [common + "_Orb2.fct"]
     

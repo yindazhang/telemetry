@@ -52,9 +52,10 @@ class SwitchNode : public Node
                                 const Address& from);
 
     void AddHostRouteTo(Ipv4Address dest, uint32_t devId);
+    void AddTeleRouteTo(uint8_t dest, uint32_t devId);
 
     struct DeviceProperty{
-      bool isCollector;
+      std::vector<uint8_t> collectorDst;
       bool isUpperPull;
       bool isLowerPull;
 
@@ -64,7 +65,7 @@ class SwitchNode : public Node
       int64_t m_lastTime;
 
       DeviceProperty(){
-        isCollector = isUpperPull = isLowerPull = false;
+        isUpperPull = isLowerPull = false;
         devId = 0;
         generateGap = 0x7fffffff;
         m_lastTime = 0;
@@ -75,28 +76,42 @@ class SwitchNode : public Node
 
     void SetDeviceGenerateGap(uint32_t devId, uint32_t generateGap);
 
-    void SetDeviceCollector(uint32_t devId);
-    void SetDeviceUpperPull(uint32_t devId);
-    void SetDeviceLowerPull(uint32_t devId);
+    void SetDeviceUpperPull(uint8_t dest, uint32_t devId);
+    void SetDeviceLowerPull(uint8_t dest, uint32_t devId);
 
     void SetUtilGap(uint32_t utilGap);
     void SetHashSeed(uint32_t hashSeed);
     void SetEcmp(uint32_t ecmp);
     void SetRecord(uint32_t record);
-    void SetTask(uint32_t task);
     void SetOrbWeaver(uint32_t OrbWeaver);
     void SetOutput(std::string output);
 
+    void SetPath(int8_t pathType);
+    void SetPort(int8_t portType);
+
     bool IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
-    uint16_t EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
+    Ptr<Packet> EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
 
     bool m_orbweaver = false;
 
+    struct TeleQueue{
+      std::vector<PathHeader> pathBatch[10];
+      std::vector<UtilHeader> utilBatch[10];
+      std::queue<Ptr<Packet>> packets[10];
+      uint32_t size = 0;
+    };
+
   protected:
+    TeleQueue m_teleQueue;
+
+    bool BatchPath(PathHeader path, uint8_t dest);
+    bool BatchUtil(UtilHeader util, uint8_t dest);
+
+    Ptr<Packet> GetTelePacket(uint32_t priority, uint8_t dest);
 
     int64_t m_lastTime = 2200000000;
 
-    const uint32_t batchSize = 1;
+    const uint32_t batchSize = 4;
     const uint32_t arrSize = 65537;
 
     int32_t m_userThd = 128*1024;
@@ -107,38 +122,38 @@ class SwitchNode : public Node
 
     int32_t m_bufferThd = 30*1024;
 
-    uint32_t m_bufferLoss = 0;
-    uint32_t m_queueLoss = 0;
+    std::unordered_map<uint32_t, uint32_t> m_teleSend;
+    std::unordered_map<uint32_t, uint32_t> m_bufferLoss;
+    std::unordered_map<uint32_t, uint32_t> m_queueLoss;
 
     std::string output_file;
 
     int m_ecmp;
-    int m_task;
-    uint32_t m_utilGap = 10000;
 
+    uint32_t m_utilGap = 10000;
     uint32_t m_hashSeed = 0;
 
+    bool m_path = false;
+    bool m_port = false;
+
+    int8_t m_pathType = 1;
+    int8_t m_portType = 2;
+
     bool m_record = false;
-
+    
     bool m_postcard = false;
-
     bool m_basic = false;
     bool m_pull = false;
     bool m_final = false;
 
-    std::vector<uint32_t> m_collectorDev;
-
-    uint64_t m_teleSend = 0;
     std::unordered_map<uint32_t, uint32_t> m_bytes;
 
+    std::unordered_map<uint8_t, std::vector<uint32_t>> m_teleForward;
     std::unordered_map<uint32_t, std::vector<uint32_t>> m_routeForward;
+
     std::unordered_map<Ptr<NetDevice>, DeviceProperty> m_deviceMap;
 
-    std::queue<PathHeader> m_pathBuffer;
-    std::queue<UtilHeader> m_utilBuffer;
-
     std::vector<PathHeader> m_table;
-
     std::set<PathHeader> m_paths;
 
     void SetQueueThd();
@@ -147,10 +162,8 @@ class SwitchNode : public Node
     void RecordUtil();
 
     Ptr<Packet> CreatePacket(uint8_t priority);
+    void SendPostcard(uint8_t dest);
 
-    void SendPostcard();
-
-    bool AddTeleHeader(Ptr<Packet> packet);
     void BufferData(Ptr<Packet> packet);
 
     bool IngressPipelineUser(Ptr<Packet> packet);
@@ -161,9 +174,9 @@ class SwitchNode : public Node
     bool IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev);
     bool IngressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev);
 
-    uint16_t EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev);
-    uint16_t EgressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev);
-    uint16_t EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev);
+    Ptr<Packet> EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev);
+    Ptr<Packet> EgressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev);
+    Ptr<Packet> EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev);
 
 };
 
