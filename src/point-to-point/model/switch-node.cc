@@ -158,6 +158,11 @@ SwitchNode::SetRecord(uint32_t record){
 }
 
 void 
+SwitchNode::SetCollector(uint32_t number){
+    m_collector = number;
+}
+
+void 
 SwitchNode::SetOutput(std::string output){
     output_file = output;
     FILE* fout;
@@ -210,7 +215,7 @@ SwitchNode::SetDeviceUpperPull(uint8_t dest, uint32_t devId)
         std::cout << "Unknown devId " << devId << " in deviceMap for upper pull" << std::endl;
     else{
         m_deviceMap[m_devices[devId]].collectorDst.push_back(dest);
-        m_deviceMap[m_devices[devId]].isUpperPull = true;
+        m_deviceMap[m_devices[devId]].isUpperPull[dest] = true;
     }
 }
 
@@ -221,7 +226,7 @@ SwitchNode::SetDeviceLowerPull(uint8_t dest, uint32_t devId)
         std::cout << "Unknown devId " << devId << " in deviceMap for lower pull" << std::endl;
     else{
         m_deviceMap[m_devices[devId]].collectorDst.push_back(dest);
-        m_deviceMap[m_devices[devId]].isLowerPull = true;
+        m_deviceMap[m_devices[devId]].isLowerPull[dest] = true;
     }
 }
 
@@ -359,8 +364,9 @@ SwitchNode::RecordUtil(){
                 utilHeader.SetTime(Simulator::Now().GetMicroSeconds());
                 utilHeader.SetByte(it->second);
 
-                if(BatchUtil(utilHeader, 0) && m_postcard)
-                    SendPostcard(0);
+                uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
+                if(BatchUtil(utilHeader, dest) && m_postcard)
+                    SendPostcard(dest);
 
                 it->second = 0;
             }
@@ -522,8 +528,9 @@ SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
     if(m_table[arrIndex].Empty() || !(m_table[arrIndex] == pathHeader)){
         m_table[arrIndex] = pathHeader;
 
-        if(BatchPath(pathHeader, 0) && m_postcard)
-            Simulator::Schedule(NanoSeconds(1), &SwitchNode::SendPostcard, this, 0);
+        uint8_t dest = Hash32((char*)(&dst), sizeof(dst)) % m_collector;
+        if(BatchPath(pathHeader, dest) && m_postcard)
+            Simulator::Schedule(NanoSeconds(1), &SwitchNode::SendPostcard, this, dest);
     }
 
     return true;
@@ -605,7 +612,7 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
 
         TeleHeader teleHeader;
 
-        if(m_pull && property.isLowerPull){
+        if(m_pull && property.isLowerPull[dest]){
             if(bufferSize < 1 || bufferSize * m_teleQueue.packets[dest].front()->GetSize() 
                     < m_bufferThd * 0.5 / m_teleForward.size()){
                 TeleHeader teleHeader;
@@ -619,7 +626,7 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
             }
             return nullptr;
         }
-        else if(m_final && (property.isUpperPull || property.isLowerPull)){
+        else if(m_final && (property.isUpperPull[dest] || property.isLowerPull[dest])){
             TeleHeader teleHeader;
             teleHeader.SetDest(dest);
             teleHeader.SetSize(bufferSize);
@@ -660,7 +667,7 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
     if(m_final){
         uint32_t bufferSize = m_teleQueue.packets[dest].size();
 
-        if(property.isUpperPull){
+        if(property.isUpperPull[dest]){
             if(size < bufferSize){
                 packet = GetTelePacket(1, dest);
                 if(packet != nullptr){
@@ -678,7 +685,7 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
                 return packet;
             }
         }
-        else if(property.isLowerPull){
+        else if(property.isLowerPull[dest]){
             if(size + 1 < bufferSize){
                 packet = GetTelePacket(1, dest);
                 if(packet != nullptr){

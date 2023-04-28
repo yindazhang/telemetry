@@ -77,11 +77,6 @@ CollectorNode::SetOutput(std::string output){
     output_file = output;
 }
 
-void 
-CollectorNode::SetDest(uint8_t dest){
-    m_dest = dest;
-}
-
 uint32_t
 CollectorNode::AddDevice(Ptr<NetDevice> device)
 {
@@ -103,6 +98,11 @@ CollectorNode::SetOrbWeaver(uint32_t OrbWeaver){
     m_basic = ((OrbWeaver & 0x3) == 0x3);
     m_pull = ((OrbWeaver & 0x9) == 0x9);
     m_final = ((OrbWeaver & 0x11) == 0x11);
+}
+
+void 
+CollectorNode::SetPriority(uint8_t dest, uint16_t priority){
+    m_priority[dest] = priority;
 }
 
 void 
@@ -132,14 +132,20 @@ CollectorNode::GeneratePacket(){
         for(auto it = m_deviceMap.begin();it != m_deviceMap.end();++it){
             if(nsNow >= it->second.m_lastTime + it->second.generateGap){
                 it->second.m_lastTime = nsNow;
-                Ptr<Packet> packet = CreatePacket(2);
-                
-                TeleHeader teleHeader;
-                teleHeader.SetDest(m_dest);
-                teleHeader.SetSize(0);
-                packet->AddHeader(teleHeader);
 
-                (it->first)->Send(packet, (it->first)->GetBroadcast(), 0x0172);
+                for(auto pit = m_priority.begin();pit != m_priority.end();++pit){
+                    if(m_pull && pit->second > 0)
+                        continue;
+
+                    Ptr<Packet> packet = CreatePacket(2);
+                
+                    TeleHeader teleHeader;
+                    teleHeader.SetDest(pit->first);
+                    teleHeader.SetSize(pit->second);
+                    packet->AddHeader(teleHeader);
+
+                    (it->first)->Send(packet, (it->first)->GetBroadcast(), 0x0172);
+                }
             }
             nextTime = std::min(nextTime, it->second.m_lastTime + it->second.generateGap);
         }
@@ -147,27 +153,14 @@ CollectorNode::GeneratePacket(){
     }
 }
 
+void 
+CollectorNode::SendPacket(Ptr<NetDevice> dev, Ptr<Packet> packet, uint16_t protocol){
+    dev->Send(packet, dev->GetBroadcast(), protocol);
+}
+
 bool
-CollectorNode::ReceiveFromDevice(Ptr<NetDevice> device,
-                                  Ptr<const Packet> p,
-                                  uint16_t protocol,
-                                  const Address& from)
-{
-    if(protocol != 0x0171){
-        std::cout << "Unknown prorocol for colllector" << std::endl;
-        return false;
-    }
-
-    Ptr<Packet> packet = p->Copy();
-
-    TeleHeader teleHeader;
-    packet->RemoveHeader(teleHeader);
-
+CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
     m_types.insert(teleHeader.GetType());
-
-    if(teleHeader.GetDest() != m_dest)
-        std::cout << "Collector Dest Error" << std::endl;
-
     switch(teleHeader.GetType()){
         case 1 :
             for(uint32_t i = 0;i < teleHeader.GetSize();++i){
@@ -180,15 +173,15 @@ CollectorNode::ReceiveFromDevice(Ptr<NetDevice> device,
                         std::cout << "Receive entries: " << m_paths.size() << std::endl;
                         std::cout << "Number of duplicates: " << m_duplicates << std::endl;
                     }
-                    
-                    std::cout << "PathHeader: " << pathHeader.GetSrcIP() << " "
+                            
+                    std::cout << "PathHeader: " << (int)teleHeader.GetDest() << " " 
+                        << pathHeader.GetSrcIP() << " "
                         << pathHeader.GetDstIP() << " "
                         << pathHeader.GetSrcPort() << " "
                         << pathHeader.GetDstPort() << " "
                         << pathHeader.GetNodeId() << " "
                         << int(pathHeader.GetTTL()) << " "
                         << std::endl;
-
                 }
                 else
                     m_duplicates += 1;
@@ -200,22 +193,110 @@ CollectorNode::ReceiveFromDevice(Ptr<NetDevice> device,
                 packet->RemoveHeader(utilHeader);
 
                 m_duplicates += 1;
-                
+                        
                 if(m_duplicates % 10000 == 9999)
                     std::cout << "Receive entries: " << m_duplicates << std::endl;
-                
-                std::cout << "UtilHeader: " << utilHeader.GetNodeId() << " "
+                        
+                std::cout << "UtilHeader: " << (int)teleHeader.GetDest() << " " 
+                        << utilHeader.GetNodeId() << " "
                         << utilHeader.GetPortId() << " "
                         << utilHeader.GetTime() << " "
                         << utilHeader.GetByte() << " "
                         << std::endl;
-                
             }
             break;
         default : std::cout << "Unknown task" << std::endl; break;
     }
-
     return true;
+}
+
+void 
+CollectorNode::BufferData(Ptr<Packet> packet, TeleHeader teleHeader){
+    m_teleQueue.packets[teleHeader.GetDest()].push(packet);
+    m_teleQueue.size += packet->GetSize();
+}
+
+Ptr<Packet> 
+CollectorNode::GetTelePacket(uint32_t priority, uint8_t dest)
+{
+    Ptr<Packet> packet = nullptr;
+
+    if(!m_teleQueue.packets[dest].empty()){
+        packet = m_teleQueue.packets[dest].front();
+        m_teleQueue.packets[dest].pop();
+        m_teleQueue.size -= packet->GetSize();
+
+        SocketPriorityTag priorityTag;
+        priorityTag.SetPriority(priority);
+        packet->ReplacePacketTag(priorityTag);
+    }
+
+    return packet;
+}
+
+bool 
+CollectorNode::TempStore(Ptr<Packet> packet, TeleHeader teleHeader, uint16_t protocol, Ptr<NetDevice> dev){
+    uint8_t dest;
+    uint16_t size;
+    uint32_t bufferSize;
+
+    switch(protocol){
+        case 0x0171 :
+            BufferData(packet, teleHeader);
+            return true;
+        case 0x0172 :
+            dest = teleHeader.GetDest();
+            size = teleHeader.GetSize();
+
+            bufferSize = m_teleQueue.packets[dest].size();
+            if(bufferSize > 0 && size < m_priority[dest]){
+                packet = GetTelePacket(1, dest);
+                if(packet != nullptr){
+                    Simulator::Schedule(NanoSeconds(1), &CollectorNode::SendPacket, this, dev, packet, 0x0171);
+                }
+                return true;
+            }
+
+            if(m_priority[dest] < size){
+                teleHeader.SetSize(m_priority[dest]);
+                packet->AddHeader(teleHeader);
+                Simulator::Schedule(NanoSeconds(1), &CollectorNode::SendPacket, this, dev, packet, 0x0172);
+            }
+            return true;
+        default : 
+            std::cout << "Unknown protocol for colllector" << std::endl;
+            return false;
+    }
+}
+
+bool
+CollectorNode::ReceiveFromDevice(Ptr<NetDevice> device,
+                                  Ptr<const Packet> p,
+                                  uint16_t protocol,
+                                  const Address& from)
+{
+    Ptr<Packet> packet = p->Copy();
+    TeleHeader teleHeader;
+    packet->RemoveHeader(teleHeader);
+
+    if(m_priority.find(teleHeader.GetDest()) == m_priority.end())
+        std::cout << "Collector Dest Error" << std::endl;
+
+    if(m_priority[teleHeader.GetDest()] == 0){
+        if(protocol == 0x0171)
+            return MainCollect(packet, teleHeader);
+        std::cout << "Unknown propotol for main collector" << std::endl;
+        return false;
+    }
+    else{
+        if(protocol == 0x0171 || protocol == 0x0172){
+            if(m_final)
+                return TempStore(packet, teleHeader, protocol, device);
+            return true;
+        }
+        std::cout << "Unknown propotol for temp storage" << std::endl;
+        return false;
+    }
 }
 
 } // namespace ns3

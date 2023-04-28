@@ -24,11 +24,14 @@ int main(int argc, char *argv[])
 	cmd.AddValue("INT", "the size of INT header", intSize);
 	cmd.AddValue("taskId", "ID of task: (1) path tracing (2) port utilization", taskId);
 	cmd.AddValue("utilGap", "Generate gap of port utilization", utilGap);
-	cmd.AddValue("Collector bandwitdh (Mbps)", "Bandwidth to the collector", collectorMbps);
 	cmd.AddValue("OrbWeaver", "Start OrbWeaver", OrbWeaver);
 	cmd.AddValue("ECMP", "configuration of ecmp: (0) 5-tuple (1) dst IP", ecmpConfig);
 	cmd.AddValue("Topology", "configuration of topology: (0) leaf-spine (1) fat-tree", topology);
 	cmd.AddValue("Failure", "Link failure", failConfig);
+
+	cmd.AddValue("Temp", "Temp Storage", tempConfig);
+	cmd.AddValue("Store", "Additional Storage", storeConfig);
+
     cmd.Parse(argc, argv);
 	
 	std::cout << "Run Telemetry." << std::endl;
@@ -43,9 +46,9 @@ int main(int argc, char *argv[])
 
 	build_dctcp();
 
-	if(topology == 0)
-		build_leaf_spine();
-	else if(topology == 1)
+	//if(topology == 0)
+	//	build_leaf_spine();
+	if(topology == 1)
 		build_fat_tree();
 	else
 		std::cout << "Unknown Topology." << std::endl;

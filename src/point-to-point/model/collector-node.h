@@ -5,6 +5,7 @@
 #include "ns3/ipv4-header.h"
 #include "ns3/path-header.h"
 #include "ns3/util-header.h"
+#include "ns3/tele-header.h"
 
 #include <queue>
 #include <unordered_set>
@@ -55,8 +56,8 @@ class CollectorNode : public Node
     void SetOutput(std::string output);
     void SetRecord(uint32_t record);
 
-    void SetDest(uint8_t dest);
     void SetOrbWeaver(uint32_t OrbWeaver);
+    void SetPriority(uint8_t dest, uint16_t priority);
 
     struct DeviceProperty{
       std::vector<uint8_t> collectorDst;
@@ -78,12 +79,23 @@ class CollectorNode : public Node
 
     void SetDeviceGenerateGap(uint32_t devId, uint32_t generateGap);
 
+    struct TeleQueue{
+      std::vector<PathHeader> pathBatch[10];
+      std::vector<UtilHeader> utilBatch[10];
+      std::queue<Ptr<Packet>> packets[10];
+      uint32_t size = 0;
+    };
+
   protected:
+    TeleQueue m_teleQueue;
   
     Ptr<Packet> CreatePacket(uint8_t priority);
     void GeneratePacket();
+    void SendPacket(Ptr<NetDevice> dev, Ptr<Packet> packet, uint16_t protocol);
+    Ptr<Packet> GetTelePacket(uint32_t priority, uint8_t dest);
 
     std::unordered_map<Ptr<NetDevice>, DeviceProperty> m_deviceMap;
+    std::unordered_map<uint8_t, uint16_t> m_priority;
 
     std::set<PathHeader> m_paths;
     //std::vector<UtilHeader> m_utils;
@@ -94,8 +106,6 @@ class CollectorNode : public Node
 
     std::unordered_set<uint8_t> m_types;
 
-    uint8_t m_dest;
-
     bool m_orbweaver = false;
     bool m_postcard = false;
     bool m_basic = false;
@@ -103,6 +113,11 @@ class CollectorNode : public Node
     bool m_final = false;
 
     bool m_record = false;
+
+    bool MainCollect(Ptr<Packet> packet, TeleHeader teleHeader);
+    bool TempStore(Ptr<Packet> packet, TeleHeader teleHeader, uint16_t protocol, Ptr<NetDevice> dev);
+
+    void BufferData(Ptr<Packet> packet, TeleHeader teleHeader);
 };
 
 } // namespace ns3

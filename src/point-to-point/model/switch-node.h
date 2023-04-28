@@ -56,8 +56,9 @@ class SwitchNode : public Node
 
     struct DeviceProperty{
       std::vector<uint8_t> collectorDst;
-      bool isUpperPull;
-      bool isLowerPull;
+
+      std::unordered_map<uint8_t, bool> isUpperPull;
+      std::unordered_map<uint8_t, bool> isLowerPull;
 
       uint32_t devId;
       uint32_t generateGap;
@@ -65,7 +66,6 @@ class SwitchNode : public Node
       int64_t m_lastTime;
 
       DeviceProperty(){
-        isUpperPull = isLowerPull = false;
         devId = 0;
         generateGap = 0x7fffffff;
         m_lastTime = 0;
@@ -85,6 +85,8 @@ class SwitchNode : public Node
     void SetRecord(uint32_t record);
     void SetOrbWeaver(uint32_t OrbWeaver);
     void SetOutput(std::string output);
+
+    void SetCollector(uint32_t number);
 
     void SetPath(int8_t pathType);
     void SetPort(int8_t portType);
@@ -128,6 +130,7 @@ class SwitchNode : public Node
 
     std::string output_file;
 
+    uint32_t m_collector = 1;
     int m_ecmp;
 
     uint32_t m_utilGap = 10000;

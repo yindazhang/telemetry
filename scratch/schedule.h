@@ -50,7 +50,7 @@ void ScheduleFlowInputs(){
 		source.SetAttribute("MaxBytes", UintegerValue(flow.bytes));
 		source.SetAttribute("ApplicationID", UintegerValue(flow.index));
 
-		ApplicationContainer sourceApps = source.Install(servers[flow.src]);
+		ApplicationContainer sourceApps = source.Install(servers[flow.src - 1]);
 		sourceApps.Get(0)->TraceConnectWithoutContext("BulkEnd", MakeBoundCallback(record_fct, fct_output));
 		sourceApps.Start(Time(0));
 		

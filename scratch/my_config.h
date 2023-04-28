@@ -3,7 +3,6 @@
 
 #define DEFAULT_PORT 80
 
-uint32_t collectorMbps = 10000;
 double start_time = 2;
 double duration = 0.5;
 
@@ -13,11 +12,14 @@ uint32_t OrbWeaver = 0;
 
 uint32_t taskId = 2;
 
-uint32_t topology = 0;
+uint32_t topology = 1;
 
 uint32_t ecmpConfig = 0;
 uint32_t failConfig = 0;
 uint32_t recordConfig = 0;
+
+uint32_t tempConfig = 0;
+uint32_t storeConfig = 0;
 
 int fct_record = 0;
 

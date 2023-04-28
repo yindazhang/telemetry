@@ -29,9 +29,7 @@ std::vector<Ptr<SwitchNode>> aggregations;
 
 //All switches
 std::vector<Ptr<SwitchNode>> switches;
-
 std::vector<Ptr<CollectorNode>> collectors;
-
 std::vector<Ipv4Address> serverAddress;
 
 void print_addr(Ipv4Address addr){
@@ -55,6 +53,7 @@ void build_dctcp(){
     GlobalValue::Bind("ChecksumEnabled", BooleanValue(false));
 }
 
+/*
 void build_leaf_spine_routing(
 	uint32_t SERVER_PER_LEAF, 
     uint32_t NUM_LEAF, 
@@ -96,10 +95,10 @@ void build_leaf_spine_routing(
 		}
 	}
 
-	collectors[0]->SetDeviceGenerateGap(1, 200 * 1000 / collectorMbps);
+	collectors[0]->SetDeviceGenerateGap(1, 20);
 	if((OrbWeaver == 0x2) || (OrbWeaver & 0x3) == 0x3){
 		for(uint32_t i = 0;i < NUM_SPINE;++i){
-			spines[i]->SetDeviceGenerateGap(NUM_LEAF, 500 * 1000 / collectorMbps);
+			spines[i]->SetDeviceGenerateGap(NUM_LEAF, 50);
 			spines[i]->AddTeleRouteTo(0, NUM_LEAF);
 		}
 		for(uint32_t i = 0;i < NUM_LEAF - 1;++i){
@@ -108,7 +107,7 @@ void build_leaf_spine_routing(
 				leaves[i]->AddTeleRouteTo(0, SERVER_PER_LEAF + spineId + 1);
 			}
 		}
-		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 200 * 1000 / collectorMbps);
+		leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF, 20);
 		leaves[NUM_LEAF - 1]->AddTeleRouteTo(0, SERVER_PER_LEAF);
 	}
 	else if((OrbWeaver & 0x9) == 0x9){
@@ -119,7 +118,7 @@ void build_leaf_spine_routing(
 			}
 		}
 		for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
-			leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 500 * 1000 / collectorMbps);
+			leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 50);
 			leaves[NUM_LEAF - 1]->SetDeviceLowerPull(0, SERVER_PER_LEAF + spineId + 1);
 		}
 	}
@@ -139,7 +138,7 @@ void build_leaf_spine_routing(
 			}
 		}
 		for(uint32_t spineId = 0;spineId < NUM_SPINE;++spineId){
-			leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 500 * 1000 / collectorMbps);
+			leaves[NUM_LEAF - 1]->SetDeviceGenerateGap(SERVER_PER_LEAF + spineId + 1, 50);
 			leaves[NUM_LEAF - 1]->SetDeviceLowerPull(0, SERVER_PER_LEAF + spineId + 1);
 		}
 	}
@@ -206,11 +205,6 @@ void build_leaf_spine(
     internet.InstallAll();
 
 	// Initilize link
-	PointToPointHelper pp_collector;
-	pp_collector.SetDeviceAttribute("DataRate", StringValue(std::to_string(collectorMbps) + "Mbps"));
-	pp_collector.SetDeviceAttribute("INT", UintegerValue(intSize));
-	pp_collector.SetChannelAttribute("Delay", StringValue("1us"));
-
 	PointToPointHelper pp_server_switch;
 	pp_server_switch.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
 	pp_server_switch.SetDeviceAttribute("INT", UintegerValue(intSize));
@@ -237,7 +231,7 @@ void build_leaf_spine(
 
 			NetDeviceContainer netDev;
 			if(server_id == (NUM_LEAF * SERVER_PER_LEAF - 1))
-				netDev = pp_collector.Install(collectors[0], leaves[i]);
+				netDev = pp_server_switch.Install(collectors[0], leaves[i]);
 			else
 				netDev = pp_server_switch.Install(servers[server_id], leaves[i]);
 
@@ -283,6 +277,7 @@ void build_leaf_spine(
 
 	build_leaf_spine_routing(SERVER_PER_LEAF, NUM_LEAF, NUM_SPINE);
 }
+*/
 
 void build_fat_tree_routing(
 	uint32_t K, 
@@ -294,8 +289,8 @@ void build_fat_tree_routing(
 
 	uint32_t number_server = K * K * NUM_BLOCK * RATIO;
 
-	for(uint32_t i = 0;i < number_server - 1;++i){
-		Ptr<Ipv4> ipv4Server = servers[i]->GetObject<Ipv4>();
+	for(uint32_t i = 1;i < number_server - 1;++i){
+		Ptr<Ipv4> ipv4Server = servers[i-1]->GetObject<Ipv4>();
 		Ptr<Ipv4StaticRouting> routeServer = ipv4RoutingHelper.GetStaticRouting(ipv4Server);
 		std::string ipAddr = std::to_string(i / (K * RATIO) / K) + "." + std::to_string((i / (K * RATIO)) % K) + 
 									"." + std::to_string(i % (K * RATIO)) + ".2";
@@ -336,111 +331,303 @@ void build_fat_tree_routing(
 		}
 	}
 
-	collectors[0]->SetDeviceGenerateGap(1, 200 * 1000 / collectorMbps);
 	if((OrbWeaver == 0x2) || (OrbWeaver & 0x3) == 0x3){
-		edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO, 200 * 1000 / collectorMbps);
-		edges[K * RATIO - 1]->AddTeleRouteTo(0, K * RATIO);
+		if(storeConfig){
+			edges[0]->SetDeviceGenerateGap(1, 20);
+			edges[0]->AddTeleRouteTo(1, 1);
+			edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO, 20);
+			edges[K * RATIO - 1]->AddTeleRouteTo(0, K * RATIO);
 
-		for(uint32_t i = 0;i < K * RATIO - 1;++i){
 			for(uint32_t aggId = 1;aggId <= K;++aggId){
-				edges[i]->SetDeviceGenerateGap(K * RATIO + aggId, 100);
-				edges[i]->AddTeleRouteTo(0, K * RATIO + aggId);
+				edges[0]->SetDeviceGenerateGap(K * RATIO + aggId, 100);
+				edges[0]->AddTeleRouteTo(0, K * RATIO + aggId);
 			}
-		}
-
-		for(uint32_t i = 0;i < NUM_BLOCK - 1;++i){
-			for(uint32_t j = 0;j < K;++j){
-				for(uint32_t coreId = 1;coreId <= K;++coreId){
-					aggregations[i*K+j]->SetDeviceGenerateGap(K + coreId, 100);
-					aggregations[i*K+j]->AddTeleRouteTo(0, K + coreId);
+			for(uint32_t i = 1;i < K * RATIO - 1;++i){
+				for(uint32_t aggId = 1;aggId <= K;++aggId){
+					edges[i]->SetDeviceGenerateGap(K * RATIO + aggId, 100);
+					edges[i]->AddTeleRouteTo(0, K * RATIO + aggId);
+					edges[i]->AddTeleRouteTo(1, K * RATIO + aggId);
 				}
 			}
-		}
-		for(uint32_t j = 0;j < K;++j){
-			aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(K, 400 * 1000 / collectorMbps);
-			aggregations[(NUM_BLOCK-1)*K+j]->AddTeleRouteTo(0, K);
-		}
+			for(uint32_t aggId = 1;aggId <= K;++aggId){
+				edges[K*RATIO-1]->SetDeviceGenerateGap(K * RATIO + aggId, 100);
+				edges[K*RATIO-1]->AddTeleRouteTo(1, K * RATIO + aggId);
+			}
 
-		for(uint32_t i = 0;i < K * K;++i){
-			cores[i]->SetDeviceGenerateGap(NUM_BLOCK, 100);
-			cores[i]->AddTeleRouteTo(0, NUM_BLOCK);
+			for(uint32_t j = 0;j < K;++j){
+				for(uint32_t coreId = 1;coreId <= K;++coreId){
+					aggregations[j]->SetDeviceGenerateGap(K + coreId, 100);
+					aggregations[j]->AddTeleRouteTo(0, K + coreId);
+				}
+				aggregations[j]->SetDeviceGenerateGap(1, 40);
+				aggregations[j]->AddTeleRouteTo(1, 1);
+			}
+			for(uint32_t i = 1;i < NUM_BLOCK - 1;++i){
+				for(uint32_t j = 0;j < K;++j){
+					for(uint32_t coreId = 1;coreId <= K;++coreId){
+						aggregations[i*K+j]->SetDeviceGenerateGap(K + coreId, 100);
+						aggregations[i*K+j]->AddTeleRouteTo(0, K + coreId);
+						aggregations[i*K+j]->AddTeleRouteTo(1, K + coreId);
+					}
+				}
+			}
+			for(uint32_t j = 0;j < K;++j){
+				for(uint32_t coreId = 1;coreId <= K;++coreId){
+					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(K + coreId, 100);
+					aggregations[(NUM_BLOCK-1)*K+j]->AddTeleRouteTo(1, K + coreId);
+				}
+				aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(K, 40);
+				aggregations[(NUM_BLOCK-1)*K+j]->AddTeleRouteTo(0, K);
+			}
+
+			for(uint32_t i = 0;i < K * K;++i){
+				cores[i]->SetDeviceGenerateGap(NUM_BLOCK, 100);
+				cores[i]->AddTeleRouteTo(0, NUM_BLOCK);
+				cores[i]->SetDeviceGenerateGap(1, 100);
+				cores[i]->AddTeleRouteTo(1, 1);
+			}
+		}
+		else{
+			edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO, 20);
+			edges[K * RATIO - 1]->AddTeleRouteTo(0, K * RATIO);
+
+			for(uint32_t i = 0;i < K * RATIO - 1;++i){
+				for(uint32_t aggId = 1;aggId <= K;++aggId){
+					edges[i]->SetDeviceGenerateGap(K * RATIO + aggId, 100);
+					edges[i]->AddTeleRouteTo(0, K * RATIO + aggId);
+				}
+			}
+
+			for(uint32_t i = 0;i < NUM_BLOCK - 1;++i){
+				for(uint32_t j = 0;j < K;++j){
+					for(uint32_t coreId = 1;coreId <= K;++coreId){
+						aggregations[i*K+j]->SetDeviceGenerateGap(K + coreId, 100);
+						aggregations[i*K+j]->AddTeleRouteTo(0, K + coreId);
+					}
+				}
+			}
+			for(uint32_t j = 0;j < K;++j){
+				aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(K, 40);
+				aggregations[(NUM_BLOCK-1)*K+j]->AddTeleRouteTo(0, K);
+			}
+
+			for(uint32_t i = 0;i < K * K;++i){
+				cores[i]->SetDeviceGenerateGap(NUM_BLOCK, 100);
+				cores[i]->AddTeleRouteTo(0, NUM_BLOCK);
+			}
 		}
 	}
 	else if((OrbWeaver & 0x9) == 0x9){
-		for(uint32_t aggId = 1;aggId <= K;++aggId){
-			edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO + aggId, 400 * 1000 / collectorMbps);
-			edges[K * RATIO - 1]->SetDeviceLowerPull(0, K * RATIO + aggId);
-		}
-
-		for(uint32_t i = 0;i < NUM_BLOCK - 1;++i){
-			for(uint32_t j = 0;j < K;++j){
-				for(uint32_t edgeId = 1;edgeId <= K;++edgeId){
-					aggregations[i*K+j]->SetDeviceGenerateGap(edgeId, 100);
-					aggregations[i*K+j]->SetDeviceLowerPull(0, edgeId);
-				}
-			}
-		}
-		for(uint32_t j = 0;j < K;++j){
-			for(uint32_t k = 1; k <= 2*K;++k){
-				if(k != K){
-					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(k, 100);
-					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceLowerPull(0, k);
-				}
-			}
-		}
+		collectors[0]->SetDeviceGenerateGap(1, 20);
 		
-		for(uint32_t i = 0;i < K * K;++i){
-			for(uint32_t j = 1;j < NUM_BLOCK;++j){
-				cores[i]->SetDeviceGenerateGap(j, 100);
-				cores[i]->SetDeviceLowerPull(0, j);
+		if(storeConfig){
+			collectors[1]->SetDeviceGenerateGap(1, 20);
+			for(uint32_t aggId = 1;aggId <= K;++aggId){
+				edges[K*RATIO-1]->SetDeviceGenerateGap(K * RATIO + aggId, 40);
+				edges[K*RATIO-1]->SetDeviceLowerPull(0, K * RATIO + aggId);
+			}
+			for(uint32_t aggId = 1;aggId <= K;++aggId){
+				edges[0]->SetDeviceGenerateGap(K * RATIO + aggId, 40);
+				edges[0]->SetDeviceLowerPull(1, K * RATIO + aggId);
+			}
+
+			for(uint32_t j = 0;j < K;++j){
+				for(uint32_t k = 1; k <= 2*K;++k){
+					aggregations[j]->SetDeviceGenerateGap(k, 100);
+					if(k != 1)
+						aggregations[j]->SetDeviceLowerPull(1, k);
+					if(k <= K)
+						aggregations[j]->SetDeviceLowerPull(0, k);
+				}
+			}
+			for(uint32_t i = 1;i < NUM_BLOCK - 1;++i){
+				for(uint32_t j = 0;j < K;++j){
+					for(uint32_t edgeId = 1;edgeId <= K;++edgeId){
+						aggregations[i*K+j]->SetDeviceGenerateGap(edgeId, 100);
+						aggregations[i*K+j]->SetDeviceLowerPull(0, edgeId);
+						aggregations[i*K+j]->SetDeviceLowerPull(1, edgeId);
+					}
+				}
+			}
+			for(uint32_t j = 0;j < K;++j){
+				for(uint32_t k = 1; k <= 2*K;++k){
+					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(k, 100);
+					if(k != K)
+						aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceLowerPull(0, k);
+					if(k <= K)
+						aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceLowerPull(1, k);
+				}
+			}
+			
+			for(uint32_t i = 0;i < K * K;++i){
+				for(uint32_t j = 1;j <= NUM_BLOCK;++j){
+					cores[i]->SetDeviceGenerateGap(j, 100);
+					if(j != NUM_BLOCK)
+						cores[i]->SetDeviceLowerPull(0, j);
+					if(j != 1)
+						cores[i]->SetDeviceLowerPull(1, j);
+				}
+			}
+		}
+		else{
+			for(uint32_t aggId = 1;aggId <= K;++aggId){
+				edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO + aggId, 40);
+				edges[K * RATIO - 1]->SetDeviceLowerPull(0, K * RATIO + aggId);
+			}
+
+			for(uint32_t i = 0;i < NUM_BLOCK - 1;++i){
+				for(uint32_t j = 0;j < K;++j){
+					for(uint32_t edgeId = 1;edgeId <= K;++edgeId){
+						aggregations[i*K+j]->SetDeviceGenerateGap(edgeId, 100);
+						aggregations[i*K+j]->SetDeviceLowerPull(0, edgeId);
+					}
+				}
+			}
+			for(uint32_t j = 0;j < K;++j){
+				for(uint32_t k = 1; k <= 2*K;++k){
+					if(k != K){
+						aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(k, 100);
+						aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceLowerPull(0, k);
+					}
+				}
+			}
+			
+			for(uint32_t i = 0;i < K * K;++i){
+				for(uint32_t j = 1;j < NUM_BLOCK;++j){
+					cores[i]->SetDeviceGenerateGap(j, 100);
+					cores[i]->SetDeviceLowerPull(0, j);
+				}
 			}
 		}
 	}
 	else if((OrbWeaver & 0x11) == 0x11){
-		for(uint32_t aggId = 1;aggId <= K;++aggId){
-			edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO + aggId, 400 * 1000 / collectorMbps);
-			edges[K * RATIO - 1]->SetDeviceLowerPull(0, K * RATIO + aggId);
-		}
-
-		for(uint32_t i = 0;i < K * RATIO - 1;++i){
-			for(uint32_t aggId = 1;aggId <= K;++aggId){
-				edges[i]->SetDeviceGenerateGap(K * RATIO + aggId, 100);
-				edges[i]->SetDeviceUpperPull(0, K * RATIO + aggId);
-			}
-		}
-
-		for(uint32_t i = 0;i < NUM_BLOCK - 1;++i){
-			for(uint32_t j = 0;j < K;++j){
-				for(uint32_t edgeId = 1;edgeId <= K;++edgeId){
-					aggregations[i*K+j]->SetDeviceGenerateGap(edgeId, 100);
-					aggregations[i*K+j]->SetDeviceLowerPull(0, edgeId);
-				}
-				for(uint32_t coreId = 1;coreId <= K;++coreId){
-					aggregations[i*K+j]->SetDeviceGenerateGap(K+coreId, 100);
-					aggregations[i*K+j]->SetDeviceUpperPull(0, K+coreId);
-				}
-			}
-		}
-		for(uint32_t j = 0;j < K;++j){
-			for(uint32_t k = 1; k <= 2*K;++k){
-				if(k != K){
-					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(k, 100);
-					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceLowerPull(0, k);
-				}
-				else{
-					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(k, 100);
-					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceUpperPull(0, k);
-				}
-			}
-		}
+		collectors[0]->SetDeviceGenerateGap(1, 20);
 		
-		for(uint32_t i = 0;i < K * K;++i){
-			for(uint32_t j = 1;j < NUM_BLOCK;++j){
-				cores[i]->SetDeviceGenerateGap(j, 100);
-				cores[i]->SetDeviceLowerPull(0, j);
+		if(storeConfig){
+			collectors[1]->SetDeviceGenerateGap(1, 20);
+
+			for(uint32_t aggId = 1;aggId <= K;++aggId){
+				edges[0]->SetDeviceGenerateGap(K * RATIO + aggId, 40);
+				edges[0]->SetDeviceUpperPull(0, K * RATIO + aggId);
+				edges[0]->SetDeviceLowerPull(1, K * RATIO + aggId);
 			}
-			cores[i]->SetDeviceGenerateGap(NUM_BLOCK, 100);
-			cores[i]->SetDeviceUpperPull(0, NUM_BLOCK);
+			for(uint32_t i = 1;i < K * RATIO - 1;++i){
+				for(uint32_t aggId = 1;aggId <= K;++aggId){
+					edges[i]->SetDeviceGenerateGap(K * RATIO + aggId, 100);
+					edges[i]->SetDeviceUpperPull(0, K * RATIO + aggId);
+					edges[i]->SetDeviceUpperPull(1, K * RATIO + aggId);
+				}
+			}
+			for(uint32_t aggId = 1;aggId <= K;++aggId){
+				edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO + aggId, 40);
+				edges[K * RATIO - 1]->SetDeviceLowerPull(0, K * RATIO + aggId);
+				edges[K * RATIO - 1]->SetDeviceUpperPull(1, K * RATIO + aggId);
+			}
+
+			for(uint32_t j = 0;j < K;++j){
+				for(uint32_t k = 1; k <= 2*K;++k){
+					aggregations[j]->SetDeviceGenerateGap(k, 100);
+					if(k != 1)
+						aggregations[j]->SetDeviceLowerPull(1, k);
+					else
+						aggregations[j]->SetDeviceUpperPull(1, k);
+					if(k <= K)
+						aggregations[j]->SetDeviceLowerPull(0, k);
+					else
+						aggregations[j]->SetDeviceUpperPull(0, k);
+				}
+			}
+			for(uint32_t i = 0;i < NUM_BLOCK - 1;++i){
+				for(uint32_t j = 0;j < K;++j){
+					for(uint32_t edgeId = 1;edgeId <= K;++edgeId){
+						aggregations[i*K+j]->SetDeviceGenerateGap(edgeId, 100);
+						aggregations[i*K+j]->SetDeviceLowerPull(0, edgeId);
+						aggregations[i*K+j]->SetDeviceLowerPull(1, edgeId);
+					}
+					for(uint32_t coreId = 1;coreId <= K;++coreId){
+						aggregations[i*K+j]->SetDeviceGenerateGap(K+coreId, 100);
+						aggregations[i*K+j]->SetDeviceUpperPull(0, K+coreId);
+						aggregations[i*K+j]->SetDeviceUpperPull(1, K+coreId);
+					}
+				}
+			}
+			for(uint32_t j = 0;j < K;++j){
+				for(uint32_t k = 1; k <= 2*K;++k){
+					aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(k, 100);
+					if(k != K)
+						aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceLowerPull(0, k);
+					else
+						aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceUpperPull(0, k);
+					if(k <= K)
+						aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceLowerPull(1, k);
+					else
+						aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceUpperPull(1, k);
+				}
+			}
+			
+			for(uint32_t i = 0;i < K * K;++i){
+				for(uint32_t j = 1;j <= NUM_BLOCK;++j)
+					cores[i]->SetDeviceGenerateGap(j, 100);
+				cores[i]->SetDeviceUpperPull(1, 1);
+				for(uint32_t j = 2;j <= NUM_BLOCK;++j)
+					cores[i]->SetDeviceLowerPull(1, j);
+				for(uint32_t j = 1;j < NUM_BLOCK;++j)
+					cores[i]->SetDeviceLowerPull(0, j);
+				cores[i]->SetDeviceUpperPull(0, NUM_BLOCK);
+			}	
+		}
+		else{
+			if(tempConfig){
+				collectors[1]->SetDeviceGenerateGap(1, 20);
+				edges[0]->SetDeviceGenerateGap(1, 20);
+				edges[0]->SetDeviceLowerPull(0, 1);
+			}
+
+			for(uint32_t aggId = 1;aggId <= K;++aggId){
+				edges[K * RATIO - 1]->SetDeviceGenerateGap(K * RATIO + aggId, 40);
+				edges[K * RATIO - 1]->SetDeviceLowerPull(0, K * RATIO + aggId);
+			}
+
+			for(uint32_t i = 0;i < K * RATIO - 1;++i){
+				for(uint32_t aggId = 1;aggId <= K;++aggId){
+					edges[i]->SetDeviceGenerateGap(K * RATIO + aggId, 100);
+					edges[i]->SetDeviceUpperPull(0, K * RATIO + aggId);
+				}
+			}
+
+			for(uint32_t i = 0;i < NUM_BLOCK - 1;++i){
+				for(uint32_t j = 0;j < K;++j){
+					for(uint32_t edgeId = 1;edgeId <= K;++edgeId){
+						aggregations[i*K+j]->SetDeviceGenerateGap(edgeId, 100);
+						aggregations[i*K+j]->SetDeviceLowerPull(0, edgeId);
+					}
+					for(uint32_t coreId = 1;coreId <= K;++coreId){
+						aggregations[i*K+j]->SetDeviceGenerateGap(K+coreId, 100);
+						aggregations[i*K+j]->SetDeviceUpperPull(0, K+coreId);
+					}
+				}
+			}
+			for(uint32_t j = 0;j < K;++j){
+				for(uint32_t k = 1; k <= 2*K;++k){
+					if(k != K){
+						aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(k, 100);
+						aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceLowerPull(0, k);
+					}
+					else{
+						aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceGenerateGap(k, 100);
+						aggregations[(NUM_BLOCK-1)*K+j]->SetDeviceUpperPull(0, k);
+					}
+				}
+			}
+			
+			for(uint32_t i = 0;i < K * K;++i){
+				for(uint32_t j = 1;j < NUM_BLOCK;++j){
+					cores[i]->SetDeviceGenerateGap(j, 100);
+					cores[i]->SetDeviceLowerPull(0, j);
+				}
+				cores[i]->SetDeviceGenerateGap(NUM_BLOCK, 100);
+				cores[i]->SetDeviceUpperPull(0, NUM_BLOCK);
+			}				
 		}
 	}
 }
@@ -452,23 +639,30 @@ void build_fat_tree(
 
 	// Initilize node
 	uint32_t number_server = K * K * NUM_BLOCK * RATIO;
+	uint32_t number_collector = 2;
 
 	serverAddress.resize(number_server);
-	servers.resize(number_server - 1);
-	collectors.resize(1);
+	servers.resize(number_server - number_collector);
+	collectors.resize(number_collector);
 
 	edges.resize(K * NUM_BLOCK);
 	aggregations.resize(K * NUM_BLOCK);
 	cores.resize(K * K);
 
-	for(uint32_t i = 0;i < number_server - 1;++i)
+	for(uint32_t i = 0;i < number_server - number_collector;++i)
 		servers[i] = CreateObject<Node>();
 	
-	collectors[0] = CreateObject<CollectorNode>();
-	collectors[0]->SetRecord(recordConfig);
-	collectors[0]->SetOutput(file_name);
-	collectors[0]->SetDest(0);
-	collectors[0]->SetOrbWeaver(OrbWeaver);
+	for(uint32_t i = 0;i < number_collector;++i){
+		collectors[i] = CreateObject<CollectorNode>();
+		collectors[i]->SetRecord(recordConfig);
+		collectors[i]->SetOutput(file_name);
+		collectors[i]->SetOrbWeaver(OrbWeaver);
+	}
+	collectors[0]->SetPriority(0, 0);
+	if(storeConfig)
+		collectors[1]->SetPriority(1, 0);
+	if(tempConfig)
+		collectors[1]->SetPriority(0, 50);
 
 	for(uint32_t i = 0;i < K * NUM_BLOCK;++i){
 		edges[i] = CreateObject<SwitchNode>();
@@ -484,6 +678,11 @@ void build_fat_tree(
 		edges[i]->SetRecord(recordConfig);
 		edges[i]->SetOutput(file_name);
 		edges[i]->SetUtilGap(utilGap);
+
+		if(storeConfig)
+			edges[i]->SetCollector(2);
+		else
+			edges[i]->SetCollector(1);
 
 		switches.push_back(edges[i]);
 	}
@@ -502,6 +701,11 @@ void build_fat_tree(
 		aggregations[i]->SetOutput(file_name);
 		aggregations[i]->SetUtilGap(utilGap);
 
+		if(storeConfig)
+			aggregations[i]->SetCollector(2);
+		else
+			aggregations[i]->SetCollector(1);
+
 		switches.push_back(aggregations[i]);
 	}
 	for(uint32_t i = 0;i < K * K;++i){
@@ -519,6 +723,11 @@ void build_fat_tree(
 		cores[i]->SetOutput(file_name);
 		cores[i]->SetUtilGap(utilGap);
 
+		if(storeConfig)
+			cores[i]->SetCollector(2);
+		else
+			cores[i]->SetCollector(1);
+
 		switches.push_back(cores[i]);
 	}
 
@@ -526,11 +735,6 @@ void build_fat_tree(
     internet.InstallAll();
 
 	// Initilize link
-	PointToPointHelper pp_collector;
-	pp_collector.SetDeviceAttribute("DataRate", StringValue(std::to_string(collectorMbps) + "Mbps"));
-	pp_collector.SetDeviceAttribute("INT", UintegerValue(intSize));
-	pp_collector.SetChannelAttribute("Delay", StringValue("1us"));
-
 	PointToPointHelper pp_server_switch;
 	pp_server_switch.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
 	pp_server_switch.SetDeviceAttribute("INT", UintegerValue(intSize));
@@ -556,10 +760,12 @@ void build_fat_tree(
 			uint32_t server_id = i * K * RATIO + j;
 
 			NetDeviceContainer netDev;
-			if(server_id == (number_server - 1))
-				netDev = pp_collector.Install(collectors[0], edges[i]);
+			if(server_id == 0)
+				netDev = pp_server_switch.Install(collectors[1], edges[i]);
+			else if(server_id == (number_server - 1))
+				netDev = pp_server_switch.Install(collectors[0], edges[i]);
 			else
-				netDev = pp_server_switch.Install(servers[server_id], edges[i]);
+				netDev = pp_server_switch.Install(servers[server_id - 1], edges[i]);
 
 			tch.Install(netDev);
 			std::string ipBase = std::to_string(i / K) + "." + std::to_string(i % K) + 
