@@ -97,9 +97,9 @@ class SwitchNode : public Node
     bool m_orbweaver = false;
 
     struct TeleQueue{
-      std::vector<PathHeader> pathBatch[10];
-      std::vector<UtilHeader> utilBatch[10];
-      std::queue<Ptr<Packet>> packets[10];
+      std::vector<PathHeader> pathBatch[3];
+      std::vector<UtilHeader> utilBatch[3];
+      std::queue<Ptr<Packet>> packets[3];
       uint32_t size = 0;
     };
 

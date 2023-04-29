@@ -561,7 +561,7 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
         return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
 
-    m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += 1;
+    m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
     return false;
 }
 
@@ -588,7 +588,7 @@ SwitchNode::IngressPipelinePostcard(Ptr<Packet> packet, Ptr<NetDevice> dev){
         return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
 
-    m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += 1;
+    m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
     return false;
 }
 
@@ -615,8 +615,6 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
 
         uint8_t dest = property.collectorDst[rand() % property.collectorDst.size()];
         uint32_t bufferSize = m_teleQueue.packets[dest].size();
-
-        TeleHeader teleHeader;
 
         if(m_pull && property.isLowerPull[dest]){
             if(bufferSize < 1 || bufferSize * m_teleQueue.packets[dest].front()->GetSize() 
