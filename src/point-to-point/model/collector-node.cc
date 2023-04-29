@@ -51,7 +51,7 @@ CollectorNode::~CollectorNode(){
             std::cout << "Receive entries: " << m_paths.size() << std::endl;
             std::cout << "Number of duplicates: " << m_duplicates << std::endl;
 
-            FILE* fout = fopen((output_file + ".collector.path").c_str(), "w");
+            FILE* fout = fopen((output_file + ".collector.path").c_str(), "a");
             for(auto path : m_paths){
                 fprintf(fout, "%d %d ", path.GetSrcIP(), path.GetDstIP());
                 fprintf(fout, "%d %d ", path.GetSrcPort(), path.GetDstPort());
@@ -75,6 +75,10 @@ CollectorNode::SetRecord(uint32_t record){
 void 
 CollectorNode::SetOutput(std::string output){
     output_file = output;
+    if(m_record && m_types.find(1) != m_types.end()){
+        FILE* fout = fopen((output_file + ".collector.path").c_str(), "w");
+        fclose(fout);
+    }
 }
 
 uint32_t
@@ -173,7 +177,8 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                         std::cout << "Receive entries: " << m_paths.size() << std::endl;
                         std::cout << "Number of duplicates: " << m_duplicates << std::endl;
                     }
-                            
+
+                    /*  
                     std::cout << "PathHeader: " << (int)teleHeader.GetDest() << " " 
                         << pathHeader.GetSrcIP() << " "
                         << pathHeader.GetDstIP() << " "
@@ -182,6 +187,7 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                         << pathHeader.GetNodeId() << " "
                         << int(pathHeader.GetTTL()) << " "
                         << std::endl;
+                    */
                 }
                 else
                     m_duplicates += 1;
@@ -196,13 +202,15 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                         
                 if(m_duplicates % 10000 == 9999)
                     std::cout << "Receive entries: " << m_duplicates << std::endl;
-                        
+
+                /* 
                 std::cout << "UtilHeader: " << (int)teleHeader.GetDest() << " " 
                         << utilHeader.GetNodeId() << " "
                         << utilHeader.GetPortId() << " "
                         << utilHeader.GetTime() << " "
                         << utilHeader.GetByte() << " "
                         << std::endl;
+                */
             }
             break;
         default : std::cout << "Unknown task" << std::endl; break;

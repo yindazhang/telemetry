@@ -58,14 +58,20 @@ SwitchNode::~SwitchNode(){
         if(m_path){
             std::string out_file = output_file + ".switch.path";
             FILE* fout = fopen(output_file.c_str(), "a");
-            fprintf(fout, "%d,%d,%d,%d,%d,%d\n", m_id, m_pathType, m_queueLoss[1], m_bufferLoss[1], m_teleSend[1], m_paths.size());
+            for(auto it = m_teleForward.begin();it != m_teleForward.end();++it){
+                fprintf(fout, "%d,%d,%d,%d,%d,%d,%d\n", m_id, it->first, m_pathType, 
+                    m_queueLoss[m_pathType][it->first], m_bufferLoss[m_pathType][it->first], m_teleSend[m_pathType][it->first], m_paths.size());
+            }
             fflush(fout);
             fclose(fout);
         }
         if(m_port){
             std::string out_file = output_file + ".switch.util";
             FILE* fout = fopen(output_file.c_str(), "a");
-            fprintf(fout, "%d,%d,%d,%d,%d,%d\n", m_id, m_portType, m_queueLoss[2], m_bufferLoss[2], m_teleSend[2], m_paths.size());
+            for(auto it = m_teleForward.begin();it != m_teleForward.end();++it){
+                fprintf(fout, "%d,%d,%d,%d,%d,%d,%d\n", m_id, it->first, m_portType, 
+                    m_queueLoss[m_portType][it->first], m_bufferLoss[m_portType][it->first], m_teleSend[m_portType][it->first], m_paths.size());
+            }
             fflush(fout);
             fclose(fout);
         }
@@ -258,7 +264,7 @@ bool
 SwitchNode::BatchPath(PathHeader path, uint8_t dest){
     m_teleQueue.pathBatch[dest].push_back(path);
     if(m_teleQueue.pathBatch[dest].size() % batchSize == 0){
-        m_teleSend[m_pathType] += batchSize;
+        m_teleSend[m_pathType][dest] += batchSize;
 
         Ptr<Packet> packet = CreatePacket(0);
         for(uint32_t i = 0;i < batchSize;++i)
@@ -272,7 +278,7 @@ SwitchNode::BatchPath(PathHeader path, uint8_t dest){
         packet->AddHeader(teleHeader);
 
         if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
-            m_bufferLoss[m_pathType] += batchSize;
+            m_bufferLoss[m_pathType][dest] += batchSize;
             return false;
         }
         m_teleQueue.packets[dest].push(packet);
@@ -287,7 +293,7 @@ bool
 SwitchNode::BatchUtil(UtilHeader util, uint8_t dest){
     m_teleQueue.utilBatch[dest].push_back(util);
     if(m_teleQueue.utilBatch[dest].size() % batchSize == 0){
-        m_teleSend[m_portType] += batchSize;
+        m_teleSend[m_portType][dest] += batchSize;
 
         Ptr<Packet> packet = CreatePacket(0);
         for(uint32_t i = 0;i < batchSize;++i)
@@ -301,7 +307,7 @@ SwitchNode::BatchUtil(UtilHeader util, uint8_t dest){
         packet->AddHeader(teleHeader);
 
         if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
-            m_bufferLoss[m_portType] += batchSize;
+            m_bufferLoss[m_portType][dest] += batchSize;
             return false;
         }
         m_teleQueue.packets[dest].push(packet);
@@ -345,7 +351,7 @@ SwitchNode::SendPostcard(uint8_t dest){
         else{
             TeleHeader teleHeader;
             packet->RemoveHeader(teleHeader);
-            m_queueLoss[teleHeader.GetType()] += batchSize;
+            m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
         }   
     }
 }
@@ -406,7 +412,7 @@ SwitchNode::BufferData(Ptr<Packet> packet){
     packet->PeekHeader(teleHeader);
 
     if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
-        m_bufferLoss[teleHeader.GetType()] += batchSize;
+        m_bufferLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
     }
     else{
         m_teleQueue.packets[teleHeader.GetDest()].push(packet);
@@ -555,7 +561,7 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
         return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
 
-    m_queueLoss[teleHeader.GetType()] += 1;
+    m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += 1;
     return false;
 }
 
@@ -582,7 +588,7 @@ SwitchNode::IngressPipelinePostcard(Ptr<Packet> packet, Ptr<NetDevice> dev){
         return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
 
-    m_queueLoss[teleHeader.GetType()] += 1;
+    m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += 1;
     return false;
 }
 

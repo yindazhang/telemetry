@@ -70,7 +70,7 @@ void schedule_flow(std::string flow_file){
     	
 	flow_input.open("scratch/" + flow_file + ".tr");
 	if(!flow_input.is_open()){
-		std::cout << "Cannot open flow file" << std::endl;
+		std::cout << "Cannot open flow file" << "scratch/" + flow_file + ".tr" << std::endl;
 		exit(1);
 	}
 

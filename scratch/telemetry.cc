@@ -36,7 +36,13 @@ int main(int argc, char *argv[])
 	
 	std::cout << "Run Telemetry." << std::endl;
 
-	file_name = "scratch/" + flow_file + "s_Topo" + std::to_string(topology) + "_ECMP" + std::to_string(ecmpConfig);
+	file_name = "scratch/" + flow_file + "s_Topo" + std::to_string(topology) + 
+			"_ECMP" + std::to_string(ecmpConfig) + "_Gap" + std::to_string(utilGap);
+	if(storeConfig)
+		file_name += "_Store2";
+	else if(tempConfig)
+		file_name += "_Store1";
+
 	if(failConfig)
 		file_name += "_Fail";
 	if(intSize > 0)

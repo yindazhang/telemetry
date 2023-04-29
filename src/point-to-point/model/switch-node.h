@@ -124,9 +124,9 @@ class SwitchNode : public Node
 
     int32_t m_bufferThd = 30*1024;
 
-    std::unordered_map<uint32_t, uint32_t> m_teleSend;
-    std::unordered_map<uint32_t, uint32_t> m_bufferLoss;
-    std::unordered_map<uint32_t, uint32_t> m_queueLoss;
+    std::unordered_map<uint8_t, uint32_t> m_teleSend[3];
+    std::unordered_map<uint8_t, uint32_t> m_bufferLoss[3];
+    std::unordered_map<uint8_t, uint32_t> m_queueLoss[3];
 
     std::string output_file;
 
