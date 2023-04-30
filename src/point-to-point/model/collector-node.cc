@@ -213,13 +213,14 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                 */
             }
             break;
-        default : std::cout << "Unknown task" << std::endl; break;
+        default : std::cout << "Unknown task " << teleHeader.GetType() << std::endl; break;
     }
     return true;
 }
 
 void 
 CollectorNode::BufferData(Ptr<Packet> packet, TeleHeader teleHeader){
+    packet->AddHeader(teleHeader);
     m_teleQueue.packets[teleHeader.GetDest()].push(packet);
     m_teleQueue.size += packet->GetSize();
 }
