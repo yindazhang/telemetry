@@ -57,7 +57,7 @@ SwitchNode::~SwitchNode(){
     if(m_record){
         if(m_path){
             std::string out_file = output_file + ".switch.path";
-            FILE* fout = fopen(output_file.c_str(), "a");
+            FILE* fout = fopen(out_file.c_str(), "a");
             for(auto it = m_teleForward.begin();it != m_teleForward.end();++it){
                 fprintf(fout, "%d,%d,%d,%d,%d,%d,%d\n", m_id, it->first, m_pathType, 
                     m_queueLoss[m_pathType][it->first], m_bufferLoss[m_pathType][it->first], m_teleSend[m_pathType][it->first], m_paths.size());
@@ -67,7 +67,7 @@ SwitchNode::~SwitchNode(){
         }
         if(m_port){
             std::string out_file = output_file + ".switch.util";
-            FILE* fout = fopen(output_file.c_str(), "a");
+            FILE* fout = fopen(out_file.c_str(), "a");
             for(auto it = m_teleForward.begin();it != m_teleForward.end();++it){
                 fprintf(fout, "%d,%d,%d,%d,%d,%d,%d\n", m_id, it->first, m_portType, 
                     m_queueLoss[m_portType][it->first], m_bufferLoss[m_portType][it->first], m_teleSend[m_portType][it->first], m_paths.size());
@@ -202,6 +202,9 @@ SwitchNode::AddTeleRouteTo(uint8_t dest, uint32_t devId)
     if(m_deviceMap.find(m_devices[devId]) == m_deviceMap.end())
         std::cout << "Unknown devId " << devId << " in deviceMap for collector" << std::endl;
     else{
+        if(std::find(m_deviceMap[m_devices[devId]].collectorDst.begin(), 
+        m_deviceMap[m_devices[devId]].collectorDst.end(), dest) != m_deviceMap[m_devices[devId]].collectorDst.end())
+            std::cout << "Error in AddTeleRouteTo" << std::endl;
         m_deviceMap[m_devices[devId]].collectorDst.push_back(dest);
     }
 }
@@ -220,6 +223,9 @@ SwitchNode::SetDeviceUpperPull(uint8_t dest, uint32_t devId)
     if(m_deviceMap.find(m_devices[devId]) == m_deviceMap.end())
         std::cout << "Unknown devId " << devId << " in deviceMap for upper pull" << std::endl;
     else{
+        if(std::find(m_deviceMap[m_devices[devId]].collectorDst.begin(), 
+        m_deviceMap[m_devices[devId]].collectorDst.end(), dest) != m_deviceMap[m_devices[devId]].collectorDst.end())
+            std::cout << "Error in SetDeviceUpperPull" << std::endl;
         m_deviceMap[m_devices[devId]].collectorDst.push_back(dest);
         m_deviceMap[m_devices[devId]].isUpperPull[dest] = true;
     }
@@ -231,6 +237,9 @@ SwitchNode::SetDeviceLowerPull(uint8_t dest, uint32_t devId)
     if(m_deviceMap.find(m_devices[devId]) == m_deviceMap.end())
         std::cout << "Unknown devId " << devId << " in deviceMap for lower pull" << std::endl;
     else{
+        if(std::find(m_deviceMap[m_devices[devId]].collectorDst.begin(), 
+        m_deviceMap[m_devices[devId]].collectorDst.end(), dest) != m_deviceMap[m_devices[devId]].collectorDst.end())
+            std::cout << "Error in SetDeviceLowerPull" << std::endl;
         m_deviceMap[m_devices[devId]].collectorDst.push_back(dest);
         m_deviceMap[m_devices[devId]].isLowerPull[dest] = true;
     }
@@ -595,9 +604,9 @@ SwitchNode::IngressPipelinePostcard(Ptr<Packet> packet, Ptr<NetDevice> dev){
 Ptr<Packet>
 SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
     DeviceProperty property = m_deviceMap[dev];
+
     PppHeader ppp;
     packet->RemoveHeader(ppp);
-
     if(m_basic){
         for(auto dest : property.collectorDst){
             if(!m_teleQueue.packets[dest].empty()){
@@ -611,8 +620,6 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
         }
     }
     else{
-        DeviceProperty property = m_deviceMap[dev];
-
         uint8_t dest = property.collectorDst[rand() % property.collectorDst.size()];
         uint32_t bufferSize = m_teleQueue.packets[dest].size();
 
@@ -641,7 +648,7 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
             return packet;
         }
     }
-    return 0;
+    return nullptr;
 }
 
 Ptr<Packet>
@@ -658,7 +665,6 @@ SwitchNode::EgressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
 
 Ptr<Packet>
 SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
-    DeviceProperty property = m_deviceMap[dev];
     PppHeader ppp;
     packet->RemoveHeader(ppp);
 
@@ -669,9 +675,17 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
     uint16_t size = teleHeader.GetSize();
 
     if(m_final){
-        uint32_t bufferSize = m_teleQueue.packets[dest].size();
+        bool isUpper = false, isLower = false;
+        uint32_t bufferSize = 0;
 
-        if(property.isUpperPull[dest]){
+        if(m_deviceMap.find(dev) != m_deviceMap.end()){
+            DeviceProperty property = m_deviceMap[dev];
+            isUpper = property.isUpperPull[dest];
+            isLower = property.isLowerPull[dest];
+            bufferSize = m_teleQueue.packets[dest].size();
+        }
+
+        if(isUpper){
             if(size < bufferSize){
                 packet = GetTelePacket(1, dest);
                 if(packet != nullptr){
@@ -688,8 +702,9 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
                 packet->AddHeader(ppp);
                 return packet;
             }
+            return nullptr;
         }
-        else if(property.isLowerPull[dest]){
+        else if(isLower){
             if(size + 1 < bufferSize){
                 packet = GetTelePacket(1, dest);
                 if(packet != nullptr){
@@ -706,15 +721,15 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
                 packet->AddHeader(ppp);
                 return packet;
             }
+            return nullptr;
         }
-        else{
-            packet = GetTelePacket(1, dest);
-            if(packet != nullptr){
-                ppp.SetProtocol(0x171);
-                packet->AddHeader(ppp);
-            }
-            return packet;
+
+        packet = GetTelePacket(1, dest);
+        if(packet != nullptr){
+            ppp.SetProtocol(0x171);
+            packet->AddHeader(ppp);
         }
+        return packet;
     }
     else if(m_pull){
         packet = GetTelePacket(1, dest);
