@@ -14,6 +14,14 @@ cp -r ../../telemetry/src/ ./
 nohup ./ns3 run test-runner > b.out &
 
 
+cd /mydata/telemetry
+git pull
+
+cd ../ns-allinone-3.37/ns-3.37/
+cp -r ../../telemetry/bash.sh ./
+cp -r ../../telemetry/scratch/generate_cmd.py ./scratch/generate_cmd.py
+cp -r ../../telemetry/src/point-to-point/model/collector-node.cc ./src/point-to-point/model/collector-node.cc
+
 # Modify:
 # application/bulk-send-application.h/.cc
 # network/node.h/.cc

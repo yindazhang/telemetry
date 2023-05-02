@@ -58,9 +58,9 @@ SwitchNode::~SwitchNode(){
         if(m_path){
             std::string out_file = output_file + ".switch.path";
             FILE* fout = fopen(out_file.c_str(), "a");
-            for(auto it = m_teleForward.begin();it != m_teleForward.end();++it){
+            for(auto it = m_teleSend[m_pathType].begin();it != m_teleSend[m_pathType].end();++it){
                 fprintf(fout, "%d,%d,%d,%d,%d,%d,%d\n", m_id, it->first, m_pathType, 
-                    m_queueLoss[m_pathType][it->first], m_bufferLoss[m_pathType][it->first], m_teleSend[m_pathType][it->first], m_paths.size());
+                    m_queueLoss[m_pathType][it->first], m_bufferLoss[m_pathType][it->first], it->second, m_paths.size());
             }
             fflush(fout);
             fclose(fout);
@@ -68,9 +68,9 @@ SwitchNode::~SwitchNode(){
         if(m_port){
             std::string out_file = output_file + ".switch.util";
             FILE* fout = fopen(out_file.c_str(), "a");
-            for(auto it = m_teleForward.begin();it != m_teleForward.end();++it){
+            for(auto it = m_teleSend[m_portType].begin();it != m_teleSend[m_portType].end();++it){
                 fprintf(fout, "%d,%d,%d,%d,%d,%d,%d\n", m_id, it->first, m_portType, 
-                    m_queueLoss[m_portType][it->first], m_bufferLoss[m_portType][it->first], m_teleSend[m_portType][it->first], m_paths.size());
+                    m_queueLoss[m_portType][it->first], m_bufferLoss[m_portType][it->first], it->second, m_paths.size());
             }
             fflush(fout);
             fclose(fout);
