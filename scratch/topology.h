@@ -537,7 +537,7 @@ void build_fat_tree_routing(
 						aggregations[j]->SetDeviceUpperPull(0, k);
 				}
 			}
-			for(uint32_t i = 0;i < NUM_BLOCK - 1;++i){
+			for(uint32_t i = 1;i < NUM_BLOCK - 1;++i){
 				for(uint32_t j = 0;j < K;++j){
 					for(uint32_t edgeId = 1;edgeId <= K;++edgeId){
 						aggregations[i*K+j]->SetDeviceGenerateGap(edgeId, 100);

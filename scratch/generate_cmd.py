@@ -1,7 +1,7 @@
 loads = range(4, 9)
 topologies = [1]
 taskIds = [2] #[1,2]
-utilGaps = [10000]
+utilGaps = [5000]
 OrbWeavers = [17] #OrbWeavers = [0,2,3,9,17]
 
 def AddLoad(start, outFile):
