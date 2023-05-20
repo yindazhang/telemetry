@@ -662,7 +662,7 @@ void build_fat_tree(
 	if(storeConfig)
 		collectors[1]->SetPriority(1, 0);
 	if(tempConfig)
-		collectors[1]->SetPriority(0, 50);
+		collectors[1]->SetPriority(0, 20);
 
 	for(uint32_t i = 0;i < K * NUM_BLOCK;++i){
 		edges[i] = CreateObject<SwitchNode>();

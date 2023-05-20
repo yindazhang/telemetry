@@ -625,7 +625,7 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
 
         if(m_pull && property.isLowerPull[dest]){
             if(bufferSize < 1 || bufferSize * m_teleQueue.packets[dest].front()->GetSize() 
-                    < m_bufferThd * 0.5 / m_teleForward.size()){
+                    < m_bufferThd * 0.5){
                 TeleHeader teleHeader;
                 teleHeader.SetDest(dest);
                 teleHeader.SetSize(0);

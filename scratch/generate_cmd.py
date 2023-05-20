@@ -2,7 +2,8 @@ loads = range(4, 9)
 topologies = [1]
 taskIds = [2] #[1,2]
 utilGaps = [5000]
-OrbWeavers = [17] #OrbWeavers = [0,2,3,9,17]
+#OrbWeavers = [17]
+OrbWeavers = [3,9,17]
 
 def AddLoad(start, outFile):
     for load in loads:
@@ -14,10 +15,10 @@ def AddLoad(start, outFile):
 def AddStore(start, outFile):
     cmd = start + "--Temp=0 --Store=0 "
     AddLoad(cmd, outFile + "-Store0")
-    cmd = start + "--Temp=1 --Store=0 "
-    AddLoad(cmd, outFile + "-Store1")
-    cmd = start + "--Temp=0 --Store=1 "
-    AddLoad(cmd, outFile + "-Store2")
+    #cmd = start + "--Temp=1 --Store=0 "
+    #AddLoad(cmd, outFile + "-Store1")
+    #cmd = start + "--Temp=0 --Store=1 "
+    #AddLoad(cmd, outFile + "-Store2")
 
 def AddECMPFail(start, outFile):
     cmd = start + "--ECMP=1 --Failure=0 "
