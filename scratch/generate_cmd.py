@@ -1,7 +1,8 @@
 loads = range(4, 9)
 topologies = [1]
-taskIds = [2] #[1,2]
-utilGaps = [5000]
+taskIds = [1] #[1,2]
+utilGaps = [10000]
+#utilGaps = [6000, 7000, 8000, 9000, 10000]
 #OrbWeavers = [17]
 OrbWeavers = [3,9,17]
 

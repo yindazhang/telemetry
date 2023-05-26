@@ -14,8 +14,8 @@ def parse_switch_file(path_file):
     for line in lines:
         numbers = line.split(' ')
         if len(numbers) == 7:
-            srcRack = (int(numbers[0]) >> 16) & 0xff
-            dstRack = (int(numbers[1]) >> 16) & 0xff
+            srcRack = (int(numbers[0]) >> 16) & 0xffff
+            dstRack = (int(numbers[1]) >> 16) & 0xffff
 
             srcServer = (int(numbers[0]) >> 8) & 0xff
             dstServer = (int(numbers[1]) >> 8) & 0xff
@@ -43,8 +43,8 @@ def parse_collector_file(path_file):
     for line in lines:
         numbers = line.split(' ')
         if len(numbers) == 7:
-            srcRack = (int(numbers[0]) >> 16) & 0xff
-            dstRack = (int(numbers[1]) >> 16) & 0xff
+            srcRack = (int(numbers[0]) >> 16) & 0xffff
+            dstRack = (int(numbers[1]) >> 16) & 0xffff
 
             srcServer = (int(numbers[0]) >> 8) & 0xff
             dstServer = (int(numbers[1]) >> 8) & 0xff
@@ -64,9 +64,8 @@ if __name__=="__main__":
     parser.add_argument('-f', dest='file', action='store', help="Specify the fct file.")
     args = parser.parse_args()
 
-    common = "s_ECMP0_Fail"
-    parse_switch_file(args.file + common + "_Orb17.switch.path")
-    parse_collector_file(args.file + common + "_Orb17.collector.path")
+    parse_switch_file(args.file + ".switch.path.data")
+    parse_collector_file(args.file + ".collector.path")
 
     totalUnit = 0
     unitLoss = 0

@@ -75,10 +75,8 @@ CollectorNode::SetRecord(uint32_t record){
 void 
 CollectorNode::SetOutput(std::string output){
     output_file = output;
-    if(m_record && m_types.find(1) != m_types.end()){
-        FILE* fout = fopen((output_file + ".collector.path").c_str(), "w");
-        fclose(fout);
-    }
+    FILE* fout = fopen((output_file + ".collector.path").c_str(), "w");
+    fclose(fout);
 }
 
 uint32_t

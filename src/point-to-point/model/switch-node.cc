@@ -276,8 +276,11 @@ SwitchNode::BatchPath(PathHeader path, uint8_t dest){
         m_teleSend[m_pathType][dest] += batchSize;
 
         Ptr<Packet> packet = CreatePacket(0);
-        for(uint32_t i = 0;i < batchSize;++i)
+        for(uint32_t i = 0;i < batchSize;++i){
+            if(m_record && m_paths.find(m_teleQueue.pathBatch[dest][i]) == m_paths.end())
+                m_paths.insert(m_teleQueue.pathBatch[dest][i]);   
             packet->AddHeader(m_teleQueue.pathBatch[dest][i]);
+        }
         m_teleQueue.pathBatch[dest].clear();
 
         TeleHeader teleHeader;
@@ -535,9 +538,6 @@ SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
 
     pathHeader.SetNodeId(m_id);
     pathHeader.SetTTL(ttl);
-
-    if(m_record && m_paths.find(pathHeader) == m_paths.end())
-        m_paths.insert(pathHeader);   
     
     uint32_t arrIndex = pathHeader.Hash() % m_table.size();
     if(m_table[arrIndex].Empty() || !(m_table[arrIndex] == pathHeader)){
