@@ -50,6 +50,7 @@ SwitchNode::SwitchNode() : Node() {
     m_table.resize(arrSize);
     Simulator::Schedule(Seconds(2), &SwitchNode::GeneratePacket, this);
     Simulator::Schedule(Seconds(2), &SwitchNode::RecordUtil, this);
+    Simulator::Schedule(Seconds(2), &SwitchNode::GenerateUtil, this);
     Simulator::Schedule(Seconds(1), &SwitchNode::SetQueueThd, this);
 }
 
@@ -141,6 +142,12 @@ void
 SwitchNode::SetPort(int8_t portType = 2){
     m_port = true;
     m_portType = portType;
+}
+
+void 
+SwitchNode::SetGenerate(int64_t bandwidth){
+    m_generate = true;
+    m_generateGap = ((double)1e9) / bandwidth * 1024.0;
 }
 
 void 
@@ -366,6 +373,31 @@ SwitchNode::SendPostcard(uint8_t dest){
             m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
         }   
     }
+}
+
+void 
+SwitchNode::GenerateUtil(){
+    if(!m_generate)
+        return;
+    
+    bool empty = true;
+    for(auto it = m_bytes.begin();it != m_bytes.end();++it){
+        if(it->second > 0){
+            empty = false;
+            it->second = 0;
+        }
+    }
+
+    if(!empty){
+        for(int i = 0;i < 64;++i){
+            UtilHeader utilHeader;
+            uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
+            if(BatchUtil(utilHeader, dest) && m_postcard)
+                SendPostcard(dest);
+        }
+    }
+
+    Simulator::Schedule(NanoSeconds(m_generateGap), &SwitchNode::GenerateUtil, this);
 }
 
 void 

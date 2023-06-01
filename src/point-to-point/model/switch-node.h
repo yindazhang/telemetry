@@ -90,6 +90,7 @@ class SwitchNode : public Node
 
     void SetPath(int8_t pathType);
     void SetPort(int8_t portType);
+    void SetGenerate(int64_t bandwidth);
 
     bool IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
     Ptr<Packet> EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
@@ -138,6 +139,8 @@ class SwitchNode : public Node
 
     bool m_path = false;
     bool m_port = false;
+    bool m_generate = false;
+    double m_generateGap = 1e5;
 
     int8_t m_pathType = 1;
     int8_t m_portType = 2;
@@ -163,6 +166,7 @@ class SwitchNode : public Node
 
     void GeneratePacket();
     void RecordUtil();
+    void GenerateUtil();
 
     Ptr<Packet> CreatePacket(uint8_t priority);
     void SendPostcard(uint8_t dest);
