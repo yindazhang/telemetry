@@ -380,24 +380,26 @@ SwitchNode::GenerateUtil(){
     if(!m_generate)
         return;
     
-    bool empty = true;
-    for(auto it = m_bytes.begin();it != m_bytes.end();++it){
-        if(it->second > 0){
-            empty = false;
-            it->second = 0;
+    if(m_orbweaver || m_postcard){
+        bool empty = true;
+        for(auto it = m_bytes.begin();it != m_bytes.end();++it){
+            if(it->second > 0){
+                empty = false;
+                it->second = 0;
+            }
         }
-    }
 
-    if(!empty){
-        for(int i = 0;i < 64;++i){
-            UtilHeader utilHeader;
-            uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
-            if(BatchUtil(utilHeader, dest) && m_postcard)
-                SendPostcard(dest);
+        if(!empty){
+            for(int i = 0;i < 64;++i){
+                UtilHeader utilHeader;
+                uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
+                if(BatchUtil(utilHeader, dest) && m_postcard)
+                    SendPostcard(dest);
+            }
         }
-    }
 
-    Simulator::Schedule(NanoSeconds(m_generateGap), &SwitchNode::GenerateUtil, this);
+        Simulator::Schedule(NanoSeconds(m_generateGap), &SwitchNode::GenerateUtil, this);
+    }
 }
 
 void 
