@@ -5,6 +5,7 @@
 #include "ns3/ipv4-header.h"
 #include "ns3/path-header.h"
 #include "ns3/util-header.h"
+#include "ns3/drop-header.h"
 
 #include <queue>
 #include <unordered_map>
@@ -90,6 +91,7 @@ class SwitchNode : public Node
 
     void SetPath(int8_t pathType);
     void SetPort(int8_t portType);
+    void SetDrop(int8_t dropType);
     void SetGenerate(int64_t bandwidth);
 
     bool IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
@@ -100,6 +102,7 @@ class SwitchNode : public Node
     struct TeleQueue{
       std::vector<PathHeader> pathBatch[3];
       std::vector<UtilHeader> utilBatch[3];
+      std::vector<DropHeader> dropBatch[3];
       std::queue<Ptr<Packet>> packets[3];
       uint32_t size = 0;
     };
@@ -109,6 +112,7 @@ class SwitchNode : public Node
 
     bool BatchPath(PathHeader path, uint8_t dest);
     bool BatchUtil(UtilHeader util, uint8_t dest);
+    bool BatchDrop(DropHeader drop, uint8_t dest);
 
     Ptr<Packet> GetTelePacket(uint32_t priority, uint8_t dest);
 
@@ -125,9 +129,9 @@ class SwitchNode : public Node
 
     int32_t m_bufferThd = 30*1024;
 
-    std::unordered_map<uint8_t, uint32_t> m_teleSend[3];
-    std::unordered_map<uint8_t, uint32_t> m_bufferLoss[3];
-    std::unordered_map<uint8_t, uint32_t> m_queueLoss[3];
+    std::unordered_map<uint8_t, uint32_t> m_teleSend[5];
+    std::unordered_map<uint8_t, uint32_t> m_bufferLoss[5];
+    std::unordered_map<uint8_t, uint32_t> m_queueLoss[5];
 
     std::string output_file;
 
@@ -139,11 +143,13 @@ class SwitchNode : public Node
 
     bool m_path = false;
     bool m_port = false;
+    bool m_drop = false;
     bool m_generate = false;
     double m_generateGap = 1e5;
 
     int8_t m_pathType = 1;
     int8_t m_portType = 2;
+    int8_t m_dropType = 4;
 
     bool m_record = false;
     

@@ -676,6 +676,8 @@ void build_fat_tree(
 			edges[i]->SetPort(2);
 		else if(taskId == 3)
 			edges[i]->SetGenerate(generateBps);
+		else if(taskId == 4)
+			edges[i]->SetDrop(4);
 		
 		
 		edges[i]->SetRecord(recordConfig);
@@ -701,6 +703,8 @@ void build_fat_tree(
 			aggregations[i]->SetPort(2);
 		else if(taskId == 3)
 			aggregations[i]->SetGenerate(generateBps);
+		else if(taskId == 4)
+			aggregations[i]->SetDrop(4);
 
 		aggregations[i]->SetRecord(recordConfig);
 		aggregations[i]->SetOutput(file_name);
@@ -725,6 +729,8 @@ void build_fat_tree(
 			cores[i]->SetPort(2);
 		else if(taskId == 3)
 			cores[i]->SetGenerate(generateBps);
+		else if(taskId == 4)
+			cores[i]->SetDrop(4);
 
 		cores[i]->SetRecord(recordConfig);
 		cores[i]->SetOutput(file_name);

@@ -1,5 +1,3 @@
-
-
 import subprocess
 import argparse
 import pandas as pd
@@ -7,22 +5,18 @@ import numpy as np
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('-f', dest='file', action='store', help="Specify the fct file.")
     args = parser.parse_args()
     
-    names = ['Ours']
+    names = []
     stats = ['Number', 'Sum', 'Mean', '99%', '99.9%']
     
-    common = "s_Topo0_ECMP0"
-    # common = "s_ECMP1_Fail"
-    appends = [common + "_Orb2.fct"]
-    
-    if len(appends) != len(names):
-        print("Error in length")
+    common = "Hadoop_142_0.4_10G_0.5_"
+    append = 's_Topo1_ECMP0_Gap10000.fct'
         
     dfs = {}
-    for i in range(len(appends)):
-        dfs[names[i]] = pd.read_csv(args.file + appends[i], header=None, delimiter=r"\s+")
+    for i in range(5):
+        names.append("Ours_" + str(i))
+        dfs[names[i]] = pd.read_csv(common + str(i) + append, header=None, delimiter=r"\s+")
     
     dic = {'Time' : []}
     for name in names:
@@ -48,6 +42,6 @@ if __name__=="__main__":
                 dic[name + "_99.9%"].append(0)
     
     df = pd.DataFrame.from_dict(dic)
-    df.to_csv('csv/' + args.file + common + ".csv", index=False)
+    df.to_csv('csv/' + common + str(i) + append + ".csv", index=False)
     
     print("Finish CSV")

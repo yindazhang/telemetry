@@ -65,6 +65,9 @@ CollectorNode::~CollectorNode(){
     else if(m_types.find(2) != m_types.end()){
         std::cout << "Receive entries: " << m_duplicates << std::endl;
     }
+    else if(m_types.find(4) != m_types.end()){
+        std::cout << "Receive entries: " << m_duplicates << std::endl;
+    }
 }
 
 void 
@@ -207,6 +210,27 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                         << utilHeader.GetPortId() << " "
                         << utilHeader.GetTime() << " "
                         << utilHeader.GetByte() << " "
+                        << std::endl;
+                */
+            }
+            break;
+        case 4 :
+            for(uint32_t i = 0;i < teleHeader.GetSize();++i){
+                DropHeader dropHeader;
+                packet->RemoveHeader(dropHeader);
+
+                m_duplicates += 1;
+                        
+                if(m_duplicates % 10000 == 9999)
+                    std::cout << "Receive entries: " << m_duplicates << std::endl;
+
+                /*
+                std::cout << "DropHeader: " << (int)teleHeader.GetDest() << " " 
+                        << dropHeader.GetSrcIP() << " "
+                        << dropHeader.GetDstIP() << " "
+                        << dropHeader.GetSrcPort() << " "
+                        << dropHeader.GetDstPort() << " "
+                        << dropHeader.GetNodeId() << " "
                         << std::endl;
                 */
             }

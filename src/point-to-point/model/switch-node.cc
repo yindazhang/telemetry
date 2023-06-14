@@ -76,6 +76,16 @@ SwitchNode::~SwitchNode(){
             fflush(fout);
             fclose(fout);
         }
+        if(m_drop){
+            std::string out_file = output_file + ".switch.drop";
+            FILE* fout = fopen(out_file.c_str(), "a");
+            for(auto it = m_teleSend[m_dropType].begin();it != m_teleSend[m_dropType].end();++it){
+                fprintf(fout, "%d,%d,%d,%d,%d,%d,%d\n", m_id, it->first, m_dropType, 
+                    m_queueLoss[m_dropType][it->first], m_bufferLoss[m_dropType][it->first], it->second, m_paths.size());
+            }
+            fflush(fout);
+            fclose(fout);
+        }
     }
 
     if(m_record && m_path){
@@ -145,6 +155,12 @@ SwitchNode::SetPort(int8_t portType = 2){
 }
 
 void 
+SwitchNode::SetDrop(int8_t dropType = 4){
+    m_drop = true;
+    m_dropType = dropType;
+}
+
+void 
 SwitchNode::SetGenerate(int64_t bandwidth){
     m_generate = true;
     m_generateGap = ((double)1e9) / bandwidth * 1024.0;
@@ -189,6 +205,11 @@ SwitchNode::SetOutput(std::string output){
         }
         if(m_port){
             std::string out_file = output_file + ".switch.util";
+            fout = fopen(out_file.c_str(), "w");
+            fclose(fout);
+        }
+        if(m_drop){
+            std::string out_file = output_file + ".switch.drop";
             fout = fopen(out_file.c_str(), "w");
             fclose(fout);
         }
@@ -327,6 +348,35 @@ SwitchNode::BatchUtil(UtilHeader util, uint8_t dest){
 
         if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
             m_bufferLoss[m_portType][dest] += batchSize;
+            return false;
+        }
+        m_teleQueue.packets[dest].push(packet);
+        m_teleQueue.size += packet->GetSize();
+        return true;
+    }
+
+    return false;
+}
+
+bool
+SwitchNode::BatchDrop(DropHeader drop, uint8_t dest){
+    m_teleQueue.dropBatch[dest].push_back(drop);
+    if(m_teleQueue.dropBatch[dest].size() % batchSize == 0){
+        m_teleSend[m_dropType][dest] += batchSize;
+
+        Ptr<Packet> packet = CreatePacket(0);
+        for(uint32_t i = 0;i < batchSize;++i)
+            packet->AddHeader(m_teleQueue.dropBatch[dest][i]);
+        m_teleQueue.dropBatch[dest].clear();
+
+        TeleHeader teleHeader;
+        teleHeader.SetType(m_dropType);
+        teleHeader.SetDest(dest);
+        teleHeader.SetSize(batchSize);
+        packet->AddHeader(teleHeader);
+
+        if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
+            m_bufferLoss[m_dropType][dest] += batchSize;
             return false;
         }
         m_teleQueue.packets[dest].push(packet);
@@ -532,6 +582,23 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
         m_userSize[dev] += packet->GetSize();
         return dev->Send(packet, dev->GetBroadcast(), 0x0800);
     }
+
+    //std::cout << "Drop in switch" << std::endl;
+    if(m_drop && (m_orbweaver || m_postcard)){
+        DropHeader dropHeader;
+
+        dropHeader.SetSrcIP(src);
+        dropHeader.SetDstIP(dst);
+        dropHeader.SetSrcPort(srcPort);
+        dropHeader.SetDstPort(dstPort);
+        dropHeader.SetProtocol(proto);
+        dropHeader.SetNodeId(m_id);
+
+        uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
+        if(BatchDrop(dropHeader, dest) && m_postcard)
+            SendPostcard(dest);
+    }      
+
     return false;
 }
 

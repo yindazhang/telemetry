@@ -26,6 +26,7 @@ build_lib(
     model/tele-header.cc
     model/path-header.cc
     model/util-header.cc
+    model/drop-header.cc
     model/collector-node.cc
     model/my-queue.cc
     model/switch-node.cc
@@ -38,6 +39,7 @@ build_lib(
     model/tele-header.h
     model/path-header.h
     model/util-header.h
+    model/drop-header.h
     model/collector-node.h
     model/my-queue.h
     model/switch-node.h

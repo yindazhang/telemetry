@@ -1,11 +1,11 @@
-loads = range(8, 9)
+loads = range(4,9)
 topologies = [1]
-taskIds = [3] #[1,2]
-utilGaps = [1000]
+taskIds = [4] #[1,2,3,4]
+utilGaps = [5000]
 generateBps = [128]
 #utilGaps = [6000, 7000, 8000, 9000, 10000]
-OrbWeavers = [2]
-#OrbWeavers = [2]
+#OrbWeavers = [0,2,17]
+OrbWeavers = [2,3,9,17]
 
 def AddLoad(start, outFile):
     for load in loads:
@@ -23,10 +23,10 @@ def AddStore(start, outFile):
     #AddLoad(cmd, outFile + "-Store2")
 
 def AddECMPFail(start, outFile):
-    #cmd = start + "--ECMP=1 --Failure=0 "
-    #AddStore(cmd, outFile + "-ECMP1-Fail0")
-    #cmd = start + "--ECMP=0 --Failure=1 "
-    #AddStore(cmd, outFile + "-ECMP0-Fail1")
+    cmd = start + "--ECMP=1 --Failure=0 "
+    AddStore(cmd, outFile + "-ECMP1-Fail0")
+    cmd = start + "--ECMP=0 --Failure=1 "
+    AddStore(cmd, outFile + "-ECMP0-Fail1")
     cmd = start + "--ECMP=0 --Failure=0 "
     AddStore(cmd, outFile + "-ECMP0-Fail0")
 
@@ -46,7 +46,7 @@ def AddTaskId(start, outFile):
     for taskId in taskIds:
         cmd = start
         cmd += "--taskId=" + str(taskId) + " "
-        if taskId < 3:
+        if taskId != 3:
             AddUtilGap(cmd, outFile + "-Task" + str(taskId))
         else:
             AddGenerateBps(cmd, outFile + "-Task" + str(taskId))

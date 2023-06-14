@@ -5,6 +5,7 @@
 #include "ns3/ipv4-header.h"
 #include "ns3/path-header.h"
 #include "ns3/util-header.h"
+#include "ns3/drop-header.h"
 #include "ns3/tele-header.h"
 
 #include <queue>
