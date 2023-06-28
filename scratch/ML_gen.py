@@ -74,22 +74,29 @@ if __name__ == "__main__":
 	host_pair = [i for i in range(nhost)]
 	random.shuffle(host_pair)
 
-	host_list = [(base_t + int(poisson(avg_inter_arrival)), i) for i in range(nhost//2)]
+	GROUP_NUMBER = 8
+
+	host_list = [(base_t + int(poisson(avg_inter_arrival * (GROUP_NUMBER - 1))), i) for i in range(nhost//GROUP_NUMBER)]
 	heapq.heapify(host_list)
 
 	while len(host_list) > 0:
 		t,src = host_list[0]
-		inter_t = avg_inter_arrival
+		inter_t = avg_inter_arrival * (GROUP_NUMBER - 1)
 		if (t + inter_t > time + base_t):
 			heapq.heappop(host_list)
 		else:
 			size = int(customRand.rand())
 			if size <= 0:
 				size = 1
-			n_flow += 2
-			total_size += 2*size
-			ofile.write("%d %d %d %d\n"%(host_pair[src*2] + 1, host_pair[src*2+1] + 1, size, t))
-			ofile.write("%d %d %d %d\n"%(host_pair[src*2+1] + 1, host_pair[src*2] + 1, size, t))
+			n_flow += GROUP_NUMBER*(GROUP_NUMBER-1)
+			total_size += GROUP_NUMBER*(GROUP_NUMBER-1)*size
+
+			for x in range(GROUP_NUMBER):
+				for y in range(GROUP_NUMBER):
+					if x == y:
+						continue
+					ofile.write("%d %d %d %d\n"%(host_pair[src*GROUP_NUMBER+x]+1,\
+						host_pair[src*GROUP_NUMBER+y] + 1, size, t))
 			heapq.heapreplace(host_list, (t + inter_t, src))
 
 	ofile.seek(0)
