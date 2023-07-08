@@ -12,12 +12,13 @@
 
 
 #define RX_RING_SIZE 128
-#define TX_RING_SIZE 512
+#define TX_RING_SIZE 256
 
 #define NUM_MBUFS 8191
-#define MBUF_CACHE_SIZE 250
+#define MBUF_CACHE_SIZE 500
 
-#define BURST_SIZE 32
+#define RX_BURST_SIZE 32
+#define TX_BURST_SIZE 16
 
 static struct rte_eth_conf port_conf = {
 	.rxmode = {
@@ -29,6 +30,7 @@ static struct rte_eth_conf port_conf = {
 };
 
 static struct rte_mempool *mbuf_pool;
+static uint32_t num_of_telemetry = 0;
 
 static inline int
 port_init(struct rte_mempool *mbuf_pool)
@@ -72,6 +74,10 @@ port_init(struct rte_mempool *mbuf_pool)
 	return 0;
 }
 
+
+static struct rte_mbuf* send_pkt[TX_BURST_SIZE] = {0};
+static struct rte_mbuf* receive_pkt[RX_BURST_SIZE] = {0};
+
 void send_pull_request(){
     struct Message {
 		uint16_t data;
@@ -83,52 +89,49 @@ void send_pull_request(){
 	struct rte_ether_addr src_addr = {{0x1c,0x34,0xda,0x6a,0x2f,0x52}};
 	struct rte_ether_addr dst_addr = {{0x1c,0x34,0xda,0x6a,0x2f,0x52}}; 	
 		
-	struct rte_mbuf* pkt[BURST_SIZE];
-	for(int i = 0;i < BURST_SIZE;i++) {
-		pkt[i] = rte_pktmbuf_alloc(mbuf_pool);
-		eth_hdr = rte_pktmbuf_mtod(pkt[i], struct rte_ether_hdr*);
+	if(rte_pktmbuf_alloc_bulk(mbuf_pool, send_pkt, TX_BURST_SIZE) < 0)
+		return;
+
+	for(int i = 0;i < TX_BURST_SIZE;i++) {
+		eth_hdr = rte_pktmbuf_mtod(send_pkt[i], struct rte_ether_hdr*);
 		eth_hdr->dst_addr = dst_addr;
 		eth_hdr->src_addr = src_addr;
 		eth_hdr->ether_type = 0x0172;
-		msg = (struct Message*) (rte_pktmbuf_mtod(pkt[i],char*) + sizeof(struct rte_ether_hdr));
+		msg = (struct Message*) (rte_pktmbuf_mtod(send_pkt[i],char*) + sizeof(struct rte_ether_hdr));
 		*msg = obj;
 		int pkt_size = sizeof(struct Message) + sizeof(struct rte_ether_hdr);
-		pkt[i]->data_len = pkt_size;
-		pkt[i]->pkt_len = pkt_size;
+		send_pkt[i]->data_len = pkt_size;
+		send_pkt[i]->pkt_len = pkt_size;
 	}
 
-	uint16_t nb_tx = rte_eth_tx_burst(0, 0, pkt, BURST_SIZE);
-	printf("Send %d packets\n", nb_tx);
+	uint16_t nb_tx = rte_eth_tx_burst(0, 0, send_pkt, TX_BURST_SIZE);
+	//printf("Send %d packets\n", nb_tx);
 	
-	for(int i = 0;i < BURST_SIZE;i++)
-		rte_pktmbuf_free(pkt[i]);
+	for(int i = nb_tx;i < TX_BURST_SIZE;++i)
+		rte_pktmbuf_free(send_pkt[i]);
 }
 
 void receive_telemetry(){
-    struct rte_mbuf * pkt[BURST_SIZE];
-	for(int i = 0;i < BURST_SIZE;i++) {
-		pkt[i] = rte_pktmbuf_alloc(mbuf_pool);
-	}
-	
-	uint16_t nb_rx = rte_eth_rx_burst(0, 0, pkt, BURST_SIZE);
+	uint16_t nb_rx = rte_eth_rx_burst(0, 0, receive_pkt, RX_BURST_SIZE);
 	if(nb_rx == 0)
 		return;
 
-	printf("Receive %d packets\n", nb_rx);
+	//printf("Receive %d packets\n", nb_rx);
 	
     char * msg;
 	struct rte_ether_hdr * eth_hdr;
 
 	for(int i = 0;i < nb_rx;i++){
-		eth_hdr = rte_pktmbuf_mtod(pkt[i], struct rte_ether_hdr*);
-		msg = ((rte_pktmbuf_mtod(pkt[i], char*)) + sizeof(struct rte_ether_hdr));
+		eth_hdr = rte_pktmbuf_mtod(receive_pkt[i], struct rte_ether_hdr*);
+		//msg = ((rte_pktmbuf_mtod(receive_pkt[i], char*)) + sizeof(struct rte_ether_hdr));
 		if(eth_hdr->ether_type == 0x171){
-			for(int j = 0;j < 4;++j){
-				printf("%d,", rte_be_to_cpu_32(((int*)msg)[j]));
-			}
-			printf("\n");
+			//for(int j = 0;j < 4;++j){
+			//	printf("%d,", rte_be_to_cpu_32(((int*)msg)[j]));
+			//}
+			//printf("\n");
+			num_of_telemetry += 1;
 		}
-		rte_pktmbuf_free(pkt[i]);
+		rte_pktmbuf_free(receive_pkt[i]);
 	}
 }
 
@@ -154,10 +157,26 @@ int main(int argc, char *argv[])
 	if (port_init(mbuf_pool) != 0)
 		rte_exit(EXIT_FAILURE, "Cannot init port %"PRIu8 "\n", 0);
 
+	uint64_t intervalUs, last_time, t = rte_get_tsc_cycles();
+
 	while(true){
-		rte_delay_us_sleep(1000000);
-		send_pull_request();
-    	receive_telemetry();
+		num_of_telemetry = 0;
+		last_time = t;
+
+		while(true){
+			t = rte_get_tsc_cycles();
+			intervalUs = 1000000 * (t - last_time) / (rte_get_tsc_hz());
+			if(intervalUs >= 1000000)
+				break;
+	        
+			for(int i = 0;i < 100;++i){
+				send_pull_request();
+				receive_telemetry();
+			}
+		}
+
+		if(num_of_telemetry != 0)
+			printf("Receive %d telemetry packets\n", num_of_telemetry);
 	}
 
 	return 0;

@@ -258,4 +258,3 @@ def create_dir(name):
     print("mkdir {}".format(name))
   else:
     print("{} exists".format(name))
-
