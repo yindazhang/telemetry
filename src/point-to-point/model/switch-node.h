@@ -157,6 +157,7 @@ class SwitchNode : public Node
     bool m_basic = false;
     bool m_pull = false;
     bool m_final = false;
+    bool m_push = false;
 
     std::unordered_map<uint32_t, uint32_t> m_bytes;
 

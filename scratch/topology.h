@@ -500,7 +500,7 @@ void build_fat_tree_routing(
 			}
 		}
 	}
-	else if((OrbWeaver & 0x11) == 0x11){
+	else if((OrbWeaver & 0x11) == 0x11 || (OrbWeaver & 0x21) == 0x21){
 		collectors[0]->SetDeviceGenerateGap(1, 20);
 		
 		if(storeConfig){

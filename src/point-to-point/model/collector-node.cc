@@ -103,6 +103,7 @@ CollectorNode::SetOrbWeaver(uint32_t OrbWeaver){
     m_basic = ((OrbWeaver & 0x3) == 0x3);
     m_pull = ((OrbWeaver & 0x9) == 0x9);
     m_final = ((OrbWeaver & 0x11) == 0x11);
+    m_push = ((OrbWeaver & 0x21) == 0x21);
 }
 
 void 
@@ -130,7 +131,7 @@ CollectorNode::CreatePacket(uint8_t priority)
 
 void
 CollectorNode::GeneratePacket(){
-    if(m_pull || m_final){
+    if(m_pull || m_final || m_push){
         int64_t nsNow = Simulator::Now().GetNanoSeconds();
         int64_t nextTime = 0xffffffffffffL;
 
@@ -321,7 +322,7 @@ CollectorNode::ReceiveFromDevice(Ptr<NetDevice> device,
     }
     else{
         if(protocol == 0x0171 || protocol == 0x0172){
-            if(m_final)
+            if(m_final || m_push)
                 return TempStore(packet, teleHeader, protocol, device);
             return true;
         }

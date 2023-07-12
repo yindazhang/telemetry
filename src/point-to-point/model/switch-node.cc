@@ -120,6 +120,7 @@ SwitchNode::SetOrbWeaver(uint32_t OrbWeaver){
     m_basic = ((OrbWeaver & 0x3) == 0x3);
     m_pull = ((OrbWeaver & 0x9) == 0x9);
     m_final = ((OrbWeaver & 0x11) == 0x11);
+    m_push = ((OrbWeaver & 0x21) == 0x21);
 
     if(m_basic){
         m_queueThd += 14 * 1024;
@@ -738,15 +739,26 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
             }
             return nullptr;
         }
-        else if(m_final && (property.isUpperPull[dest] || property.isLowerPull[dest])){
-            TeleHeader teleHeader;
-            teleHeader.SetDest(dest);
-            teleHeader.SetSize(bufferSize);
-            packet->AddHeader(teleHeader);
+        else if((m_final || m_push) && (property.isUpperPull[dest] || property.isLowerPull[dest])){
+            if(m_push && bufferSize > 1 && bufferSize * m_teleQueue.packets[dest].front()->GetSize() 
+                    > m_bufferThd * 0.95){
+                packet = GetTelePacket(1, dest);
+                if(packet != nullptr){
+                    ppp.SetProtocol(0x171);
+                    packet->AddHeader(ppp);
+                }
+                return packet;
+            }
+            else{
+                TeleHeader teleHeader;
+                teleHeader.SetDest(dest);
+                teleHeader.SetSize(bufferSize);
+                packet->AddHeader(teleHeader);
 
-            ppp.SetProtocol(0x172);
-            packet->AddHeader(ppp);
-            return packet;
+                ppp.SetProtocol(0x172);
+                packet->AddHeader(ppp);
+                return packet;
+            }
         }
     }
     return nullptr;
@@ -775,7 +787,7 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
     uint8_t dest = teleHeader.GetDest();
     uint16_t size = teleHeader.GetSize();
 
-    if(m_final){
+    if(m_final || m_push){
         bool isUpper = false, isLower = false;
         uint32_t bufferSize = 0;
 

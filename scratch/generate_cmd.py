@@ -5,12 +5,12 @@ utilGaps = [5000]
 generateBps = [128]
 #utilGaps = [6000, 7000, 8000, 9000, 10000]
 #OrbWeavers = [0,2,17]
-OrbWeavers = [2,3,9,17]
+OrbWeavers = [33]
 
 def AddLoad(start, outFile):
     for load in loads:
         cmd = start
-        cmd += "--flow=ML_142_" + str(load/10) + "_10G_0.5" +"\" > "
+        cmd += "--flow=Hadoop_142_" + str(load/10) + "_10G_0.5" +"\" > "
         print(cmd + outFile + "-" + str(load) + ".out &")
     print()
 
@@ -25,8 +25,8 @@ def AddStore(start, outFile):
 def AddECMPFail(start, outFile):
     cmd = start + "--ECMP=1 --Failure=0 "
     AddStore(cmd, outFile + "-ECMP1-Fail0")
-    #cmd = start + "--ECMP=0 --Failure=1 "
-    #AddStore(cmd, outFile + "-ECMP0-Fail1")
+    cmd = start + "--ECMP=0 --Failure=1 "
+    AddStore(cmd, outFile + "-ECMP0-Fail1")
     cmd = start + "--ECMP=0 --Failure=0 "
     AddStore(cmd, outFile + "-ECMP0-Fail0")
 

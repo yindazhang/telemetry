@@ -112,6 +112,7 @@ class CollectorNode : public Node
     bool m_basic = false;
     bool m_pull = false;
     bool m_final = false;
+    bool m_push = false;
 
     bool m_record = false;
 
