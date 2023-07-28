@@ -1,4 +1,4 @@
-include <core.p4>
+#include <core.p4>
 #include <tna.p4>
 
 #define ETHERTYPE_IPV4 0x0800
@@ -7,12 +7,15 @@ include <core.p4>
 #define ETHERTYPE_PUSH 0x7101
 #define ETHERTYPE_PULL 0x7201
 
-#define TABLE_SIZE 65536
+#define TABLE_SIZE 512
 #define BUFFER_SIZE 1024
 
-#define SWITCH_ID 17
+#define SWITCH_ID 31
+#define SWITCH_NUM 4
 
 #define COLLECTOR_PORT 201
+
+#define USER_SHIFT 4
 
 /*==============================
 =            Header            =
@@ -50,10 +53,15 @@ header entry_h{
     bit<32> utils;
 }
 
+header time_h{
+    bit<32> time;
+}
+
 struct header_t {
     ethernet_h ethernet;
-    ipv4_h ipv4;
+    time_h time;
     buffer_h buffer;
+    ipv4_h ipv4;
     entry_h batches;
 }
 
@@ -68,15 +76,15 @@ struct entry_t{
     bit<32> utils;
 }
 
-header ow_h {
+struct metadata_t {
     bit<8> evict_;
+    bit<16> size_;
     bit<16> index_;
+    bit<32> diff_;
+    bit<32> user_num_;
+    bit<32> switch_;
     bit<32> timeReport_;
     entry_t entry_;
-}
-
-struct metadata_t {
-    ow_h ow_md;
 }
 
 /*========================================
@@ -96,7 +104,7 @@ parser EthIngressParser(
             ETHERTYPE_IPV4 : parse_ipv4;
             ETHERTYPE_PUSH : parse_push;
             ETHERTYPE_PULL : parse_pull;
-            ETHERTYPE_SEED : parse_pull;
+            ETHERTYPE_SEED : parse_seed;
             default : accept;
         }
     }
@@ -106,6 +114,11 @@ parser EthIngressParser(
     }
     state parse_pull {
         pkt.extract(hdr.buffer);
+        transition accept;
+    }
+    state parse_seed {
+        pkt.extract(hdr.buffer);
+        pkt.extract(hdr.ipv4);
         transition accept;
     }
     state parse_push {
@@ -160,6 +173,7 @@ parser EthEgressParser(
         }
     }
     state parse_ipv4 {
+        pkt.extract(hdr.time);
         pkt.extract(hdr.ipv4);
         transition accept;
     }
@@ -208,6 +222,7 @@ control Ingress(
         inout ingress_intrinsic_metadata_for_deparser_t ig_dprsr_md,
         inout ingress_intrinsic_metadata_for_tm_t ig_tm_md) {
 
+    
     action ai_drop() {
         ig_dprsr_md.drop_ctl = 0x1;
     }
@@ -216,6 +231,7 @@ control Ingress(
     }
     table ti_forward_user {
         key = {
+            ig_intr_md.ingress_port : exact;
 	        hdr.ipv4.dst_addr : ternary;
         }
         actions = {
@@ -224,42 +240,40 @@ control Ingress(
         }
         default_action = ai_drop;
     }
+
+    action ai_forward_push(bit<9> egress_port){
+        ig_tm_md.ucast_egress_port = egress_port;
+    }
+    table ti_forward_push {
+        key = {
+            ig_intr_md.ingress_port : exact;
+        }
+        actions = {
+            ai_forward_push;
+            ai_drop;
+        }
+        default_action = ai_drop;
+    }
     
     apply {
         if(hdr.ethernet.ether_type == ETHERTYPE_IPV4) {
-            if((ig_intr_md.ingress_port & 64) == 0)
-                ti_forward_user.apply();
-            else{
-                if(ig_intr_md.ingress_port == 172)
-                    ig_tm_md.ucast_egress_port = 8;
-                else
-                    ig_tm_md.ucast_egress_port = 20;
-            }
+            ti_forward_user.apply();
             ig_tm_md.qid = 0x0;
+            hdr.time.setValid();
+            hdr.time.time = ig_prsr_md.global_tstamp[31:0];
 	    }
         else if(hdr.ethernet.ether_type == ETHERTYPE_PUSH) {
-            if(ig_intr_md.ingress_port == 68)
-                ig_tm_md.ucast_egress_port = 196;
-            else if(ig_intr_md.ingress_port == 196)
-                ig_tm_md.ucast_egress_port = 68;
-            else if((ig_intr_md.ingress_port & 128) == 0)
-                ig_tm_md.ucast_egress_port = 68;
-            else
-                ig_tm_md.ucast_egress_port = 196;
+            ti_forward_push.apply();
             ig_tm_md.qid = 0x6;
 	    }
         else if(hdr.ethernet.ether_type == ETHERTYPE_PULL) {
-            if(ig_intr_md.ingress_port == 68)
-                ig_tm_md.ucast_egress_port = 196;
-            else if(ig_intr_md.ingress_port == 196)
-                ig_tm_md.ucast_egress_port = 68;
-            else
-                ig_tm_md.ucast_egress_port = ig_intr_md.ingress_port;
+            ig_tm_md.ucast_egress_port = ig_intr_md.ingress_port;
             ig_tm_md.qid = 0x7;
 	    } 
         else if(hdr.ethernet.ether_type == ETHERTYPE_SEED) {
             ig_tm_md.mcast_grp_a = COLLECTOR_PORT;
 	        ig_tm_md.qid = 0x7;
+            hdr.ipv4.setInvalid();
 	    }
         else
             ig_dprsr_md.drop_ctl = 0x1;
@@ -282,8 +296,8 @@ control Egress(
     Register<bit<32>, _>(TABLE_SIZE) reg_time_;
     RegisterAction<bit<32>, _, bit<8>>(reg_time_) action_reg_time_ = {
         void apply(inout bit<32> val, out bit<8> ret) {
-            if(md.ow_md.timeReport_ != val){
-                val = md.ow_md.timeReport_;
+            if(md.timeReport_ != val){
+                val = md.timeReport_;
                 ret = 1;
             }
             else{
@@ -292,7 +306,7 @@ control Egress(
         }
     };
     action action_time_() {
-        md.ow_md.evict_ = action_reg_time_.execute(md.ow_md.entry_.portId);
+        md.evict_ = action_reg_time_.execute(eg_intr_md.egress_port);
     }
     table table_time_ {
         actions = { action_time_; }
@@ -307,7 +321,7 @@ control Egress(
         }
     };
     action action_util_clear_() {
-        md.ow_md.entry_.utils = action_reg_util_clear_.execute(md.ow_md.entry_.portId);
+        md.entry_.utils = action_reg_util_clear_.execute(eg_intr_md.egress_port);
     }
     table table_util_clear_ {
         actions = { action_util_clear_; }
@@ -319,7 +333,7 @@ control Egress(
         }
     };
     action action_util_add_() {
-        action_reg_util_add_.execute(md.ow_md.entry_.portId);
+        action_reg_util_add_.execute(eg_intr_md.egress_port);
     }
     table table_util_add_ {
         actions = { action_util_add_; }
@@ -327,8 +341,21 @@ control Egress(
     }
 
 
-    Register<bit<16>, _>(1, 0) buffer_index_;
-    RegisterAction<bit<16>, _, bit<16>>(buffer_index_) action_buffer_index_push_ = {
+    action action_switch_id_(bit<32> switch_id){
+        md.switch_ = switch_id;
+    }
+    table table_switch_id_ {
+        key = {
+            eg_intr_md.egress_port : exact;
+        }
+        actions = {
+            action_switch_id_;
+        }
+        default_action = action_switch_id_(0);
+    }
+
+    Register<bit<16>, _>(SWITCH_NUM) buffer_size_;
+    RegisterAction<bit<16>, _, bit<16>>(buffer_size_) action_buffer_size_push_ = {
         void apply(inout bit<16> val, out bit<16> ret) {
             ret = val;
             if(val < BUFFER_SIZE)
@@ -336,13 +363,13 @@ control Egress(
         }
     };
     action action_buf_push_() {
-        md.ow_md.index_ = action_buffer_index_push_.execute(0);
+        md.size_ = action_buffer_size_push_.execute(md.switch_);
     }
     table table_buf_push_ {
         actions = { action_buf_push_; }
 	    const default_action = action_buf_push_();
     }
-    RegisterAction<bit<16>, _, bit<16>>(buffer_index_) action_buffer_index_pop_ = {
+    RegisterAction<bit<16>, _, bit<16>>(buffer_size_) action_buffer_size_pop_ = {
         void apply(inout bit<16> val, out bit<16> ret) {
             if(hdr.buffer.size < val){
                 ret = val - 1;
@@ -354,19 +381,19 @@ control Egress(
         }
     };
     action action_buf_pop_() {
-        md.ow_md.index_ = action_buffer_index_pop_.execute(0);
+        md.size_ = action_buffer_size_pop_.execute(md.switch_);
     }
     table table_buf_pop_ {
         actions = { action_buf_pop_; }
 	    const default_action = action_buf_pop_();
     }
-    RegisterAction<bit<16>, _, bit<16>>(buffer_index_) action_buffer_index_get_ = {
+    RegisterAction<bit<16>, _, bit<16>>(buffer_size_) action_buffer_size_get_ = {
         void apply(inout bit<16> val, out bit<16> ret) {
             ret = val;
         }
     };
     action action_buf_get_() {
-        md.ow_md.index_ = action_buffer_index_get_.execute(0);
+        md.size_ = action_buffer_size_get_.execute(md.switch_);
     }
     table table_buf_get_ {
         actions = { action_buf_get_; }
@@ -374,14 +401,14 @@ control Egress(
     }
 
 
-    Register<bit<32>, _>(BUFFER_SIZE) buf_nodeId_;
+    Register<bit<32>, _>(BUFFER_SIZE*SWITCH_NUM) buf_nodeId_;
     RegisterAction<bit<32>, _, bit<32>>(buf_nodeId_) action_buffer_push_nodeId_ = {
         void apply(inout bit<32> val) {
-            val = md.ow_md.entry_.nodeId;
+            val = md.entry_.nodeId;
         }
     };
     action action_buf_push_nodeId_() {
-        action_buffer_push_nodeId_.execute(md.ow_md.index_);
+        action_buffer_push_nodeId_.execute(md.index_);
     }
     table table_buf_push_nodeId_ {
         actions = { action_buf_push_nodeId_; }
@@ -394,7 +421,7 @@ control Egress(
     };
     action action_buf_pop_nodeId_() {
         hdr.batches.nodeId = 
-            action_buffer_pop_nodeId_.execute(md.ow_md.index_);
+            action_buffer_pop_nodeId_.execute(md.index_);
     }
     table table_buf_pop_nodeId_ {
         actions = { action_buf_pop_nodeId_; }
@@ -402,14 +429,14 @@ control Egress(
     }
 
 
-    Register<bit<32>, _>(BUFFER_SIZE) buf_portId_;
+    Register<bit<32>, _>(BUFFER_SIZE*SWITCH_NUM) buf_portId_;
     RegisterAction<bit<32>, _, bit<32>>(buf_portId_) action_buffer_push_portId_ = {
         void apply(inout bit<32> val) {
-            val = md.ow_md.entry_.portId;
+            val = md.entry_.portId;
         }
     };
     action action_buf_push_portId_() {
-        action_buffer_push_portId_.execute(md.ow_md.index_);
+        action_buffer_push_portId_.execute(md.index_);
     }
     table table_buf_push_portId_ {
         actions = { action_buf_push_portId_; }
@@ -422,7 +449,7 @@ control Egress(
     };
     action action_buf_pop_portId_() {
         hdr.batches.portId = 
-            action_buffer_pop_portId_.execute(md.ow_md.index_);
+            action_buffer_pop_portId_.execute(md.index_);
     }
     table table_buf_pop_portId_ {
         actions = { action_buf_pop_portId_; }
@@ -430,14 +457,14 @@ control Egress(
     }
 
 
-    Register<bit<32>, _>(BUFFER_SIZE) buf_timeNs_;
+    Register<bit<32>, _>(BUFFER_SIZE*SWITCH_NUM) buf_timeNs_;
     RegisterAction<bit<32>, _, bit<32>>(buf_timeNs_) action_buffer_push_timeNs_ = {
         void apply(inout bit<32> val) {
-            val = md.ow_md.entry_.timeNs;
+            val = md.entry_.timeNs;
         }
     };
     action action_buf_push_timeNs_() {
-        action_buffer_push_timeNs_.execute(md.ow_md.index_);
+        action_buffer_push_timeNs_.execute(md.index_);
     }
     table table_buf_push_timeNs_ {
         actions = { action_buf_push_timeNs_; }
@@ -450,7 +477,7 @@ control Egress(
     };
     action action_buf_pop_timeNs_() {
         hdr.batches.timeNs = 
-            action_buffer_pop_timeNs_.execute(md.ow_md.index_);
+            action_buffer_pop_timeNs_.execute(md.index_);
     }
     table table_buf_pop_timeNs_ {
         actions = { action_buf_pop_timeNs_; }
@@ -458,14 +485,14 @@ control Egress(
     }
 
 
-    Register<bit<32>, _>(BUFFER_SIZE) buf_utils_;
+    Register<bit<32>, _>(BUFFER_SIZE*SWITCH_NUM) buf_utils_;
     RegisterAction<bit<32>, _, bit<32>>(buf_utils_) action_buffer_push_utils_ = {
         void apply(inout bit<32> val) {
-            val = md.ow_md.entry_.utils;
+            val = md.entry_.utils;
         }
     };
     action action_buf_push_utils_() {
-        action_buffer_push_utils_.execute(md.ow_md.index_);
+        action_buffer_push_utils_.execute(md.index_);
     }
     table table_buf_push_utils_ {
         actions = { action_buf_push_utils_; }
@@ -478,7 +505,7 @@ control Egress(
     };
     action action_buf_pop_utils_() {
         hdr.batches.utils = 
-            action_buffer_pop_utils_.execute(md.ow_md.index_);
+            action_buffer_pop_utils_.execute(md.index_);
     }
     table table_buf_pop_utils_ {
         actions = { action_buf_pop_utils_; }
@@ -486,48 +513,113 @@ control Egress(
     }
 
 
-    Register<bit<32>, _>(1) reg_tele_drop_;
+    Register<bit<32>, _>(SWITCH_NUM) reg_tele_drop_;
     RegisterAction<bit<32>, _, bit<32>>(reg_tele_drop_) action_tele_drop_ = {
         void apply(inout bit<32> val) {
             val = val + 1;
         }
     };
     action action_tele_drops_() {
-        action_tele_drop_.execute(0);
+        action_tele_drop_.execute(md.switch_);
     }
     table table_tele_drop_ {
         actions = { action_tele_drops_; }
 	    const default_action = action_tele_drops_();
     }
 
+    Register<bit<32>, _>(SWITCH_NUM) reg_tele_gen_;
+    RegisterAction<bit<32>, _, bit<32>>(reg_tele_gen_) action_tele_gen_ = {
+        void apply(inout bit<32> val) {
+            val = val + 1;
+        }
+    };
+    action action_tele_gens_() {
+        action_tele_gen_.execute(md.switch_);
+    }
+    table table_tele_gen_ {
+        actions = { action_tele_gens_; }
+	    const default_action = action_tele_gens_();
+    }
+
+    Register<bit<32>, _>(SWITCH_NUM) reg_user_num_;
+    RegisterAction<bit<32>, _, bit<32>>(reg_user_num_) action_user_num_ = {
+        void apply(inout bit<32> val, out bit<32> ret) {
+            ret = val;
+            val = val + 1;
+        }
+    };
+    action action_user_nums_() {
+        md.user_num_ = action_user_num_.execute(md.switch_);
+    }
+    table table_user_num_ {
+        actions = { action_user_nums_; }
+	    const default_action = action_user_nums_();
+    }
+
+    action action_diff_shift_() {
+        md.user_num_ = md.user_num_ >> USER_SHIFT;
+    }
+    table table_diff_shift_ {
+        actions = { action_diff_shift_; }
+	    const default_action = action_diff_shift_();
+    }
+
+    Register<bit<32>, _>(131072) reg_diff_order_;
+    RegisterAction<bit<32>, _, bit<8>>(reg_diff_order_) action_diff_order_ = {
+        void apply(inout bit<32> val) {
+            val = md.diff_;
+            //val = (bit<32>)eg_intr_md.enq_qdepth;
+        }
+    };
+    action action_diff_orders_() {
+        action_diff_order_.execute(md.user_num_);
+    }
+    table table_diff_order_ {
+        actions = { action_diff_orders_; }
+	    const default_action = action_diff_orders_();
+    }
+
     apply {
-        md.ow_md.evict_ = 0;
-        md.ow_md.entry_.nodeId = SWITCH_ID;
-        md.ow_md.entry_.portId = (bit<32>)eg_intr_md.egress_port;
-        md.ow_md.entry_.timeNs = eg_prsr_md.global_tstamp[31:0];
-        md.ow_md.timeReport_ = (bit<32>)eg_prsr_md.global_tstamp[47:16];
+        md.evict_ = 0;
+        table_switch_id_.apply();
+
+        md.entry_.timeNs = eg_prsr_md.global_tstamp[31:0];
+        md.timeReport_ = md.entry_.timeNs >> 10;
+        md.diff_ = eg_prsr_md.global_tstamp[31:0] - hdr.time.time;
         
         if(hdr.ethernet.ether_type == ETHERTYPE_IPV4){
+            table_user_num_.apply();
+
             table_time_.apply();
-            if(md.ow_md.evict_ == 1)
+            if(md.evict_ == 1){
+                table_tele_gen_.apply();
                 table_util_clear_.apply();
+
+                md.entry_.nodeId = md.switch_ + SWITCH_ID;
+                md.entry_.portId = (bit<32>)eg_intr_md.egress_port;
+            }
             else
                 table_util_add_.apply();
+
+            table_diff_shift_.apply();
+            hdr.time.setInvalid();
+            table_diff_order_.apply();
 	    }
         else if(hdr.ethernet.ether_type == ETHERTYPE_PUSH) {
-            md.ow_md.evict_ = 1;
+            md.evict_ = 1;
 
-            md.ow_md.entry_.nodeId = hdr.batches.nodeId;
-            md.ow_md.entry_.portId = hdr.batches.portId;
-            md.ow_md.entry_.timeNs = hdr.batches.timeNs;
-            md.ow_md.entry_.utils = hdr.batches.utils;
+            md.entry_.nodeId = hdr.batches.nodeId;
+            md.entry_.portId = hdr.batches.portId;
+            md.entry_.timeNs = hdr.batches.timeNs;
+            md.entry_.utils = hdr.batches.utils;
 
             eg_dprsr_md.drop_ctl = 0x1;
 	    }
 
-        if(md.ow_md.evict_ == 1) {
+        if(md.evict_ == 1) {
             table_buf_push_.apply();
-            if(md.ow_md.index_ != BUFFER_SIZE){
+            md.index_ = md.size_ + (bit<16>)(md.switch_ << 10);
+            if(md.size_ != BUFFER_SIZE){
                 table_buf_push_nodeId_.apply();
                 table_buf_push_portId_.apply();
                 table_buf_push_timeNs_.apply();
@@ -538,7 +630,8 @@ control Egress(
         }
         else if(hdr.ethernet.ether_type == ETHERTYPE_PULL){
             table_buf_pop_.apply();
-            if(md.ow_md.index_ != 65535){
+            md.index_ = md.size_ + (bit<16>)(md.switch_ << 10);
+            if(md.size_ != 65535){
                 hdr.ethernet.ether_type = ETHERTYPE_PUSH;
                 hdr.buffer.setInvalid();
                 hdr.batches.setValid();
@@ -552,7 +645,7 @@ control Egress(
         }
         else if(hdr.ethernet.ether_type == ETHERTYPE_SEED) {
             table_buf_get_.apply();
-            hdr.buffer.size = md.ow_md.index_;
+            hdr.buffer.size = md.size_;
             hdr.ethernet.ether_type = ETHERTYPE_PULL;
 	    }
     }

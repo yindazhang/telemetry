@@ -211,6 +211,14 @@ class Manager(object):
       [table.make_data([gc.DataTuple(action_arg_name, action_arg)], action_name)],
     ) 
 
+  def add_rule_exact_read_action_arg(self, tbl_name, action_name, match_arg_name, match_arg, action_arg_name, action_arg):
+    table = self.bfrt_info.table_get(tbl_name)
+    table.entry_add(
+      self.target,
+      [table.make_key([gc.KeyTuple(match_arg_name, match_arg)])],
+      [table.make_data([gc.DataTuple(action_arg_name, action_arg)], action_name)],
+    )
+
   def add_rule_exact_read2_action_arg(self, tbl_name, action_name, match_arg_name0, match_arg0, match_arg_name1, match_arg1, action_arg_name, action_arg):
     table = self.bfrt_info.table_get(tbl_name)
     table.entry_add(
