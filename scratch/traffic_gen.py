@@ -28,8 +28,8 @@ if __name__ == "__main__":
 	parser.add_option("-c", "--cdf", dest = "cdf_file", help = "the file of the traffic size cdf", default = "Hadoop")
 	parser.add_option("-n", "--nhost", dest = "nhost", help = "number of hosts", default = "142")
 	parser.add_option("-l", "--load", dest = "load", help = "the percentage of the traffic load to the network capacity, by default 0.5", default = "0.5")
-	parser.add_option("-b", "--bandwidth", dest = "bandwidth", help = "the bandwidth of host link (G/M/K), by default 10G", default = "10G")
-	parser.add_option("-t", "--time", dest = "time", help = "the total run time (s), by default 0.2", default = "0.5")
+	parser.add_option("-b", "--bandwidth", dest = "bandwidth", help = "the bandwidth of host link (G/M/K), by default 10G", default = "100G")
+	parser.add_option("-t", "--time", dest = "time", help = "the total run time (s), by default 0.2", default = "0.1")
 	parser.add_option("-o", "--oversubscript", dest = "oversubscript", help = "whether oversubscription or not", default = "0")
 	options,args = parser.parse_args()
 
@@ -74,7 +74,7 @@ if __name__ == "__main__":
 	ofile = open(output, "w")
 
 	# generate flows
-	avg = customRand.getAvg() * 1500.0 / (1500 - 60) 
+	avg = customRand.getAvg()
 	print("Estimated average size is " + str(avg))
 	avg_inter_arrival = (8*S_TO_NS*avg) / (bandwidth*load)
 

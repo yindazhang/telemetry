@@ -1,16 +1,25 @@
-loads = range(7,9)
+from optparse import OptionParser
+
+loads = range(4,9)
 topologies = [1]
-taskIds = [2] #[1,2,3,4]
+taskIds = [1] #[1,2,3,4]
 utilGaps = [5000]
 generateBps = [128]
 #utilGaps = [6000, 7000, 8000, 9000, 10000]
-#OrbWeavers = [0,2,17]
-OrbWeavers = [33]
+#OrbWeavers = [0,2,3,9,33]
+OrbWeavers = [2,3,9,33]
+hG = 0
 
 def AddLoad(start, outFile):
+    global hG
     for load in loads:
         cmd = start
-        cmd += "--flow=Hadoop_142_" + str(load/10) + "_10G_0.5" +"\" > "
+        if hG == 1:
+            cmd += "--hG=1 "
+            cmd += "--flow=Hadoop_142_" + str(load/10) + "_100G_0.1"
+        else:
+            cmd += "--flow=Hadoop_142_" + str(load/10) + "_10G_0.5"
+        cmd += "\" > "
         print(cmd + outFile + "-" + str(load) + ".out &")
     print()
 
@@ -27,8 +36,8 @@ def AddECMPFail(start, outFile):
     AddStore(cmd, outFile + "-ECMP1-Fail0")
     cmd = start + "--ECMP=0 --Failure=1 "
     AddStore(cmd, outFile + "-ECMP0-Fail1")
-    cmd = start + "--ECMP=0 --Failure=0 "
-    AddStore(cmd, outFile + "-ECMP0-Fail0")
+    #cmd = start + "--ECMP=0 --Failure=0 "
+    #AddStore(cmd, outFile + "-ECMP0-Fail0")
 
 def AddUtilGap(start, outFile):
     for utilGap in utilGaps:
@@ -65,6 +74,11 @@ def AddOrbWeaver(start, outFile):
         AddTopology(cmd, outFile + "Orb" + str(OrbWeaver))
 
 if __name__=="__main__":
+    parser = OptionParser()
+    parser.add_option("-g", "--hG", dest = "hG", help = "100Gbps", default = "0")
+    options, args = parser.parse_args()
+    hG = int(options.hG)
+
     start = "nohup ./ns3 run \"scratch/telemetry --record=1 --fctRecord=1 "
     outFile = ""
     AddOrbWeaver(start, outFile)               

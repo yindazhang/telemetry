@@ -29,6 +29,7 @@ int main(int argc, char *argv[])
 	cmd.AddValue("Topology", "configuration of topology: (0) leaf-spine (1) fat-tree", topology);
 	cmd.AddValue("Failure", "Link failure", failConfig);
 	cmd.AddValue("GenerateBps", "Telemetry data generated", generateBps);
+	cmd.AddValue("hG", "100Gbps", hG);
 
 	cmd.AddValue("Temp", "Temp Storage", tempConfig);
 	cmd.AddValue("Store", "Additional Storage", storeConfig);

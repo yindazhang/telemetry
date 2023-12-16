@@ -22,6 +22,7 @@ uint32_t tempConfig = 0;
 uint32_t storeConfig = 0;
 
 int fct_record = 0;
+int hG = 0;
 
 int64_t generateBps = 128 * 1024 * 1024L;
 
