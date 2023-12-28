@@ -35,6 +35,9 @@ int main(int argc, char *argv[])
 	cmd.AddValue("Store", "Additional Storage", storeConfig);
 
     cmd.Parse(argc, argv);
+
+	measureStart = start_time + 0.2 * duration;
+	measureEnd = start_time + 0.8 * duration;
 	
 	std::cout << "Run Telemetry." << std::endl;
 

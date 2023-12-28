@@ -1,14 +1,14 @@
 from optparse import OptionParser
 
-loads = range(4,9)
+loads = [4,5,6,7,8]
 topologies = [1]
 taskIds = [1] #[1,2,3,4]
-utilGaps = [5000]
+utilGaps = [500]
 generateBps = [128]
 #utilGaps = [6000, 7000, 8000, 9000, 10000]
 #OrbWeavers = [0,2,3,9,33]
 OrbWeavers = [2,3,9,33]
-hG = 0
+hG = 1
 
 def AddLoad(start, outFile):
     global hG
@@ -16,8 +16,10 @@ def AddLoad(start, outFile):
         cmd = start
         if hG == 1:
             cmd += "--hG=1 "
+            cmd += "--time=0.1 "
             cmd += "--flow=Hadoop_142_" + str(load/10) + "_100G_0.1"
         else:
+            cmd += "--time=0.5 "
             cmd += "--flow=Hadoop_142_" + str(load/10) + "_10G_0.5"
         cmd += "\" > "
         print(cmd + outFile + "-" + str(load) + ".out &")
@@ -75,7 +77,7 @@ def AddOrbWeaver(start, outFile):
 
 if __name__=="__main__":
     parser = OptionParser()
-    parser.add_option("-g", "--hG", dest = "hG", help = "100Gbps", default = "0")
+    parser.add_option("-g", "--hG", dest = "hG", help = "100Gbps", default = "1")
     options, args = parser.parse_args()
     hG = int(options.hG)
 

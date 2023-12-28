@@ -14,8 +14,10 @@ Flows flow = {0};
 
 void record_fct(FILE* fout, uint64_t app_id, int64_t size, int64_t fct, int64_t end_time){
 	if(fct_record){
-		fprintf(fout, "%ld %ld %ld %ld\n", app_id, size, fct, end_time);
-    	fflush(fout);
+		if(end_time - fct > measureStart * 1e9 && end_time - fct < measureEnd * 1e9){
+			fprintf(fout, "%ld %ld %ld %ld\n", app_id, size, fct, end_time);
+    		fflush(fout);
+		}
 	}
 }
 
@@ -29,6 +31,7 @@ void OutputTime(){
 	int64_t nsNow = Simulator::Now().GetNanoSeconds();
 	std::cout << "Now: " << nsNow << std::endl;
 
+	/*
 	for(auto node : switches){
 		if(node != nullptr){
 			if(node->GetBufferSize() > 0){
@@ -37,6 +40,7 @@ void OutputTime(){
 			}
 		}
 	}
+	*/
 
 	for(auto node : switches)
 		node->m_orbweaver = false;
@@ -80,7 +84,7 @@ void schedule_flow(std::string flow_file){
 	if(flow.total_size > 0){
 		ReadFlowInput();
 		Simulator::Schedule(NanoSeconds(flow.start_time), ScheduleFlowInputs);
-		Simulator::Schedule(NanoSeconds(flow.start_time + 100000000), OutputTime);
+		Simulator::Schedule(NanoSeconds(flow.start_time + duration * 1e9), OutputTime);
 	}
 }
 

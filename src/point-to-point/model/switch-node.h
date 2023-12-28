@@ -94,6 +94,8 @@ class SwitchNode : public Node
     void SetDrop(int8_t dropType);
     void SetGenerate(int64_t bandwidth);
 
+    void SetTime(double measureStart, double measureEnd);
+
     bool IngressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
     Ptr<Packet> EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev);
 
@@ -141,6 +143,7 @@ class SwitchNode : public Node
     uint32_t m_utilGap = 10000;
     uint32_t m_hashSeed = 0;
 
+    bool m_measure = false;
     bool m_path = false;
     bool m_port = false;
     bool m_drop = false;
@@ -152,6 +155,8 @@ class SwitchNode : public Node
     int8_t m_dropType = 4;
 
     bool m_record = false;
+    double m_measureStart = 2.1;
+    double m_measureEnd = 2.4;
     
     bool m_postcard = false;
     bool m_basic = false;
@@ -169,8 +174,12 @@ class SwitchNode : public Node
     std::vector<PathHeader> m_table;
     std::set<PathHeader> m_paths;
 
-    void SetQueueThd();
+    void Init();
 
+    void StartMeasure();
+    void EndMeasure();
+
+    void SetQueueThd();
     void GeneratePacket();
     void RecordUtil();
     void GenerateUtil();

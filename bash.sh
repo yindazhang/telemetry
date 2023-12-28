@@ -6,12 +6,17 @@ cd /mydata
 rm -f ns-allinone-3.37.tar.bz2
 git clone https://github.com/yindazhang/telemetry.git
 
-cd ns-allinone-3.37/ns-3.37/
+sudo chmod -R 777 /mydata/
+cd /mydata/telemetry/.git
+vim config
+#filemode = false
+
+cd /mydata/ns-allinone-3.37/ns-3.37/
 rm -r scratch/
 rm -r src/
 cp -r ../../telemetry/scratch/ ./
 cp -r ../../telemetry/src/ ./
-
+bash.sh bash.sh
 nohup ./ns3 run test-runner > b.out &
 
 
@@ -22,6 +27,8 @@ cd ../ns-allinone-3.37/ns-3.37/
 cp -r ../../telemetry/bash.sh ./
 cp -r ../../telemetry/scratch/generate_cmd.py ./scratch/generate_cmd.py
 cp -r ../../telemetry/src/point-to-point/model/collector-node.cc ./src/point-to-point/model/collector-node.cc
+
+sudo killall -9 ns3.37-telemetry
 
 # Modify:
 # application/bulk-send-application.h/.cc

@@ -687,6 +687,7 @@ void build_fat_tree(
 		edges[i]->SetRecord(recordConfig);
 		edges[i]->SetOutput(file_name);
 		edges[i]->SetUtilGap(utilGap);
+		edges[i]->SetTime(measureStart, measureEnd);
 
 		if(storeConfig)
 			edges[i]->SetCollector(2);
@@ -713,6 +714,7 @@ void build_fat_tree(
 		aggregations[i]->SetRecord(recordConfig);
 		aggregations[i]->SetOutput(file_name);
 		aggregations[i]->SetUtilGap(utilGap);
+		aggregations[i]->SetTime(measureStart, measureEnd);
 
 		if(storeConfig)
 			aggregations[i]->SetCollector(2);
@@ -739,6 +741,7 @@ void build_fat_tree(
 		cores[i]->SetRecord(recordConfig);
 		cores[i]->SetOutput(file_name);
 		cores[i]->SetUtilGap(utilGap);
+		cores[i]->SetTime(measureStart, measureEnd);
 
 		if(storeConfig)
 			cores[i]->SetCollector(2);

@@ -48,10 +48,7 @@ SwitchNode::GetTypeId()
 SwitchNode::SwitchNode() : Node() {
     m_orbweaver = false;
     m_table.resize(arrSize);
-    Simulator::Schedule(Seconds(2), &SwitchNode::GeneratePacket, this);
-    Simulator::Schedule(Seconds(2), &SwitchNode::RecordUtil, this);
-    Simulator::Schedule(Seconds(2), &SwitchNode::GenerateUtil, this);
-    Simulator::Schedule(Seconds(1), &SwitchNode::SetQueueThd, this);
+    Simulator::Schedule(Seconds(1), &SwitchNode::Init, this);
 }
 
 SwitchNode::~SwitchNode(){
@@ -99,6 +96,26 @@ SwitchNode::~SwitchNode(){
         }
         fclose(fout);
     }
+}
+
+void 
+SwitchNode::Init(){
+    Simulator::Schedule(Seconds(0.1), &SwitchNode::SetQueueThd, this);
+    Simulator::Schedule(Seconds(m_measureStart - 1), &SwitchNode::GeneratePacket, this);
+    Simulator::Schedule(Seconds(m_measureStart - 1), &SwitchNode::StartMeasure, this);
+    Simulator::Schedule(Seconds(m_measureStart - 1), &SwitchNode::RecordUtil, this);
+    Simulator::Schedule(Seconds(m_measureStart - 1), &SwitchNode::GenerateUtil, this);
+    Simulator::Schedule(Seconds(m_measureEnd - 1), &SwitchNode::EndMeasure, this);
+}
+
+void 
+SwitchNode::StartMeasure(){
+    m_measure = true;
+}
+    
+void 
+SwitchNode::EndMeasure(){
+    m_measure = false;
 }
 
 uint32_t 
@@ -190,6 +207,12 @@ SwitchNode::SetRecord(uint32_t record){
 void 
 SwitchNode::SetCollector(uint32_t number){
     m_collector = number;
+}
+
+void 
+SwitchNode::SetTime(double measureStart, double measureEnd){
+    m_measureStart = measureStart;
+    m_measureEnd = measureEnd;
 }
 
 void 
@@ -459,6 +482,10 @@ SwitchNode::RecordUtil(){
         return;
 
     if(m_orbweaver || m_postcard){
+        Simulator::Schedule(NanoSeconds(m_utilGap), &SwitchNode::RecordUtil, this);
+        if(!m_measure)
+            return;
+
         for(auto it = m_bytes.begin();it != m_bytes.end();++it){
             if(it->second > 0){
                 UtilHeader utilHeader;
@@ -474,7 +501,6 @@ SwitchNode::RecordUtil(){
                 it->second = 0;
             }
         }
-        Simulator::Schedule(NanoSeconds(m_utilGap), &SwitchNode::RecordUtil, this);
     }           
 }
 
@@ -585,9 +611,9 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
     }
 
     //std::cout << "Drop in switch" << std::endl;
-    if(m_drop && (m_orbweaver || m_postcard)){
+    if(m_measure && m_drop && (m_orbweaver || m_postcard)){
         DropHeader dropHeader;
-
+        
         dropHeader.SetSrcIP(src);
         dropHeader.SetDstIP(dst);
         dropHeader.SetSrcPort(srcPort);
@@ -605,6 +631,9 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
 
 bool 
 SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
+    if(!m_measure)
+        return true;
+
     if((!m_orbweaver && !m_postcard) || !m_path)
         return true;
     
