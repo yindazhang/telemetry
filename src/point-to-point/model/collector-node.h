@@ -97,6 +97,7 @@ class CollectorNode : public Node
 
     std::unordered_map<Ptr<NetDevice>, DeviceProperty> m_deviceMap;
     std::unordered_map<uint8_t, uint16_t> m_priority;
+    std::unordered_map<uint8_t, uint32_t> m_receive;
 
     std::set<PathHeader> m_paths;
     //std::vector<UtilHeader> m_utils;

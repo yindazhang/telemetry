@@ -63,10 +63,10 @@ CollectorNode::~CollectorNode(){
         }
     }
     else if(m_types.find(2) != m_types.end()){
-        std::cout << "Receive entries: " << m_duplicates << std::endl;
+        std::cout << "Receive entries: " << m_receive[2] << std::endl;
     }
     else if(m_types.find(4) != m_types.end()){
-        std::cout << "Receive entries: " << m_duplicates << std::endl;
+        std::cout << "Receive entries: " << m_receive[4] << std::endl;
     }
 }
 
@@ -200,10 +200,10 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                 UtilHeader utilHeader;
                 packet->RemoveHeader(utilHeader);
 
-                m_duplicates += 1;
+                m_receive[2] += 1;
                         
-                if(m_duplicates % 10000 == 9999)
-                    std::cout << "Receive entries: " << m_duplicates << std::endl;
+                if(m_receive[2] % 10000 == 9999)
+                    std::cout << "Receive entries: " << m_receive[2] << std::endl;
 
                 /* 
                 std::cout << "UtilHeader: " << (int)teleHeader.GetDest() << " " 
@@ -220,10 +220,10 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                 DropHeader dropHeader;
                 packet->RemoveHeader(dropHeader);
 
-                m_duplicates += 1;
+                m_receive[4] += 1;
                         
-                if(m_duplicates % 10000 == 9999)
-                    std::cout << "Receive entries: " << m_duplicates << std::endl;
+                if(m_receive[4] % 10000 == 9999)
+                    std::cout << "Receive entries: " << m_receive[4] << std::endl;
 
                 /*
                 std::cout << "DropHeader: " << (int)teleHeader.GetDest() << " " 

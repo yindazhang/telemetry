@@ -2,8 +2,8 @@ from optparse import OptionParser
 
 loads = [4,5,6,7,8]
 topologies = [1]
-taskIds = [1] #[1,2,3,4]
-utilGaps = [500]
+taskIds = [7] #[1,2,3,4,7]
+utilGaps = [5000]
 generateBps = [128]
 #utilGaps = [6000, 7000, 8000, 9000, 10000]
 #OrbWeavers = [0,2,3,9,33]
@@ -38,8 +38,8 @@ def AddECMPFail(start, outFile):
     AddStore(cmd, outFile + "-ECMP1-Fail0")
     cmd = start + "--ECMP=0 --Failure=1 "
     AddStore(cmd, outFile + "-ECMP0-Fail1")
-    #cmd = start + "--ECMP=0 --Failure=0 "
-    #AddStore(cmd, outFile + "-ECMP0-Fail0")
+    cmd = start + "--ECMP=0 --Failure=0 "
+    AddStore(cmd, outFile + "-ECMP0-Fail0")
 
 def AddUtilGap(start, outFile):
     for utilGap in utilGaps:
