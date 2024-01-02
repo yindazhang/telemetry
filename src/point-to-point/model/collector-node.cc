@@ -20,6 +20,7 @@
 #include "ns3/socket.h"
 
 #include "tele-header.h"
+#include "timestamp-tag.h"
 
 namespace ns3
 {
@@ -42,6 +43,7 @@ CollectorNode::GetTypeId()
 
 CollectorNode::CollectorNode() : Node() {
     m_orbweaver = false;
+    m_delay.resize(m_delaySize);
     Simulator::Schedule(Seconds(2), &CollectorNode::GeneratePacket, this);
 }
 
@@ -57,8 +59,8 @@ CollectorNode::~CollectorNode(){
                 fprintf(fout, "%d %d ", path.GetSrcPort(), path.GetDstPort());
                 fprintf(fout, "%d %d ", path.GetNodeId(), (int)path.GetProtocol());
                 fprintf(fout, "%d\n", (int)path.GetTTL());
-                fflush(fout);
             }
+            fflush(fout);
             fclose(fout);
         }
     }
@@ -68,6 +70,14 @@ CollectorNode::~CollectorNode(){
     else if(m_types.find(4) != m_types.end()){
         std::cout << "Receive entries: " << m_receive[4] << std::endl;
     }
+
+    FILE* fout = fopen((output_file + ".collector.delay").c_str(), "a");
+    for(int delay : m_delay){
+        fprintf(fout, "%d,", delay);
+    }
+    fprintf(fout, "\n");
+    fflush(fout);
+    fclose(fout);
 }
 
 void 
@@ -79,6 +89,8 @@ void
 CollectorNode::SetOutput(std::string output){
     output_file = output;
     FILE* fout = fopen((output_file + ".collector.path").c_str(), "w");
+    fclose(fout);
+    fout = fopen((output_file + ".collector.delay").c_str(), "w");
     fclose(fout);
 }
 
@@ -167,6 +179,21 @@ CollectorNode::SendPacket(Ptr<NetDevice> dev, Ptr<Packet> packet, uint16_t proto
 bool
 CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
     m_types.insert(teleHeader.GetType());
+
+    TimestampTag timestamp;
+    if (packet->PeekPacketTag(timestamp))
+    {
+        int64_t sendNs = timestamp.GetTimestamp().GetNanoSeconds();
+        int64_t delay = Simulator::Now().GetNanoSeconds() - sendNs;
+        delay = (delay - 1000) / 10;
+
+        if(delay >= m_delaySize)
+            delay = m_delaySize - 1;
+
+        m_delay[delay] += 1;
+        // std::cout << "delay is " << delay << std::endl;
+    }
+
     switch(teleHeader.GetType()){
         case 1 :
             for(uint32_t i = 0;i < teleHeader.GetSize();++i){

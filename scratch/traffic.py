@@ -26,10 +26,10 @@ S_TO_NS = 1e9
 if __name__ == "__main__":
     parser = OptionParser()
     parser.add_option("-c", "--cdf", dest = "cdf_file", help = "the file of the traffic size cdf", default = "Hadoop")
-    parser.add_option("-n", "--nhost", dest = "nhost", help = "number of hosts", default = "142")
+    parser.add_option("-n", "--nhost", dest = "nhost", help = "number of hosts", default = "144")
     parser.add_option("-l", "--load", dest = "load", help = "the percentage of the traffic load to the network capacity, by default 0.5", default = "0.5")
-    parser.add_option("-b", "--bandwidth", dest = "bandwidth", help = "the bandwidth of host link (G/M/K), by default 10G", default = "10G")
-    parser.add_option("-t", "--time", dest = "time", help = "the total run time (s), by default 0.2", default = "0.5")
+    parser.add_option("-b", "--bandwidth", dest = "bandwidth", help = "the bandwidth of host link (G/M/K), by default 100G", default = "100G")
+    parser.add_option("-t", "--time", dest = "time", help = "the total run time (s), by default 0.1", default = "0.1")
     options,args = parser.parse_args()
     
     if not options.nhost:
@@ -68,35 +68,43 @@ if __name__ == "__main__":
         ofile = open(output + "_" + str(i) + ".tr", "w")
         
         # generate flows
-        avg = customRand.getAvg() * 1500.0 / (1500 - 60) 
+        nrack = 12
+        avg = num_of_byte
         print("Estimated average size is " + str(avg))
-        avg_inter_arrival = (8*S_TO_NS*avg) / (bandwidth*load)
-        
-        n_flow_estimate = int(time / avg_inter_arrival * nhost)
+        avg_inter_arrival_rack = (8*S_TO_NS*avg) / (bandwidth*load) / nrack
+
+        n_flow_estimate = int(time / avg_inter_arrival_rack * nrack)
         n_flow = 0
         total_size = 0
         ofile.write("%d \n"%n_flow_estimate)
-        host_list = [(base_t + int(poisson(avg_inter_arrival)), i) for i in range(nhost)]
-        heapq.heapify(host_list)
+        rack_list = [(base_t + int(poisson(avg_inter_arrival_rack)), i) for i in range(nrack)]
+	    heapq.heapify(rack_list)
         
-        while len(host_list) > 0:
-            t,src = host_list[0]
-            inter_t = int(poisson(avg_inter_arrival))
-            new_tuple = (src, t + inter_t)
-            dst = random.randint(0, nhost-1)
-            while (dst == src):
-                dst = random.randint(0, nhost-1)
+        while len(rack_list) > 0:
+            t,src_rack = rack_list[0]
+            inter_t = int(poisson(avg_inter_arrival_rack))
+            new_tuple = (src_rack, t + inter_t)
+            dst_rack = random.randint(0, nrack-1)
+
+            src_id = random.randint(0, nrack-1)
+            while (src_rack == 0 and src_id == 0) or (src_rack == nrack - 1 and src_id == nrack - 1):
+                src_id = random.randint(0, nrack-1)
+            
+            dst_id = random.randint(0, nrack-1)
+            while (dst_rack == src_rack and dst_id == src_id) or (dst_rack == 0 and dst_id == 0) or (dst_rack == nrack - 1 and dst_id == nrack - 1):
+                dst_id = random.randint(0, nrack-1)
+
             if (t + inter_t > time + base_t):
-                heapq.heappop(host_list)
+                heapq.heappop(rack_list)
             else:
                 size = int(customRand.rand())
                 if size <= 0:
                     size = 1
                 n_flow += 1
                 total_size += size
-                ofile.write("%d %d %d %d\n"%(src + 1, dst + 1, size, t))
-                heapq.heapreplace(host_list, (t + inter_t, src))
-                
+                ofile.write("%d %d %d %d\n"%(src_rack * nrack + src_id, dst_rack * nrack + dst_id, size, t))
+                heapq.heapreplace(rack_list, (t + inter_t, src_rack))
+                    
         ofile.seek(0)
         ofile.write("%d"%n_flow)
         ofile.close()

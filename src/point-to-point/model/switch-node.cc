@@ -23,6 +23,7 @@
 #include "point-to-point-net-device.h"
 #include "my-queue.h"
 #include "ppp-header.h"
+#include "timestamp-tag.h"
 
 #include <unordered_set>
 
@@ -318,6 +319,9 @@ SwitchNode::CreatePacket(uint8_t priority)
     SocketPriorityTag priorityTag;
     priorityTag.SetPriority(priority);
     packet->ReplacePacketTag(priorityTag);
+    TimestampTag timestamp;
+    timestamp.SetTimestamp(Simulator::Now());
+    packet->ReplacePacketTag(timestamp);
     return packet;
 }
 

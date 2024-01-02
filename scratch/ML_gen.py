@@ -62,11 +62,12 @@ if __name__ == "__main__":
 	ofile = open(output, "w")
 
 	# generate flows
-	avg = num_of_byte * 1500.0 / (1500 - 60) 
+	nrack = 12
+	avg = num_of_byte
 	print("Estimated average size is " + str(avg))
-	avg_inter_arrival = int((8*S_TO_NS*avg) / (bandwidth*load))
+	avg_inter_arrival_rack = (8*S_TO_NS*avg) / (bandwidth*load) / nrack
 
-	n_flow_estimate = int(time / avg_inter_arrival * nhost)
+	n_flow_estimate = int(time / avg_inter_arrival * nrack)
 	n_flow = 0
 	total_size = 0
 	ofile.write("%d \n"%n_flow_estimate)

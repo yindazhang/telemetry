@@ -16,7 +16,6 @@ rm -r scratch/
 rm -r src/
 cp -r ../../telemetry/scratch/ ./
 cp -r ../../telemetry/src/ ./
-bash.sh bash.sh
 nohup ./ns3 run test-runner > b.out &
 
 
