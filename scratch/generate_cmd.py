@@ -3,7 +3,7 @@ from optparse import OptionParser
 loads = [4,5,6,7,8]
 topologies = [1]
 taskIds = [7] #[1,2,3,4,7]
-utilGaps = [5000]
+utilGaps = [1000]
 generateBps = [128]
 #utilGaps = [6000, 7000, 8000, 9000, 10000]
 #OrbWeavers = [0,2,3,9,33]
