@@ -347,6 +347,9 @@ SwitchNode::BatchPath(PathHeader path, uint8_t dest){
 
         if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
             m_bufferLoss[m_pathType][dest] += batchSize;
+            if(m_final){
+                std::cout << "Buffer loss!" << std::endl;
+            }
             return false;
         }
         m_teleQueue.packets[dest].push(packet);
@@ -376,6 +379,9 @@ SwitchNode::BatchUtil(UtilHeader util, uint8_t dest){
 
         if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
             m_bufferLoss[m_portType][dest] += batchSize;
+            if(m_final){
+                std::cout << "Buffer loss!" << std::endl;
+            }
             return false;
         }
         m_teleQueue.packets[dest].push(packet);
@@ -405,6 +411,9 @@ SwitchNode::BatchDrop(DropHeader drop, uint8_t dest){
 
         if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
             m_bufferLoss[m_dropType][dest] += batchSize;
+            if(m_final){
+                std::cout << "Buffer loss!" << std::endl;
+            }
             return false;
         }
         m_teleQueue.packets[dest].push(packet);
@@ -540,6 +549,9 @@ SwitchNode::BufferData(Ptr<Packet> packet){
 
     if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
         m_bufferLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
+        if(m_final){
+            std::cout << "Buffer loss!" << std::endl;
+        }
     }
     else{
         m_teleQueue.packets[teleHeader.GetDest()].push(packet);
@@ -706,6 +718,9 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
     }
 
     m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
+    if(m_final){
+        std::cout << "Queue loss!" << std::endl;
+    }
     return false;
 }
 
