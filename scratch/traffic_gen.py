@@ -25,9 +25,9 @@ S_TO_NS = 1e9
 
 if __name__ == "__main__":
 	parser = OptionParser()
-	parser.add_option("-c", "--cdf", dest = "cdf_file", help = "the file of the traffic size cdf", default = "Hadoop")
+	parser.add_option("-c", "--cdf", dest = "cdf_file", help = "the file of the traffic size cdf", default = "WebSearch")
 	parser.add_option("-n", "--nhost", dest = "nhost", help = "number of hosts", default = "144")
-	parser.add_option("-l", "--load", dest = "load", help = "the percentage of the traffic load to the network capacity, by default 0.5", default = "0.5")
+	parser.add_option("-l", "--load", dest = "load", help = "the percentage of the traffic load to the network capacity, by default 0.5", default = "0.4")
 	parser.add_option("-b", "--bandwidth", dest = "bandwidth", help = "the bandwidth of host link (G/M/K), by default 100G", default = "100G")
 	parser.add_option("-t", "--time", dest = "time", help = "the total run time (s), by default 0.1", default = "0.1")
 	options,args = parser.parse_args()

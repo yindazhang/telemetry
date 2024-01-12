@@ -21,6 +21,7 @@ DropHeader::DropHeader()
     m_srcPort = 0;
     m_dstPort = 0;
     m_nodeId = 0;
+    m_time = 0;
     m_protocol = 0;
 }
 
@@ -31,6 +32,7 @@ DropHeader::DropHeader(const DropHeader& o)
     m_srcPort = o.m_srcPort;
     m_dstPort = o.m_dstPort;
     m_nodeId = o.m_nodeId;
+    m_time = o.m_time;
     m_protocol = o.m_protocol;
 }
 
@@ -62,7 +64,7 @@ DropHeader::Print(std::ostream& os) const
 uint32_t
 DropHeader::GetSerializedSize() const
 {
-    return 17;
+    return 21;
 }
 
 void
@@ -73,6 +75,7 @@ DropHeader::Serialize(Buffer::Iterator start) const
     start.WriteHtonU16(m_srcPort);
     start.WriteHtonU16(m_dstPort);
     start.WriteHtonU32(m_nodeId);
+    start.WriteHtonU32(m_time);
     start.WriteU8(m_protocol);
 }
 
@@ -84,6 +87,7 @@ DropHeader::Deserialize(Buffer::Iterator start)
     m_srcPort = start.ReadNtohU16();
     m_dstPort = start.ReadNtohU16();
     m_nodeId = start.ReadNtohU32();
+    m_time = start.ReadNtohU32();
     m_protocol = start.ReadU8();
     return GetSerializedSize();
 }
@@ -93,7 +97,8 @@ DropHeader::operator == (const DropHeader& o)
 {
     return (m_srcIP == o.m_srcIP) && (m_dstIP == o.m_dstIP) &&
         (m_srcPort == o.m_srcPort) && (m_dstPort == o.m_dstPort) &&
-        (m_nodeId == o.m_nodeId) && (m_protocol == o.m_protocol);
+        (m_nodeId == o.m_nodeId) && (m_time == o.m_time) && 
+        (m_protocol == o.m_protocol);
 }
 
 bool 
@@ -101,7 +106,8 @@ DropHeader::Empty()
 {
     return (m_srcIP == 0) && (m_dstIP == 0) &&
         (m_srcPort == 0) && (m_dstPort == 0) &&
-        (m_nodeId == 0) && (m_protocol == 0);
+        (m_nodeId == 0) && (m_time == 0) && 
+        (m_protocol == 0);
 }
 
 uint32_t
@@ -113,6 +119,7 @@ DropHeader::Hash()
     hasher.GetHash32((char*)(&m_srcPort), 2);
     hasher.GetHash32((char*)(&m_dstPort), 2);
     hasher.GetHash32((char*)(&m_nodeId), 4);
+    hasher.GetHash32((char*)(&m_time), 4);
     return hasher.GetHash32((char*)(&m_protocol), 1);
 }
 
@@ -177,6 +184,18 @@ DropHeader::GetNodeId()
 }
 
 void 
+DropHeader::SetTime(uint32_t _time)
+{
+    m_time = _time;
+}
+
+uint32_t 
+DropHeader::GetTime()
+{
+    return m_time;
+}
+
+void 
 DropHeader::SetProtocol(uint8_t _protocol)
 {
     m_protocol = _protocol;
@@ -190,8 +209,8 @@ DropHeader::GetProtocol()
 
 bool operator < (const DropHeader& a, const DropHeader& b)
 {
-    return std::tie(a.m_srcIP, a.m_dstIP, a.m_srcPort, a.m_dstPort, a.m_nodeId, a.m_protocol) <
-          std::tie(b.m_srcIP, b.m_dstIP, b.m_srcPort, b.m_dstPort, b.m_nodeId, b.m_protocol);
+    return std::tie(a.m_srcIP, a.m_dstIP, a.m_srcPort, a.m_dstPort, a.m_nodeId, a.m_time, a.m_protocol) <
+          std::tie(b.m_srcIP, b.m_dstIP, b.m_srcPort, b.m_dstPort, b.m_nodeId, b.m_time, b.m_protocol);
 }
 
 } // namespace ns3

@@ -173,6 +173,8 @@ class SwitchNode : public Node
 
     std::vector<PathHeader> m_table;
     std::set<PathHeader> m_paths;
+    std::set<DropHeader> m_drops;
+    std::unordered_map<uint32_t, uint32_t> m_utils;
 
     void Init();
 

@@ -104,7 +104,8 @@ class CollectorNode : public Node
     std::vector<uint32_t> m_delay;
 
     std::set<PathHeader> m_paths;
-    //std::vector<UtilHeader> m_utils;
+    std::set<DropHeader> m_drops;
+    std::unordered_map<uint32_t, uint32_t> m_utils;
 
     uint64_t m_duplicates = 0;
     

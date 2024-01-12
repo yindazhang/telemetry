@@ -86,16 +86,37 @@ SwitchNode::~SwitchNode(){
         }
     }
 
-    if(m_record && m_path){
-        FILE* fout = fopen((output_file + ".switch.path.data").c_str(), "a");
-        for(auto path : m_paths){
-            fprintf(fout, "%d %d ", path.GetSrcIP(), path.GetDstIP());
-            fprintf(fout, "%d %d ", path.GetSrcPort(), path.GetDstPort());
-            fprintf(fout, "%d %d ", path.GetNodeId(), (int)path.GetProtocol());
-            fprintf(fout, "%d\n", (int)path.GetTTL());
-            fflush(fout);
+    if(m_record){
+        if(m_path){
+            FILE* fout = fopen((output_file + ".switch.path.data").c_str(), "a");
+            for(auto path : m_paths){
+                fprintf(fout, "%d %d ", path.GetSrcIP(), path.GetDstIP());
+                fprintf(fout, "%d %d ", path.GetSrcPort(), path.GetDstPort());
+                fprintf(fout, "%d %d ", path.GetNodeId(), (int)path.GetProtocol());
+                fprintf(fout, "%d\n", (int)path.GetTTL());
+                fflush(fout);
+            }
+            fclose(fout);
         }
-        fclose(fout);
+        if(m_port){
+            FILE* fout = fopen((output_file + ".switch.util.data").c_str(), "a");
+            for(auto it = m_utils.begin();it != m_utils.end();++it){
+                fprintf(fout, "%d,%d,%d\n", m_id, it->first, it->second);
+                fflush(fout);
+            }
+            fclose(fout);
+        }
+        if(m_drop){
+            FILE* fout = fopen((output_file + ".switch.drop.data").c_str(), "a");
+            for(auto drop : m_drops){
+                fprintf(fout, "%d %d ", drop.GetSrcIP(), drop.GetDstIP());
+                fprintf(fout, "%d %d ", drop.GetSrcPort(), drop.GetDstPort());
+                fprintf(fout, "%d %d ", drop.GetNodeId(), (int)drop.GetProtocol());
+                fprintf(fout, "%d\n", drop.GetTime());
+                fflush(fout);
+            }
+            fclose(fout);
+        }
     }
 }
 
@@ -232,10 +253,14 @@ SwitchNode::SetOutput(std::string output){
             std::string out_file = output_file + ".switch.util";
             fout = fopen(out_file.c_str(), "w");
             fclose(fout);
+            fout = fopen((out_file + ".data").c_str(), "w");
+            fclose(fout);
         }
         if(m_drop){
             std::string out_file = output_file + ".switch.drop";
             fout = fopen(out_file.c_str(), "w");
+            fclose(fout);
+            fout = fopen((out_file + ".data").c_str(), "w");
             fclose(fout);
         }
     }
@@ -399,8 +424,11 @@ SwitchNode::BatchDrop(DropHeader drop, uint8_t dest){
         m_teleSend[m_dropType][dest] += batchSize;
 
         Ptr<Packet> packet = CreatePacket(0);
-        for(uint32_t i = 0;i < batchSize;++i)
+        for(uint32_t i = 0;i < batchSize;++i){
+            if(m_record && m_drops.find(m_teleQueue.dropBatch[dest][i]) == m_drops.end())
+                m_drops.insert(m_teleQueue.dropBatch[dest][i]);   
             packet->AddHeader(m_teleQueue.dropBatch[dest][i]);
+        }
         m_teleQueue.dropBatch[dest].clear();
 
         TeleHeader teleHeader;
@@ -468,21 +496,11 @@ SwitchNode::GenerateUtil(){
         return;
     
     if(m_orbweaver || m_postcard){
-        bool empty = true;
-        for(auto it = m_bytes.begin();it != m_bytes.end();++it){
-            if(it->second > 0){
-                empty = false;
-                it->second = 0;
-            }
-        }
-
-        if(!empty){
-            for(int i = 0;i < 64;++i){
-                UtilHeader utilHeader;
-                uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
-                if(BatchUtil(utilHeader, dest) && m_postcard)
-                    SendPostcard(dest);
-            }
+        for(int i = 0;i < 64;++i){
+            UtilHeader utilHeader;
+            uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
+            if(BatchUtil(utilHeader, dest) && m_postcard)
+                SendPostcard(dest);
         }
 
         Simulator::Schedule(NanoSeconds(m_generateGap), &SwitchNode::GenerateUtil, this);
@@ -500,19 +518,18 @@ SwitchNode::RecordUtil(){
             return;
 
         for(auto it = m_bytes.begin();it != m_bytes.end();++it){
-            if(it->second > 0){
-                UtilHeader utilHeader;
-                utilHeader.SetNodeId(m_id);
-                utilHeader.SetPortId(it->first);
-                utilHeader.SetTime(Simulator::Now().GetMicroSeconds());
-                utilHeader.SetByte(it->second);
+            UtilHeader utilHeader;
+            utilHeader.SetNodeId(m_id);
+            utilHeader.SetPortId(it->first);
+            utilHeader.SetTime(Simulator::Now().GetMicroSeconds());
+            utilHeader.SetByte(it->second);
+            m_utils[it->second] += 1;
 
-                uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
-                if(BatchUtil(utilHeader, dest) && m_postcard)
-                    SendPostcard(dest);
+            uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
+            if(BatchUtil(utilHeader, dest) && m_postcard)
+                SendPostcard(dest);
 
-                it->second = 0;
-            }
+            it->second = 0;
         }
     }           
 }
@@ -636,6 +653,7 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
         dropHeader.SetDstPort(dstPort);
         dropHeader.SetProtocol(proto);
         dropHeader.SetNodeId(m_id);
+        dropHeader.SetTime(Simulator::Now().GetMicroSeconds());
 
         uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
         if(BatchDrop(dropHeader, dest) && m_postcard)

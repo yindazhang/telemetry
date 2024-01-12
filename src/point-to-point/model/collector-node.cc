@@ -66,9 +66,31 @@ CollectorNode::~CollectorNode(){
     }
     else if(m_types.find(2) != m_types.end()){
         std::cout << "Receive entries: " << m_receive[2] << std::endl;
+
+        if(m_record){
+            FILE* fout = fopen((output_file + ".collector.util").c_str(), "a");
+            for(auto it = m_utils.begin();it != m_utils.end();++it){
+                fprintf(fout, "%d,%d\n", it->first, it->second);
+                fflush(fout);
+            }
+            fclose(fout);
+        }
     }
     else if(m_types.find(4) != m_types.end()){
         std::cout << "Receive entries: " << m_receive[4] << std::endl;
+
+        if(m_record){
+            FILE* fout = fopen((output_file + ".collector.drop").c_str(), "a");
+            for(auto drop : m_drops){
+                fprintf(fout, "%d %d ", drop.GetSrcIP(), drop.GetDstIP());
+                fprintf(fout, "%d %d ", drop.GetSrcPort(), drop.GetDstPort());
+                fprintf(fout, "%d %d ", drop.GetNodeId(), (int)drop.GetProtocol());
+                fprintf(fout, "%d\n", drop.GetTime());
+                fflush(fout);
+            }
+            fflush(fout);
+            fclose(fout);
+        }
     }
 
     FILE* fout = fopen((output_file + ".collector.delay").c_str(), "a");
@@ -89,6 +111,10 @@ void
 CollectorNode::SetOutput(std::string output){
     output_file = output;
     FILE* fout = fopen((output_file + ".collector.path").c_str(), "w");
+    fclose(fout);
+    fout = fopen((output_file + ".collector.drop").c_str(), "w");
+    fclose(fout);
+    fout = fopen((output_file + ".collector.util").c_str(), "w");
     fclose(fout);
     fout = fopen((output_file + ".collector.delay").c_str(), "w");
     fclose(fout);
@@ -227,6 +253,8 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                 UtilHeader utilHeader;
                 packet->RemoveHeader(utilHeader);
 
+                m_utils[utilHeader.GetByte()] += 1;
+
                 m_receive[2] += 1;
                         
                 if(m_receive[2] % 10000 == 9999)
@@ -252,15 +280,20 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                 if(m_receive[4] % 10000 == 9999)
                     std::cout << "Receive entries: " << m_receive[4] << std::endl;
 
-                /*
-                std::cout << "DropHeader: " << (int)teleHeader.GetDest() << " " 
-                        << dropHeader.GetSrcIP() << " "
-                        << dropHeader.GetDstIP() << " "
-                        << dropHeader.GetSrcPort() << " "
-                        << dropHeader.GetDstPort() << " "
-                        << dropHeader.GetNodeId() << " "
-                        << std::endl;
-                */
+                if(m_record && m_drops.find(dropHeader) == m_drops.end()){
+                    m_drops.insert(dropHeader);
+
+                    /*
+                    std::cout << "DropHeader: " << (int)teleHeader.GetDest() << " " 
+                            << dropHeader.GetSrcIP() << " "
+                            << dropHeader.GetDstIP() << " "
+                            << dropHeader.GetSrcPort() << " "
+                            << dropHeader.GetDstPort() << " "
+                            << dropHeader.GetNodeId() << " "
+                            << std::endl;
+                    */
+                }
+                
             }
             break;
         default : std::cout << "Unknown task " << teleHeader.GetType() << std::endl; break;
