@@ -27,6 +27,7 @@ build_lib(
     model/path-header.cc
     model/util-header.cc
     model/drop-header.cc
+    model/count-header.cc
     model/timestamp-tag.cc
     model/collector-node.cc
     model/my-queue.cc
@@ -41,6 +42,7 @@ build_lib(
     model/path-header.h
     model/util-header.h
     model/drop-header.h
+    model/count-header.h
     model/timestamp-tag.h
     model/collector-node.h
     model/my-queue.h
