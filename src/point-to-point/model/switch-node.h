@@ -217,7 +217,7 @@ class SwitchNode : public Node
     std::unordered_map<uint32_t, uint32_t> m_utils;
 	std::map<MyFlowId, int32_t> m_counts;
 
-#define OURS_SAMPLE_SIZE 50176
+#define OURS_SAMPLE_SIZE 50000
 	std::mt19937 m_rng;
 	MyFlowId m_keys[OURS_SAMPLE_SIZE];
 	int32_t m_values[OURS_SAMPLE_SIZE];

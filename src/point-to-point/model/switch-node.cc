@@ -745,8 +745,13 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
 
         int mod = 10;
 
-        if(m_keys[pos] == flowId)
+        if(m_keys[pos] == flowId){
             m_values[pos] += 1;
+        }
+        else if(m_values[pos] == 0){
+            m_keys[pos] = flowId;
+            m_values[pos] = 1;
+        }
 
         if(m_rng() % mod == 0){
             if(m_values[pos] != 0){
