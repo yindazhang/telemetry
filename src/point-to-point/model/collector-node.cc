@@ -50,7 +50,7 @@ CollectorNode::CollectorNode() : Node() {
 CollectorNode::~CollectorNode(){
     if(m_types.find(1) != m_types.end()){
         if(m_record){
-            std::cout << "Receive entries: " << m_paths.size() << std::endl;
+            std::cout << "Receive path entries: " << m_paths.size() << std::endl;
             std::cout << "Number of duplicates: " << m_duplicates << std::endl;
 
             FILE* fout = fopen((output_file + ".collector.path").c_str(), "a");
@@ -64,8 +64,9 @@ CollectorNode::~CollectorNode(){
             fclose(fout);
         }
     }
-    else if(m_types.find(2) != m_types.end()){
-        std::cout << "Receive entries: " << m_receive[2] << std::endl;
+
+    if(m_types.find(2) != m_types.end()){
+        std::cout << "Receive util entries: " << m_receive[2] << std::endl;
 
         if(m_record){
             FILE* fout = fopen((output_file + ".collector.util").c_str(), "a");
@@ -76,8 +77,9 @@ CollectorNode::~CollectorNode(){
             fclose(fout);
         }
     }
-    else if(m_types.find(4) != m_types.end()){
-        std::cout << "Receive entries: " << m_receive[4] << std::endl;
+    
+    if(m_types.find(4) != m_types.end()){
+        std::cout << "Receive drop entries: " << m_receive[4] << std::endl;
 
         if(m_record){
             FILE* fout = fopen((output_file + ".collector.drop").c_str(), "a");
@@ -86,6 +88,22 @@ CollectorNode::~CollectorNode(){
                 fprintf(fout, "%d %d ", drop.GetSrcPort(), drop.GetDstPort());
                 fprintf(fout, "%d %d ", drop.GetNodeId(), (int)drop.GetProtocol());
                 fprintf(fout, "%d\n", drop.GetTime());
+                fflush(fout);
+            }
+            fflush(fout);
+            fclose(fout);
+        }
+    }
+
+    if(m_types.find(8) != m_types.end()){
+        std::cout << "Receive count entries: " << m_receive[8] << std::endl;
+
+        if(m_record){
+            FILE* fout = fopen((output_file + ".collector.count").c_str(), "a");
+            for(auto it = m_counts.begin();it != m_counts.end();++it){
+                fprintf(fout, "%d %d ", it->first.m_srcIP, it->first.m_dstIP);
+                fprintf(fout, "%d %d ", it->first.m_srcPort, it->first.m_dstPort);
+                fprintf(fout, "%d\n", it->second);
                 fflush(fout);
             }
             fflush(fout);
@@ -115,6 +133,8 @@ CollectorNode::SetOutput(std::string output){
     fout = fopen((output_file + ".collector.drop").c_str(), "w");
     fclose(fout);
     fout = fopen((output_file + ".collector.util").c_str(), "w");
+    fclose(fout);
+    fout = fopen((output_file + ".collector.count").c_str(), "w");
     fclose(fout);
     fout = fopen((output_file + ".collector.delay").c_str(), "w");
     fclose(fout);
@@ -229,7 +249,7 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                 if(m_record && m_paths.find(pathHeader) == m_paths.end()){
                     m_paths.insert(pathHeader);
                     if(m_paths.size() % 10000 == 9999){
-                        std::cout << "Receive entries: " << m_paths.size() << std::endl;
+                        std::cout << "Receive path entries: " << m_paths.size() << std::endl;
                         std::cout << "Number of duplicates: " << m_duplicates << std::endl;
                     }
 
@@ -258,7 +278,7 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                 m_receive[2] += 1;
                         
                 if(m_receive[2] % 10000 == 9999)
-                    std::cout << "Receive entries: " << m_receive[2] << std::endl;
+                    std::cout << "Receive util entries: " << m_receive[2] << std::endl;
 
                 /* 
                 std::cout << "UtilHeader: " << (int)teleHeader.GetDest() << " " 
@@ -278,7 +298,7 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                 m_receive[4] += 1;
                         
                 if(m_receive[4] % 10000 == 9999)
-                    std::cout << "Receive entries: " << m_receive[4] << std::endl;
+                    std::cout << "Receive drop entries: " << m_receive[4] << std::endl;
 
                 if(m_record && m_drops.find(dropHeader) == m_drops.end()){
                     m_drops.insert(dropHeader);
@@ -294,6 +314,31 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                     */
                 }
                 
+            }
+            break;
+        case 8:
+            for(uint32_t i = 0;i < teleHeader.GetSize();++i){
+                CountHeader countHeader;
+                packet->RemoveHeader(countHeader);
+
+                m_receive[8] += 1;
+
+                if(m_receive[8] % 10000 == 9999)
+                    std::cout << "Receive count entries: " << m_receive[8] << std::endl;
+
+                if(m_record){
+                    m_counts[countHeader.GetFlow()] += countHeader.GetCount(); 
+
+                    /*
+                    std::cout << "DropHeader: " << (int)teleHeader.GetDest() << " " 
+                            << dropHeader.GetSrcIP() << " "
+                            << dropHeader.GetDstIP() << " "
+                            << dropHeader.GetSrcPort() << " "
+                            << dropHeader.GetDstPort() << " "
+                            << dropHeader.GetNodeId() << " "
+                            << std::endl;
+                    */
+                }
             }
             break;
         default : std::cout << "Unknown task " << teleHeader.GetType() << std::endl; break;

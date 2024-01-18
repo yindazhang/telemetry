@@ -752,6 +752,12 @@ void build_fat_tree(
 			cores[i]->SetPort(2);
 			cores[i]->SetDrop(4);
 		}
+		else if(taskId == 15){
+			cores[i]->SetPath(1);
+			cores[i]->SetPort(2);
+			cores[i]->SetDrop(4);
+			cores[i]->SetCount(8);
+		}
 
 		cores[i]->SetRecord(recordConfig);
 		cores[i]->SetOutput(file_name);

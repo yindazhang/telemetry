@@ -2,8 +2,8 @@ from optparse import OptionParser
 
 loads = [4,5,6,7,8]
 topologies = [1]
-taskIds = [7] #[1,2,3,4,7]
-utilGaps = [500]
+taskIds = [15] #[1,2,3,4,7]
+utilGaps = [5000]
 generateBps = [128]
 #utilGaps = [6000, 7000, 8000, 9000, 10000]
 #OrbWeavers = [0,2,3,9,33]
@@ -17,7 +17,7 @@ def AddLoad(start, outFile):
         if hG == 1:
             cmd += "--hG=1 "
             cmd += "--time=0.1 "
-            cmd += "--flow=WebSearch_144_" + str(load/10) + "_100G_0.1"
+            cmd += "--flow=Hadoop_144_" + str(load/10) + "_100G_0.1"
         else:
             cmd += "--time=0.5 "
             cmd += "--flow=Hadoop_144_" + str(load/10) + "_10G_0.5"

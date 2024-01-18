@@ -26,6 +26,7 @@
 #include "timestamp-tag.h"
 
 #include <unordered_set>
+#include <unordered_map>
 
 namespace ns3
 {
@@ -34,6 +35,7 @@ NS_LOG_COMPONENT_DEFINE("SwitchNode");
 
 NS_OBJECT_ENSURE_REGISTERED(SwitchNode);
 
+typedef std::map<MyFlowId, int32_t> HashMap;
 
 TypeId
 SwitchNode::GetTypeId()
@@ -47,18 +49,26 @@ SwitchNode::GetTypeId()
 }
 
 SwitchNode::SwitchNode() : Node() {
+    std::random_device rd;
+    m_rng.seed(rd());
+
+    memset(m_sketch, 0, sizeof(int32_t) * OURS_SKETCH_HASH * OURS_SKETCH_LENGTH);
+    m_heap = new MyHeap(OURS_HEAP);
+
     m_orbweaver = false;
     m_table.resize(arrSize);
     Simulator::Schedule(Seconds(1), &SwitchNode::Init, this);
 }
 
 SwitchNode::~SwitchNode(){
+    delete m_heap;
+
     if(m_record){
         if(m_path){
             std::string out_file = output_file + ".switch.path";
             FILE* fout = fopen(out_file.c_str(), "a");
             for(auto it = m_teleSend[m_pathType].begin();it != m_teleSend[m_pathType].end();++it){
-                fprintf(fout, "%d,%d,%d,%d,%d,%d,%d\n", m_id, it->first, m_pathType, 
+                fprintf(fout, "%d,%d,%d,%d,%d,%d,%ld\n", m_id, it->first, m_pathType, 
                     m_queueLoss[m_pathType][it->first], m_bufferLoss[m_pathType][it->first], it->second, m_paths.size());
             }
             fflush(fout);
@@ -68,7 +78,7 @@ SwitchNode::~SwitchNode(){
             std::string out_file = output_file + ".switch.util";
             FILE* fout = fopen(out_file.c_str(), "a");
             for(auto it = m_teleSend[m_portType].begin();it != m_teleSend[m_portType].end();++it){
-                fprintf(fout, "%d,%d,%d,%d,%d,%d,%d\n", m_id, it->first, m_portType, 
+                fprintf(fout, "%d,%d,%d,%d,%d,%d,%ld\n", m_id, it->first, m_portType, 
                     m_queueLoss[m_portType][it->first], m_bufferLoss[m_portType][it->first], it->second, m_paths.size());
             }
             fflush(fout);
@@ -78,8 +88,18 @@ SwitchNode::~SwitchNode(){
             std::string out_file = output_file + ".switch.drop";
             FILE* fout = fopen(out_file.c_str(), "a");
             for(auto it = m_teleSend[m_dropType].begin();it != m_teleSend[m_dropType].end();++it){
-                fprintf(fout, "%d,%d,%d,%d,%d,%d,%d\n", m_id, it->first, m_dropType, 
+                fprintf(fout, "%d,%d,%d,%d,%d,%d,%ld\n", m_id, it->first, m_dropType, 
                     m_queueLoss[m_dropType][it->first], m_bufferLoss[m_dropType][it->first], it->second, m_paths.size());
+            }
+            fflush(fout);
+            fclose(fout);
+        }
+        if(m_count){
+            std::string out_file = output_file + ".switch.count";
+            FILE* fout = fopen(out_file.c_str(), "a");
+            for(auto it = m_teleSend[m_countType].begin();it != m_teleSend[m_countType].end();++it){
+                fprintf(fout, "%d,%d,%d,%d,%d,%d,%ld\n", m_id, it->first, m_countType, 
+                    m_queueLoss[m_countType][it->first], m_bufferLoss[m_countType][it->first], it->second, m_paths.size());
             }
             fflush(fout);
             fclose(fout);
@@ -117,6 +137,39 @@ SwitchNode::~SwitchNode(){
             }
             fclose(fout);
         }
+        if(m_count){
+            FILE* fout = fopen((output_file + ".switch.count.sample").c_str(), "a");
+            for(int i = 0;i < OURS_SAMPLE_SIZE;++i){
+                if(m_values[i] > 0){
+                    fprintf(fout, "%d %d ", m_keys[i].m_srcIP, m_keys[i].m_dstIP);
+                    fprintf(fout, "%d %d ", m_keys[i].m_srcPort, m_keys[i].m_dstPort);
+                    fprintf(fout, "%d\n", m_values[i]);
+                    fflush(fout);
+                }
+            }
+            fclose(fout);
+
+            fout = fopen((output_file + ".switch.count.sketch").c_str(), "a");
+            for(int i = 0;i < OURS_SKETCH_HASH;++i){
+                fprintf(fout, "%d", m_id);
+                for(int j = 0;j < OURS_SKETCH_LENGTH;++j){
+                    fprintf(fout, " %d", m_sketch[i][j]);
+                }
+                fprintf(fout, "\n");
+                fflush(fout);
+            }
+            fclose(fout);
+
+            fout = fopen((output_file + ".switch.count.heap").c_str(), "a");
+            HashMap mp = m_heap->AllQuery();
+            for(auto it = mp.begin();it != mp.end();++it){
+                fprintf(fout, "%d %d ", it->first.m_srcIP, it->first.m_dstIP);
+                fprintf(fout, "%d %d ", it->first.m_srcPort, it->first.m_dstPort);
+                fprintf(fout, "%d\n", it->second);
+                fflush(fout);
+            }
+            fclose(fout);
+        }
     }
 }
 
@@ -149,6 +202,7 @@ SwitchNode::GetBufferSize(){
         if(dev != nullptr)
             bufferSize += dev->GetQueue()->GetNBytes();
     }
+
     return bufferSize;
 }
 
@@ -198,6 +252,12 @@ void
 SwitchNode::SetDrop(int8_t dropType = 4){
     m_drop = true;
     m_dropType = dropType;
+}
+
+void 
+SwitchNode::SetCount(int8_t countType = 8){
+    m_count = true;
+    m_countType = countType;
 }
 
 void 
@@ -261,6 +321,17 @@ SwitchNode::SetOutput(std::string output){
             fout = fopen(out_file.c_str(), "w");
             fclose(fout);
             fout = fopen((out_file + ".data").c_str(), "w");
+            fclose(fout);
+        }
+        if(m_count){
+            std::string out_file = output_file + ".switch.count";
+            fout = fopen(out_file.c_str(), "w");
+            fclose(fout);
+            fout = fopen((out_file + ".sample").c_str(), "w");
+            fclose(fout);
+            fout = fopen((out_file + ".sketch").c_str(), "w");
+            fclose(fout);
+            fout = fopen((out_file + ".heap").c_str(), "w");
             fclose(fout);
         }
     }
@@ -372,7 +443,7 @@ SwitchNode::BatchPath(PathHeader path, uint8_t dest){
 
         if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
             m_bufferLoss[m_pathType][dest] += batchSize;
-            if(m_final){
+            if(m_push){
                 std::cout << "Buffer loss!" << std::endl;
             }
             return false;
@@ -404,7 +475,7 @@ SwitchNode::BatchUtil(UtilHeader util, uint8_t dest){
 
         if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
             m_bufferLoss[m_portType][dest] += batchSize;
-            if(m_final){
+            if(m_push){
                 std::cout << "Buffer loss!" << std::endl;
             }
             return false;
@@ -439,7 +510,40 @@ SwitchNode::BatchDrop(DropHeader drop, uint8_t dest){
 
         if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
             m_bufferLoss[m_dropType][dest] += batchSize;
-            if(m_final){
+            if(m_push){
+                std::cout << "Buffer loss!" << std::endl;
+            }
+            return false;
+        }
+        m_teleQueue.packets[dest].push(packet);
+        m_teleQueue.size += packet->GetSize();
+        return true;
+    }
+
+    return false;
+}
+
+bool
+SwitchNode::BatchCount(CountHeader count, uint8_t dest){
+    m_teleQueue.countBatch[dest].push_back(count);
+    if(m_teleQueue.countBatch[dest].size() % batchSize == 0){
+        m_teleSend[m_countType][dest] += batchSize;
+
+        Ptr<Packet> packet = CreatePacket(0);
+        for(uint32_t i = 0;i < batchSize;++i){
+            packet->AddHeader(m_teleQueue.countBatch[dest][i]);
+        }
+        m_teleQueue.countBatch[dest].clear();
+
+        TeleHeader teleHeader;
+        teleHeader.SetType(m_countType);
+        teleHeader.SetDest(dest);
+        teleHeader.SetSize(batchSize);
+        packet->AddHeader(teleHeader);
+
+        if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
+            m_bufferLoss[m_countType][dest] += batchSize;
+            if(m_push){
                 std::cout << "Buffer loss!" << std::endl;
             }
             return false;
@@ -566,7 +670,7 @@ SwitchNode::BufferData(Ptr<Packet> packet){
 
     if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
         m_bufferLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
-        if(m_final){
+        if(m_push){
             std::cout << "Buffer loss!" << std::endl;
         }
     }
@@ -616,24 +720,64 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
     // End Deparse Header
 
     uint32_t devId = -1;
-    uint32_t hash = 0;
+    uint32_t hashValue = 0;
+
+    MyFlowId flowId;
+
+    flowId.m_srcIP = src;
+    flowId.m_dstIP = dst;
+    flowId.m_srcPort = srcPort;
+    flowId.m_dstPort = dstPort;
 
     if(m_ecmp == 1){
         dst = dst + m_hashSeed;
-        hash = Hash32((char*)&dst, sizeof(dst));
+        hashValue = Hash32((char*)&dst, sizeof(dst));
     }
     else{
-        PathHeader pathHeader;
-        memset((char*)(&pathHeader), 0, sizeof(PathHeader));
-        pathHeader.SetSrcIP(src + m_hashSeed);
-        pathHeader.SetDstIP(dst + m_hashSeed);
-        pathHeader.SetSrcPort(srcPort);
-        pathHeader.SetDstPort(dstPort);
-        pathHeader.SetProtocol(proto);
-        hash = pathHeader.Hash();
+        hashValue = hash(flowId, m_hashSeed);
     }
 
-    devId = vec[hash % vec.size()];
+    if(m_measure && m_count && (m_orbweaver || m_postcard)){
+        m_counts[flowId] += 1;
+
+        /* Ours algorithm */
+        uint32_t pos = hash(flowId, 10) % OURS_SAMPLE_SIZE;
+
+        int mod = 10;
+
+        if(m_keys[pos] == flowId)
+            m_values[pos] += 1;
+
+        if(m_rng() % mod == 0){
+            if(m_values[pos] != 0){
+                CountHeader countHeader;
+                countHeader.SetFlow(flowId);
+                countHeader.SetCount(m_values[pos]);
+                m_values[pos] = 0;
+
+                uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
+                if(BatchCount(countHeader, dest) && m_postcard)
+                    SendPostcard(dest);
+            }
+            if(!(m_keys[pos] == flowId)){
+                m_values[pos] = mod;
+                m_keys[pos] == flowId;
+            }
+        }
+
+        /* Sketch algorithm */
+        int32_t minimum = 0x7fffffff;
+
+        for(uint32_t hashPos = 0;hashPos < OURS_SKETCH_HASH;++hashPos){
+            uint32_t pos = hash(flowId, hashPos) % OURS_SKETCH_LENGTH;
+            m_sketch[hashPos][pos] += 1;
+            minimum = std::min(minimum, m_sketch[hashPos][pos]);
+        }
+
+        m_heap->Insert(flowId, minimum);
+    }
+
+    devId = vec[hashValue % vec.size()];
     m_bytes[devId] += packet->GetSize();
 
     Ptr<NetDevice> dev = m_devices[devId];
@@ -736,7 +880,7 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
     }
 
     m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
-    if(m_final){
+    if(m_push){
         std::cout << "Queue loss!" << std::endl;
     }
     return false;
@@ -997,5 +1141,153 @@ SwitchNode::ReceiveFromDevice(Ptr<NetDevice> device,
 
     return IngressPipeline(packet, priority, protocol, device);
 }
+
+/* Hash function */
+uint32_t
+SwitchNode::rotateLeft(uint32_t x, unsigned char bits)
+{
+    return (x << bits) | (x >> (32 - bits));
+}
+
+uint32_t
+SwitchNode::inhash(const uint8_t* data, uint64_t length, uint32_t seed)
+{
+    seed = prime[seed];
+    uint32_t state[4] = {seed + Prime[0] + Prime[1],
+                        seed + Prime[1], seed, seed - Prime[0]};
+    uint32_t result = length + state[2] + Prime[4];
+
+    // point beyond last byte
+    const uint8_t* stop = data + length;
+
+    // at least 4 bytes left ? => eat 4 bytes per step
+    for (; data + 4 <= stop; data += 4)
+        result = rotateLeft(result + *(uint32_t*)data * Prime[2], 17) * Prime[3];
+
+    // take care of remaining 0..3 bytes, eat 1 byte per step
+    while (data != stop)
+        result = rotateLeft(result + (*data++) * Prime[4], 11) * Prime[0];
+
+    // mix bits
+    result ^= result >> 15;
+    result *= Prime[1];
+    result ^= result >> 13;
+    result *= Prime[2];
+    result ^= result >> 16;
+    return result;
+}
+
+template<typename T>
+uint32_t
+SwitchNode::hash(const T& data, uint32_t seed){
+    return inhash((uint8_t*)&data, sizeof(T), seed);
+}
+
+/* Heap */
+MyHeap::MyHeap(uint32_t _SIZE){
+    SIZE = _SIZE;
+    heap = new KV[SIZE];
+    memset(heap, 0, sizeof(KV) * SIZE);
+}
+
+
+MyHeap::~MyHeap(){
+    delete [] heap;
+}
+
+int32_t
+MyHeap::min(){
+    return heap[0].value;
+}
+
+bool
+MyHeap::isFull(){
+    return mp.size() >= SIZE;
+}
+
+HashMap
+MyHeap::AllQuery(){
+    HashMap ret;
+    for(uint32_t i = 0;i < mp.size();++i)
+        ret[heap[i].key] = heap[i].value;
+    return ret;
+}
+
+void
+MyHeap::Heap_Up(uint32_t pos){
+    while (pos > 1) {
+        uint32_t parent = (pos - 1) / 2;
+        if (heap[parent].value <= heap[pos].value)
+            break;
+
+        KV temp = heap[pos];
+        heap[pos] = heap[parent];
+        heap[parent] = temp;
+
+        mp[heap[pos].key] = pos;
+        mp[heap[parent].key] = parent;
+        pos = parent;
+    }
+}
+
+void
+MyHeap::Heap_Down(MyFlowId key, uint32_t pos){
+    uint32_t upper = mp.size();
+
+    while (pos < upper / 2) {
+        uint32_t left = 2 * pos + 1, right = 2 * pos + 2;
+        uint32_t replace = pos;
+
+        if (left < upper && heap[left].value < heap[replace].value)
+            replace = left;
+        if (right < upper && heap[right].value < heap[replace].value)
+            replace = right;
+
+        if (replace != pos) {
+            mp[key] = replace;
+            KV temp = heap[pos];
+            heap[pos] = heap[replace];
+            heap[replace] = temp;
+            mp[heap[pos].key] = pos;
+            pos = replace;
+        }
+        else return;
+    }
+}
+
+void
+MyHeap::Insert(const MyFlowId item, const int32_t frequency){
+    if(this->isFull()){
+        if(frequency > heap[0].value){
+            if(mp.find(item) != mp.end()){
+                uint32_t pos = mp[item];
+                heap[pos].value = frequency;
+                this->Heap_Down(item, pos);
+            }
+            else{
+                mp.erase(heap[0].key);
+                heap[0].value = frequency;
+                heap[0].key = item;
+                mp[item] = 0;
+                this->Heap_Down(item, 0);
+            }
+        }
+        return;
+    }
+
+    if(mp.find(item) != mp.end()){
+        uint32_t pos = mp[item];
+        heap[pos].value = frequency;
+        Heap_Down(item, pos);
+    }
+    else{
+        uint32_t pos = mp.size();
+        heap[pos].value = frequency;
+        heap[pos].key = item;
+        mp[item] = pos;
+        Heap_Up(pos);
+    }
+}
+
 
 } // namespace ns3

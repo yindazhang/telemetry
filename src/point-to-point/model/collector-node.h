@@ -6,6 +6,7 @@
 #include "ns3/path-header.h"
 #include "ns3/util-header.h"
 #include "ns3/drop-header.h"
+#include "ns3/count-header.h"
 #include "ns3/tele-header.h"
 
 #include <queue>
@@ -106,6 +107,7 @@ class CollectorNode : public Node
     std::set<PathHeader> m_paths;
     std::set<DropHeader> m_drops;
     std::unordered_map<uint32_t, uint32_t> m_utils;
+    std::map<MyFlowId, int32_t> m_counts;
 
     uint64_t m_duplicates = 0;
     
