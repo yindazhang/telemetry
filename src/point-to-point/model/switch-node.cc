@@ -147,6 +147,22 @@ SwitchNode::~SwitchNode(){
                     fflush(fout);
                 }
             }
+
+            for(int i = 0;i < m_collector;++i){
+                for(int j = 0;j < m_teleQueue.countBatch[i].size();++j){
+                    CountHeader countHeader = m_teleQueue.countBatch[i][j];
+                    int value = countHeader.GetCount();
+                    if(value > 0){
+                        MyFlowId key = countHeader.GetFlow();
+                        fprintf(fout, "%d %d ", key.m_srcIP, key.m_dstIP);
+                        fprintf(fout, "%d %d ", key.m_srcPort, key.m_dstPort);
+                        fprintf(fout, "%d\n", value);
+                        fflush(fout);
+                    }
+                }
+            }
+
+
             fclose(fout);
 
             fout = fopen((output_file + ".switch.count.sketch").c_str(), "a");
@@ -743,7 +759,7 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
         /* Ours algorithm */
         uint32_t pos = hash(flowId, 10) % OURS_SAMPLE_SIZE;
 
-        int mod = 10;
+        int mod = 4;
 
         if(m_keys[pos] == flowId){
             m_values[pos] += 1;

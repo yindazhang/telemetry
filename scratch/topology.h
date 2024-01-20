@@ -682,7 +682,7 @@ void build_fat_tree(
 			edges[i]->SetGenerate(generateBps);
 		else if(taskId == 4)
 			edges[i]->SetDrop(4);
-		else if(taskId == 7){
+		else if(taskId == 7 || taskId == 15){
 			edges[i]->SetPath(1);
 			edges[i]->SetPort(2);
 			edges[i]->SetDrop(4);
@@ -715,7 +715,7 @@ void build_fat_tree(
 			aggregations[i]->SetGenerate(generateBps);
 		else if(taskId == 4)
 			aggregations[i]->SetDrop(4);
-		else if(taskId == 7){
+		else if(taskId == 7 || taskId == 15){
 			aggregations[i]->SetPath(1);
 			aggregations[i]->SetPort(2);
 			aggregations[i]->SetDrop(4);
