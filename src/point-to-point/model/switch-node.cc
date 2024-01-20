@@ -192,7 +192,7 @@ SwitchNode::~SwitchNode(){
 void 
 SwitchNode::Init(){
     Simulator::Schedule(Seconds(0.1), &SwitchNode::SetQueueThd, this);
-    Simulator::Schedule(Seconds(m_measureStart - 1), &SwitchNode::GeneratePacket, this);
+    Simulator::Schedule(Seconds(m_measureStart - 1.000002), &SwitchNode::GeneratePacket, this);
     Simulator::Schedule(Seconds(m_measureStart - 1), &SwitchNode::StartMeasure, this);
     Simulator::Schedule(Seconds(m_measureStart - 1), &SwitchNode::RecordUtil, this);
     Simulator::Schedule(Seconds(m_measureStart - 1), &SwitchNode::GenerateUtil, this);
@@ -232,8 +232,8 @@ SwitchNode::SetOrbWeaver(uint32_t OrbWeaver){
     m_push = ((OrbWeaver & 0x21) == 0x21);
 
     if(m_basic){
-        m_queueThd += 14 * 1024;
-        m_bufferThd -= 14 * 1024;
+        m_queueThd += m_bufferThd * 0.5;
+        m_bufferThd *= 0.5;
     }
 }
 
@@ -460,7 +460,7 @@ SwitchNode::BatchPath(PathHeader path, uint8_t dest){
         if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
             m_bufferLoss[m_pathType][dest] += batchSize;
             if(m_push){
-                std::cout << "Buffer loss!" << std::endl;
+                std::cout << "Buffer loss in " << m_id << std::endl;
             }
             return false;
         }
@@ -492,7 +492,7 @@ SwitchNode::BatchUtil(UtilHeader util, uint8_t dest){
         if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
             m_bufferLoss[m_portType][dest] += batchSize;
             if(m_push){
-                std::cout << "Buffer loss!" << std::endl;
+                std::cout << "Buffer loss in " << m_id << std::endl;
             }
             return false;
         }
@@ -527,7 +527,7 @@ SwitchNode::BatchDrop(DropHeader drop, uint8_t dest){
         if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
             m_bufferLoss[m_dropType][dest] += batchSize;
             if(m_push){
-                std::cout << "Buffer loss!" << std::endl;
+                std::cout << "Buffer loss in " << m_id << std::endl;
             }
             return false;
         }
@@ -560,7 +560,7 @@ SwitchNode::BatchCount(CountHeader count, uint8_t dest){
         if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
             m_bufferLoss[m_countType][dest] += batchSize;
             if(m_push){
-                std::cout << "Buffer loss!" << std::endl;
+                std::cout << "Buffer loss in " << m_id << std::endl;
             }
             return false;
         }
@@ -687,7 +687,7 @@ SwitchNode::BufferData(Ptr<Packet> packet){
     if(m_teleQueue.size + packet->GetSize() > m_bufferThd){
         m_bufferLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
         if(m_push){
-            std::cout << "Buffer loss!" << std::endl;
+            std::cout << "Buffer loss in " << m_id << std::endl;
         }
     }
     else{
@@ -902,7 +902,7 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
 
     m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
     if(m_push){
-        std::cout << "Queue loss!" << std::endl;
+        std::cout << "Queue loss in " << m_id << std::endl;
     }
     return false;
 }
@@ -957,8 +957,7 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
         uint32_t bufferSize = m_teleQueue.packets[dest].size();
 
         if(m_pull && property.isLowerPull[dest]){
-            if(bufferSize < 1 || bufferSize * m_teleQueue.packets[dest].front()->GetSize() 
-                    < m_bufferThd * 0.5){
+            if(bufferSize < 1 || m_teleQueue.size < m_bufferThd * 0.5){
                 TeleHeader teleHeader;
                 teleHeader.SetDest(dest);
                 teleHeader.SetSize(0);
@@ -971,8 +970,7 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
             return nullptr;
         }
         else if((m_final || m_push) && (property.isUpperPull[dest] || property.isLowerPull[dest])){
-            if(m_push && bufferSize > 1 && bufferSize * m_teleQueue.packets[dest].front()->GetSize() 
-                    > m_bufferThd * 0.95){
+            if(m_push && bufferSize > 1 && m_teleQueue.size >= m_bufferThd * 0.95){
                 packet = GetTelePacket(1, dest);
                 if(packet != nullptr){
                     ppp.SetProtocol(0x171);
