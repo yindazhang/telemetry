@@ -148,6 +148,7 @@ class SwitchNode : public Node
     protected:
 
     TeleQueue m_teleQueue;
+    int32_t m_teleSize = 0;
 
     bool BatchPath(PathHeader path, uint8_t dest);
     bool BatchUtil(UtilHeader util, uint8_t dest);
@@ -161,13 +162,10 @@ class SwitchNode : public Node
     const uint32_t batchSize = 4;
     const uint32_t arrSize = 65537;
 
-    int32_t m_userThd = 128*1024;
+    int32_t m_userThd = 256*1024;
+    int32_t m_teleThd = 64*1024;
+
     std::unordered_map<Ptr<NetDevice>, int32_t> m_userSize;
-
-    int32_t m_queueThd = 2*1024;
-    std::unordered_map<Ptr<NetDevice>, int32_t> m_queueSize;
-
-    int32_t m_bufferThd = 30*1024;
 
     std::unordered_map<uint8_t, uint32_t> m_teleSend[9];
     std::unordered_map<uint8_t, uint32_t> m_bufferLoss[9];
@@ -233,7 +231,6 @@ class SwitchNode : public Node
     void StartMeasure();
     void EndMeasure();
 
-    void SetQueueThd();
     void GeneratePacket();
     void RecordUtil();
     void GenerateUtil();
