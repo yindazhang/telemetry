@@ -874,8 +874,8 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
         dev = m_devices[m_devices.size() - 1];
     }
 
-    if(m_teleSize + packet->GetSize() <= m_teleThd){
-        m_teleSize += packet->GetSize();
+    if(m_teleQueue.size + packet->GetSize() <= m_teleThd){
+        m_teleQueue.size += packet->GetSize();
         return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
 
@@ -904,8 +904,8 @@ SwitchNode::IngressPipelinePostcard(Ptr<Packet> packet, Ptr<NetDevice> dev){
     uint32_t devId = vec[rand() % vec.size()];
     dev = m_devices[devId];
 
-    if(m_teleSize + packet->GetSize() <= m_teleThd){
-        m_teleSize += packet->GetSize();
+    if(m_teleQueue.size + packet->GetSize() <= m_teleThd){
+        m_teleQueue.size += packet->GetSize();
         return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
 
@@ -1073,8 +1073,8 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
         packet->RemoveHeader(ppp);
 
         if(protocol == 0x0171){
-            m_teleSize -= packet->GetSize();
-            if(m_teleSize < 0)
+            m_teleQueue.size -= packet->GetSize();
+            if(m_teleQueue.size < 0)
                 std::cout << "Error for teleSize" << std::endl;
 
             packet->AddHeader(ppp);
@@ -1095,8 +1095,8 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
         PppHeader ppp;
         packet->RemoveHeader(ppp);
         if(protocol == 0x0171){
-            m_teleSize -= packet->GetSize();
-            if(m_teleSize < 0)
+            m_teleQueue.size -= packet->GetSize();
+            if(m_teleQueue.size < 0)
                 std::cout << "Error for queueSize" << std::endl;
         }
         packet->AddHeader(ppp);

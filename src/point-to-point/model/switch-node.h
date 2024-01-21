@@ -148,7 +148,6 @@ class SwitchNode : public Node
     protected:
 
     TeleQueue m_teleQueue;
-    int32_t m_teleSize = 0;
 
     bool BatchPath(PathHeader path, uint8_t dest);
     bool BatchUtil(UtilHeader util, uint8_t dest);
