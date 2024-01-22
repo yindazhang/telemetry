@@ -142,7 +142,7 @@ class SwitchNode : public Node
       std::vector<DropHeader> dropBatch[3];
       std::vector<CountHeader> countBatch[3];
       std::queue<Ptr<Packet>> packets[3];
-      uint32_t size = 0;
+      uint32_t size[3] = {0, 0, 0};
     };
 
     protected:
@@ -214,16 +214,17 @@ class SwitchNode : public Node
     std::unordered_map<uint32_t, uint32_t> m_utils;
 	std::map<MyFlowId, int32_t> m_counts;
 
+/*
 #define OURS_SAMPLE_SIZE 50000
 	std::mt19937 m_rng;
 	MyFlowId m_keys[OURS_SAMPLE_SIZE];
 	int32_t m_values[OURS_SAMPLE_SIZE];
+*/
 
-#define OURS_SKETCH_HASH 3
-#define OURS_SKETCH_LENGTH 65536
-#define OURS_HEAP 0x3ff
-	int32_t m_sketch[OURS_SKETCH_HASH][OURS_SKETCH_LENGTH];
-	MyHeap* m_heap;
+//#define OURS_HEAP 0x3ff
+	CMSketch m_sketch;
+  CMSketch m_old;
+	//MyHeap* m_heap;
 
     void Init();
 

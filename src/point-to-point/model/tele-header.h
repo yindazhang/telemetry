@@ -26,12 +26,12 @@ public:
     int8_t GetType();
     void SetDest(uint8_t _dest);
     uint8_t GetDest();
-    void SetSize(uint16_t _size);
-    uint16_t GetSize();
+    void SetSize(uint32_t _size);
+    uint32_t GetSize();
 
     int8_t m_type;
     uint8_t m_dest;
-    uint16_t m_size;
+    uint32_t m_size;
 };
 
 } // namespace ns3

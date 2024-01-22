@@ -49,11 +49,10 @@ SwitchNode::GetTypeId()
 }
 
 SwitchNode::SwitchNode() : Node() {
-    std::random_device rd;
-    m_rng.seed(rd());
+    //std::random_device rd;
+    //m_rng.seed(rd());
 
-    memset(m_sketch, 0, sizeof(int32_t) * OURS_SKETCH_HASH * OURS_SKETCH_LENGTH);
-    m_heap = new MyHeap(OURS_HEAP);
+    //m_heap = new MyHeap(OURS_HEAP);
 
     m_orbweaver = false;
     m_table.resize(arrSize);
@@ -61,7 +60,7 @@ SwitchNode::SwitchNode() : Node() {
 }
 
 SwitchNode::~SwitchNode(){
-    delete m_heap;
+    //delete m_heap;
 
     if(m_record){
         if(m_path){
@@ -138,44 +137,18 @@ SwitchNode::~SwitchNode(){
             fclose(fout);
         }
         if(m_count){
-            FILE* fout = fopen((output_file + ".switch.count.sample").c_str(), "a");
-            for(int i = 0;i < OURS_SAMPLE_SIZE;++i){
-                if(m_values[i] > 0){
-                    fprintf(fout, "%d %d ", m_keys[i].m_srcIP, m_keys[i].m_dstIP);
-                    fprintf(fout, "%d %d ", m_keys[i].m_srcPort, m_keys[i].m_dstPort);
-                    fprintf(fout, "%d\n", m_values[i]);
-                    fflush(fout);
-                }
-            }
-
-            for(int i = 0;i < m_collector;++i){
-                for(int j = 0;j < m_teleQueue.countBatch[i].size();++j){
-                    CountHeader countHeader = m_teleQueue.countBatch[i][j];
-                    int value = countHeader.GetCount();
-                    if(value > 0){
-                        MyFlowId key = countHeader.GetFlow();
-                        fprintf(fout, "%d %d ", key.m_srcIP, key.m_dstIP);
-                        fprintf(fout, "%d %d ", key.m_srcPort, key.m_dstPort);
-                        fprintf(fout, "%d\n", value);
-                        fflush(fout);
-                    }
-                }
-            }
-
-
-            fclose(fout);
-
-            fout = fopen((output_file + ".switch.count.sketch").c_str(), "a");
+            FILE* fout = fopen((output_file + ".switch.count.sketch").c_str(), "a");
             for(int i = 0;i < OURS_SKETCH_HASH;++i){
                 fprintf(fout, "%d", m_id);
                 for(int j = 0;j < OURS_SKETCH_LENGTH;++j){
-                    fprintf(fout, " %d", m_sketch[i][j]);
+                    fprintf(fout, " %d", m_sketch.values[i][j]);
                 }
                 fprintf(fout, "\n");
                 fflush(fout);
             }
             fclose(fout);
 
+            /*
             fout = fopen((output_file + ".switch.count.heap").c_str(), "a");
             HashMap mp = m_heap->AllQuery();
             for(auto it = mp.begin();it != mp.end();++it){
@@ -185,6 +158,7 @@ SwitchNode::~SwitchNode(){
                 fflush(fout);
             }
             fclose(fout);
+            */
         }
     }
 }
@@ -210,7 +184,7 @@ SwitchNode::EndMeasure(){
 
 uint32_t 
 SwitchNode::GetBufferSize(){
-    uint32_t bufferSize = m_teleQueue.size;
+    uint32_t bufferSize = m_teleQueue.size[0] + m_teleQueue.size[1];
     
     for(uint32_t i = 0;i < m_devices.size();++i){
         auto dev = DynamicCast<PointToPointNetDevice>(m_devices[i]);
@@ -436,15 +410,15 @@ SwitchNode::BatchPath(PathHeader path, uint8_t dest){
         teleHeader.SetSize(batchSize);
         packet->AddHeader(teleHeader);
 
-        if(m_teleQueue.size + packet->GetSize() > m_teleThd){
+        if(m_teleQueue.size[dest] + packet->GetSize() > m_teleThd){
             m_bufferLoss[m_pathType][dest] += batchSize;
-            if(m_push || m_pull || m_postcard){
+            if(m_push || m_postcard){
                 std::cout << "BatchPath Buffer loss in " << m_id << std::endl;
             }
             return false;
         }
         m_teleQueue.packets[dest].push(packet);
-        m_teleQueue.size += packet->GetSize();
+        m_teleQueue.size[dest] += packet->GetSize();
         return true;
     }
 
@@ -468,15 +442,15 @@ SwitchNode::BatchUtil(UtilHeader util, uint8_t dest){
         teleHeader.SetSize(batchSize);
         packet->AddHeader(teleHeader);
 
-        if(m_teleQueue.size + packet->GetSize() > m_teleThd){
+        if(m_teleQueue.size[dest] + packet->GetSize() > m_teleThd){
             m_bufferLoss[m_portType][dest] += batchSize;
-            if(m_push || m_pull || m_postcard){
+            if(m_push || m_postcard){
                 std::cout << "BatchUtil Buffer loss in " << m_id << std::endl;
             }
             return false;
         }
         m_teleQueue.packets[dest].push(packet);
-        m_teleQueue.size += packet->GetSize();
+        m_teleQueue.size[dest] += packet->GetSize();
         return true;
     }
 
@@ -503,15 +477,15 @@ SwitchNode::BatchDrop(DropHeader drop, uint8_t dest){
         teleHeader.SetSize(batchSize);
         packet->AddHeader(teleHeader);
 
-        if(m_teleQueue.size + packet->GetSize() > m_teleThd){
+        if(m_teleQueue.size[dest] + packet->GetSize() > m_teleThd){
             m_bufferLoss[m_dropType][dest] += batchSize;
-            if(m_push || m_pull || m_postcard){
+            if(m_push || m_postcard){
                 std::cout << "BatchDrop Buffer loss in " << m_id << std::endl;
             }
             return false;
         }
         m_teleQueue.packets[dest].push(packet);
-        m_teleQueue.size += packet->GetSize();
+        m_teleQueue.size[dest] += packet->GetSize();
         return true;
     }
 
@@ -536,15 +510,15 @@ SwitchNode::BatchCount(CountHeader count, uint8_t dest){
         teleHeader.SetSize(batchSize);
         packet->AddHeader(teleHeader);
 
-        if(m_teleQueue.size + packet->GetSize() > m_teleThd){
+        if(m_teleQueue.size[dest] + packet->GetSize() > m_teleThd){
             m_bufferLoss[m_countType][dest] += batchSize;
-            if(m_push || m_pull || m_postcard){
+            if(m_push || m_postcard){
                 std::cout << "BatchCount Buffer loss in " << m_id << std::endl;
             }
             return false;
         }
         m_teleQueue.packets[dest].push(packet);
-        m_teleQueue.size += packet->GetSize();
+        m_teleQueue.size[dest] += packet->GetSize();
         return true;
     }
 
@@ -559,7 +533,7 @@ SwitchNode::GetTelePacket(uint32_t priority, uint8_t dest)
     if(!m_teleQueue.packets[dest].empty()){
         packet = m_teleQueue.packets[dest].front();
         m_teleQueue.packets[dest].pop();
-        m_teleQueue.size -= packet->GetSize();
+        m_teleQueue.size[dest] -= packet->GetSize();
 
         SocketPriorityTag priorityTag;
         priorityTag.SetPriority(priority);
@@ -577,8 +551,8 @@ SwitchNode::SendPostcard(uint8_t dest){
         auto vec = m_teleForward[dest];
         uint32_t devId = vec[rand() % vec.size()];
         Ptr<NetDevice> dev = m_devices[devId];
-        if(m_teleQueue.size + packet->GetSize() <= m_userThd){
-            m_teleQueue.size += packet->GetSize();
+        if(m_teleQueue.size[dest] + packet->GetSize() <= m_userThd){
+            m_teleQueue.size[dest] += packet->GetSize();
             dev->Send(packet, dev->GetBroadcast(), 0x0171);
         }
         else{
@@ -663,15 +637,15 @@ SwitchNode::BufferData(Ptr<Packet> packet){
     TeleHeader teleHeader;
     packet->PeekHeader(teleHeader);
 
-    if(m_teleQueue.size + packet->GetSize() > m_teleThd){
+    if(m_teleQueue.size[teleHeader.GetDest()] + packet->GetSize() > m_teleThd){
         m_bufferLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
-        if(m_push || m_pull || m_postcard){
+        if(m_push || m_postcard){
             std::cout << "BufferData Buffer loss in " << m_id << std::endl;
         }
     }
     else{
         m_teleQueue.packets[teleHeader.GetDest()].push(packet);
-        m_teleQueue.size += packet->GetSize();
+        m_teleQueue.size[teleHeader.GetDest()] += packet->GetSize();
     }
 }
 
@@ -736,6 +710,7 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
         m_counts[flowId] += 1;
 
         /* Ours algorithm */
+        /*
         uint32_t pos = hash(flowId, 10) % OURS_SAMPLE_SIZE;
 
         int mod = 4;
@@ -764,17 +739,31 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
                 m_keys[pos] == flowId;
             }
         }
+        */
 
         /* Sketch algorithm */
-        int32_t minimum = 0x7fffffff;
+        //int32_t minimum = 0x7fffffff;
 
         for(uint32_t hashPos = 0;hashPos < OURS_SKETCH_HASH;++hashPos){
             uint32_t pos = hash(flowId, hashPos) % OURS_SKETCH_LENGTH;
-            m_sketch[hashPos][pos] += 1;
-            minimum = std::min(minimum, m_sketch[hashPos][pos]);
+            m_sketch.values[hashPos][pos] += 1;
+
+            if(m_sketch.values[hashPos][pos] > m_old.values[hashPos][pos] * 1.5){
+                CountHeader countHeader;
+                countHeader.SetNodeId(m_id);
+                countHeader.SetPosition(hashPos * OURS_SKETCH_LENGTH + pos);
+                countHeader.SetCount(m_sketch.values[hashPos][pos] - m_old.values[hashPos][pos]);
+
+                uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
+                if(BatchCount(countHeader, dest) && m_postcard)
+                    SendPostcard(dest);
+                
+                m_old.values[hashPos][pos] = m_sketch.values[hashPos][pos];
+            }
+            //minimum = std::min(minimum, m_sketch.values[hashPos][pos]);
         }
 
-        m_heap->Insert(flowId, minimum);
+        //m_heap->Insert(flowId, minimum);
     }
 
     devId = vec[hashValue % vec.size()];
@@ -869,20 +858,20 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
         auto vec = m_teleForward[teleHeader.GetDest()];
         uint32_t devId = vec[rand() % vec.size()];
         dev = m_devices[devId];
+
+        if(m_teleQueue.size[teleHeader.GetDest()] + packet->GetSize() <= m_teleThd){
+            m_teleQueue.size[teleHeader.GetDest()] += packet->GetSize();
+            return dev->Send(packet, dev->GetBroadcast(), 0x0171);
+        }
+
+        m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
+        return false;
     }
     else{
         dev = m_devices[m_devices.size() - 1];
-    }
-
-    if(m_teleQueue.size + packet->GetSize() <= m_teleThd){
-        m_teleQueue.size += packet->GetSize();
         return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
 
-    m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
-    if(m_push || m_pull || m_postcard){
-        std::cout << "Queue loss in " << m_id << std::endl;
-    }
     return false;
 }
 
@@ -904,8 +893,8 @@ SwitchNode::IngressPipelinePostcard(Ptr<Packet> packet, Ptr<NetDevice> dev){
     uint32_t devId = vec[rand() % vec.size()];
     dev = m_devices[devId];
 
-    if(m_teleQueue.size + packet->GetSize() <= m_teleThd){
-        m_teleQueue.size += packet->GetSize();
+    if(m_teleQueue.size[teleHeader.GetDest()] + packet->GetSize() <= m_teleThd){
+        m_teleQueue.size[teleHeader.GetDest()] += packet->GetSize();
         return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
 
@@ -933,10 +922,9 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
     }
     else{
         uint8_t dest = property.collectorDst[rand() % property.collectorDst.size()];
-        uint32_t bufferSize = m_teleQueue.packets[dest].size();
-
+        
         if(m_pull && property.isLowerPull[dest]){
-            if(bufferSize < 1 || m_teleQueue.size < m_teleThd * 0.5){
+            if(m_teleQueue.size[dest] < m_teleThd * 0.5){
                 TeleHeader teleHeader;
                 teleHeader.SetDest(dest);
                 teleHeader.SetSize(0);
@@ -949,7 +937,7 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
             return nullptr;
         }
         else if((m_final || m_push) && (property.isUpperPull[dest] || property.isLowerPull[dest])){
-            if(m_push && bufferSize > 1 && m_teleQueue.size >= m_teleThd * 0.90){
+            if(m_push && m_teleQueue.size[dest] >= m_teleThd * 0.90){
                 packet = GetTelePacket(1, dest);
                 if(packet != nullptr){
                     ppp.SetProtocol(0x171);
@@ -960,7 +948,7 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
             else{
                 TeleHeader teleHeader;
                 teleHeader.SetDest(dest);
-                teleHeader.SetSize(bufferSize);
+                teleHeader.SetSize(m_teleQueue.size[dest]);
                 packet->AddHeader(teleHeader);
 
                 ppp.SetProtocol(0x172);
@@ -974,8 +962,9 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
 
 Ptr<Packet>
 SwitchNode::EgressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
-    if(m_basic)
+    if(m_basic){
         return packet;
+    }
     else{
         PppHeader ppp;
         packet->RemoveHeader(ppp);
@@ -993,7 +982,7 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
     packet->RemoveHeader(teleHeader);
 
     uint8_t dest = teleHeader.GetDest();
-    uint16_t size = teleHeader.GetSize();
+    uint32_t size = teleHeader.GetSize();
 
     if(m_final || m_push){
         bool isUpper = false, isLower = false;
@@ -1003,7 +992,7 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
             DeviceProperty property = m_deviceMap[dev];
             isUpper = property.isUpperPull[dest];
             isLower = property.isLowerPull[dest];
-            bufferSize = m_teleQueue.packets[dest].size();
+            bufferSize = m_teleQueue.size[dest];
         }
 
         if(isUpper){
@@ -1068,13 +1057,16 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
 
 Ptr<Packet>
 SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t protocol, Ptr<NetDevice> dev){
-    if(priority == 0){
-        PppHeader ppp;
-        packet->RemoveHeader(ppp);
+    PppHeader ppp;
+    packet->RemoveHeader(ppp);
 
+    if(priority == 0){
         if(protocol == 0x0171){
-            m_teleQueue.size -= packet->GetSize();
-            if(m_teleQueue.size < 0)
+            TeleHeader teleHeader;
+            packet->PeekHeader(teleHeader);
+
+            m_teleQueue.size[teleHeader.GetDest()] -= packet->GetSize();
+            if(m_teleQueue.size[teleHeader.GetDest()] < 0)
                 std::cout << "Error for teleSize" << std::endl;
 
             packet->AddHeader(ppp);
@@ -1092,11 +1084,12 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
         return nullptr;
     }
     else{
-        PppHeader ppp;
-        packet->RemoveHeader(ppp);
-        if(protocol == 0x0171){
-            m_teleQueue.size -= packet->GetSize();
-            if(m_teleQueue.size < 0)
+        if(protocol == 0x0171 && m_basic){
+            TeleHeader teleHeader;
+            packet->PeekHeader(teleHeader);
+
+            m_teleQueue.size[teleHeader.GetDest()] -= packet->GetSize();
+            if(m_teleQueue.size[teleHeader.GetDest()] < 0)
                 std::cout << "Error for queueSize" << std::endl;
         }
         packet->AddHeader(ppp);

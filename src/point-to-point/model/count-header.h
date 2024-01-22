@@ -6,6 +6,15 @@
 namespace ns3
 {
 
+#define OURS_SKETCH_HASH 3
+#define OURS_SKETCH_LENGTH 131072
+
+struct CMSketch{
+    int32_t values[OURS_SKETCH_HASH][OURS_SKETCH_LENGTH];
+
+    CMSketch();
+};
+
 struct MyFlowId
 {
     uint32_t m_srcIP;
@@ -38,16 +47,10 @@ public:
 
     bool Empty();
 
-    void SetFlow(MyFlowId _flow);
-    MyFlowId GetFlow();
-    void SetSrcIP(uint32_t _srcIP);
-    uint32_t GetSrcIP();
-    void SetDstIP(uint32_t _dstIP);
-    uint32_t GetDstIP();
-    void SetSrcPort(uint16_t _srcPort);
-    uint16_t GetSrcPort();
-    void SetDstPort(uint16_t _dstPort);
-    uint16_t GetDstPort();
+    void SetNodeId(uint32_t _nodeId);
+    uint32_t GetNodeId();
+    void SetPosition(uint32_t _position);
+    uint32_t GetPosition();
     void SetCount(int32_t _count);
     int32_t GetCount();
 
@@ -55,7 +58,8 @@ public:
 
     bool operator == (const CountHeader& o);
 
-    MyFlowId m_flow;
+    uint32_t m_nodeId;
+    uint32_t m_position;
     int32_t m_count;
 };
 

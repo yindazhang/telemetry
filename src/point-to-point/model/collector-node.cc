@@ -101,10 +101,14 @@ CollectorNode::~CollectorNode(){
         if(m_record){
             FILE* fout = fopen((output_file + ".collector.count").c_str(), "a");
             for(auto it = m_counts.begin();it != m_counts.end();++it){
-                fprintf(fout, "%d %d ", it->first.m_srcIP, it->first.m_dstIP);
-                fprintf(fout, "%d %d ", it->first.m_srcPort, it->first.m_dstPort);
-                fprintf(fout, "%d\n", it->second);
-                fflush(fout);
+                for(int i = 0;i < OURS_SKETCH_HASH;++i){
+                    fprintf(fout, "%d", it->first);
+                    for(int j = 0;j < OURS_SKETCH_LENGTH;++j){
+                        fprintf(fout, " %d", it->second.values[i][j]);
+                    }
+                    fprintf(fout, "\n");
+                    fflush(fout);
+                }
             }
             fflush(fout);
             fclose(fout);
@@ -327,7 +331,10 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                     std::cout << "Receive count entries: " << m_receive[8] << std::endl;
 
                 if(m_record){
-                    m_counts[countHeader.GetFlow()] += countHeader.GetCount(); 
+                    uint32_t id = countHeader.GetNodeId();
+                    uint32_t position = countHeader.GetPosition();
+
+                    m_counts[id].values[position / OURS_SKETCH_LENGTH][position % OURS_SKETCH_LENGTH] += countHeader.GetCount(); 
 
                     /*
                     std::cout << "DropHeader: " << (int)teleHeader.GetDest() << " " 
@@ -350,7 +357,7 @@ void
 CollectorNode::BufferData(Ptr<Packet> packet, TeleHeader teleHeader){
     packet->AddHeader(teleHeader);
     m_teleQueue.packets[teleHeader.GetDest()].push(packet);
-    m_teleQueue.size += packet->GetSize();
+    m_teleQueue.size[teleHeader.GetDest()] += packet->GetSize();
 }
 
 Ptr<Packet> 
@@ -361,7 +368,7 @@ CollectorNode::GetTelePacket(uint32_t priority, uint8_t dest)
     if(!m_teleQueue.packets[dest].empty()){
         packet = m_teleQueue.packets[dest].front();
         m_teleQueue.packets[dest].pop();
-        m_teleQueue.size -= packet->GetSize();
+        m_teleQueue.size[dest] -= packet->GetSize();
 
         SocketPriorityTag priorityTag;
         priorityTag.SetPriority(priority);
@@ -385,7 +392,7 @@ CollectorNode::TempStore(Ptr<Packet> packet, TeleHeader teleHeader, uint16_t pro
             dest = teleHeader.GetDest();
             size = teleHeader.GetSize();
 
-            bufferSize = m_teleQueue.packets[dest].size();
+            bufferSize = m_teleQueue.size[dest];
             if(bufferSize > 0 && size < m_priority[dest]){
                 packet = GetTelePacket(1, dest);
                 if(packet != nullptr){

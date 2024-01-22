@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 
     cmd.Parse(argc, argv);
 
-	measureStart = start_time + 0.2 * duration;
+	measureStart = start_time + 0.0 * duration;
 	measureEnd = start_time + 0.8 * duration;
 	
 	std::cout << "Run Telemetry." << std::endl;

@@ -82,10 +82,8 @@ class CollectorNode : public Node
     void SetDeviceGenerateGap(uint32_t devId, uint32_t generateGap);
 
     struct TeleQueue{
-      std::vector<PathHeader> pathBatch[10];
-      std::vector<UtilHeader> utilBatch[10];
-      std::queue<Ptr<Packet>> packets[10];
-      uint32_t size = 0;
+      std::queue<Ptr<Packet>> packets[3];
+      uint32_t size[3] = {0, 0, 0};
     };
 
   protected:
@@ -99,7 +97,7 @@ class CollectorNode : public Node
     Ptr<Packet> GetTelePacket(uint32_t priority, uint8_t dest);
 
     std::unordered_map<Ptr<NetDevice>, DeviceProperty> m_deviceMap;
-    std::unordered_map<uint8_t, uint16_t> m_priority;
+    std::unordered_map<uint8_t, uint32_t> m_priority;
     std::unordered_map<uint8_t, uint32_t> m_receive;
 
     std::vector<uint32_t> m_delay;
@@ -107,7 +105,7 @@ class CollectorNode : public Node
     std::set<PathHeader> m_paths;
     std::set<DropHeader> m_drops;
     std::unordered_map<uint32_t, uint32_t> m_utils;
-    std::map<MyFlowId, int32_t> m_counts;
+    std::unordered_map<uint32_t, CMSketch> m_counts;
 
     uint64_t m_duplicates = 0;
     

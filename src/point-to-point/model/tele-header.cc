@@ -56,7 +56,7 @@ TeleHeader::Print(std::ostream& os) const
 uint32_t
 TeleHeader::GetSerializedSize() const
 {
-    return 4;
+    return 6;
 }
 
 void
@@ -64,7 +64,7 @@ TeleHeader::Serialize(Buffer::Iterator start) const
 {
     start.WriteU8(m_type);
     start.WriteU8(m_dest);
-    start.WriteHtonU16(m_size);
+    start.WriteHtonU32(m_size);
 }
 
 uint32_t
@@ -72,7 +72,7 @@ TeleHeader::Deserialize(Buffer::Iterator start)
 {
     m_type = start.ReadU8();
     m_dest = start.ReadU8();
-    m_size = start.ReadNtohU16();
+    m_size = start.ReadNtohU32();
     return GetSerializedSize();
 }
 
@@ -101,12 +101,12 @@ TeleHeader::GetDest()
 }
 
 void 
-TeleHeader::SetSize(uint16_t _size)
+TeleHeader::SetSize(uint32_t _size)
 {
     m_size = _size;
 }
 
-uint16_t
+uint32_t
 TeleHeader::GetSize()
 {
     return m_size;
