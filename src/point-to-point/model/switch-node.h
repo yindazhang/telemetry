@@ -114,6 +114,7 @@ class SwitchNode : public Node
     void SetDeviceUpperPull(uint8_t dest, uint32_t devId);
     void SetDeviceLowerPull(uint8_t dest, uint32_t devId);
 
+    void SetThd(double thd);
     void SetUtilGap(uint32_t utilGap);
     void SetHashSeed(uint32_t hashSeed);
     void SetEcmp(uint32_t ecmp);
@@ -175,6 +176,7 @@ class SwitchNode : public Node
     uint32_t m_collector = 1;
     int m_ecmp;
 
+    double m_thd = 0.5;
     uint32_t m_utilGap = 10000;
     uint32_t m_hashSeed = 0;
 
@@ -212,7 +214,7 @@ class SwitchNode : public Node
     std::set<PathHeader> m_paths;
     std::set<DropHeader> m_drops;
     std::unordered_map<uint32_t, uint32_t> m_utils;
-	std::map<MyFlowId, int32_t> m_counts;
+	  std::map<MyFlowId, int32_t> m_counts;
 
 /*
 #define OURS_SAMPLE_SIZE 50000

@@ -24,6 +24,7 @@ int main(int argc, char *argv[])
 	cmd.AddValue("INT", "the size of INT header", intSize);
 	cmd.AddValue("taskId", "ID of task: (1) path tracing (2) port utilization (3) packet generator (4) packet drop (7) all tasks", taskId);
 	cmd.AddValue("utilGap", "Generate gap of port utilization", utilGap);
+	cmd.AddValue("Threshold", "Threshold of the flow accounting", thd);
 	cmd.AddValue("OrbWeaver", "Start OrbWeaver", OrbWeaver);
 	cmd.AddValue("ECMP", "configuration of ecmp: (0) 5-tuple (1) dst IP", ecmpConfig);
 	cmd.AddValue("Topology", "configuration of topology: (0) leaf-spine (1) fat-tree", topology);
@@ -36,7 +37,7 @@ int main(int argc, char *argv[])
 
     cmd.Parse(argc, argv);
 
-	measureStart = start_time + 0.0 * duration;
+	measureStart = start_time + 0.2 * duration;
 	measureEnd = start_time + 0.8 * duration;
 	
 	std::cout << "Run Telemetry." << std::endl;

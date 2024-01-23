@@ -9,6 +9,7 @@ double duration = 0.5;
 double measureStart = 2.1;
 double measureEnd = 2.4;
 
+double thd = 0.4;
 uint32_t utilGap = 10000;
 uint16_t intSize = 0;
 uint32_t OrbWeaver = 0;

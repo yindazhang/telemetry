@@ -14,6 +14,7 @@ def AddLoad(start, outFile):
     global hG
     for load in loads:
         cmd = start
+        cmd += "--Threshold=" + str(0.05*load) + " "
         if hG == 1:
             cmd += "--hG=1 "
             cmd += "--time=0.1 "

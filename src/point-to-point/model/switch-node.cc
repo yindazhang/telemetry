@@ -148,17 +148,14 @@ SwitchNode::~SwitchNode(){
             }
             fclose(fout);
 
-            /*
-            fout = fopen((output_file + ".switch.count.heap").c_str(), "a");
-            HashMap mp = m_heap->AllQuery();
-            for(auto it = mp.begin();it != mp.end();++it){
+            fout = fopen((output_file + ".switch.count.data").c_str(), "a");
+            for(auto it = m_counts.begin();it != m_counts.end();++it){
                 fprintf(fout, "%d %d ", it->first.m_srcIP, it->first.m_dstIP);
                 fprintf(fout, "%d %d ", it->first.m_srcPort, it->first.m_dstPort);
                 fprintf(fout, "%d\n", it->second);
                 fflush(fout);
             }
             fclose(fout);
-            */
         }
     }
 }
@@ -233,6 +230,11 @@ void
 SwitchNode::SetGenerate(int64_t bandwidth){
     m_generate = true;
     m_generateGap = ((double)1e9) / bandwidth * 1024.0;
+}
+
+void 
+SwitchNode::SetThd(double thd){
+    m_thd = thd;
 }
 
 void 
@@ -412,7 +414,7 @@ SwitchNode::BatchPath(PathHeader path, uint8_t dest){
 
         if(m_teleQueue.size[dest] + packet->GetSize() > m_teleThd){
             m_bufferLoss[m_pathType][dest] += batchSize;
-            if(m_push || m_postcard){
+            if(m_push || m_pull || m_postcard){
                 std::cout << "BatchPath Buffer loss in " << m_id << std::endl;
             }
             return false;
@@ -444,7 +446,7 @@ SwitchNode::BatchUtil(UtilHeader util, uint8_t dest){
 
         if(m_teleQueue.size[dest] + packet->GetSize() > m_teleThd){
             m_bufferLoss[m_portType][dest] += batchSize;
-            if(m_push || m_postcard){
+            if(m_push || m_pull || m_postcard){
                 std::cout << "BatchUtil Buffer loss in " << m_id << std::endl;
             }
             return false;
@@ -479,7 +481,7 @@ SwitchNode::BatchDrop(DropHeader drop, uint8_t dest){
 
         if(m_teleQueue.size[dest] + packet->GetSize() > m_teleThd){
             m_bufferLoss[m_dropType][dest] += batchSize;
-            if(m_push || m_postcard){
+            if(m_push || m_pull || m_postcard){
                 std::cout << "BatchDrop Buffer loss in " << m_id << std::endl;
             }
             return false;
@@ -512,7 +514,7 @@ SwitchNode::BatchCount(CountHeader count, uint8_t dest){
 
         if(m_teleQueue.size[dest] + packet->GetSize() > m_teleThd){
             m_bufferLoss[m_countType][dest] += batchSize;
-            if(m_push || m_postcard){
+            if(m_push || m_pull || m_postcard){
                 std::cout << "BatchCount Buffer loss in " << m_id << std::endl;
             }
             return false;
@@ -559,6 +561,7 @@ SwitchNode::SendPostcard(uint8_t dest){
             TeleHeader teleHeader;
             packet->RemoveHeader(teleHeader);
             m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
+            std::cout << "Send postcard loss in " << m_id << std::endl;
         }   
     }
 }
@@ -639,7 +642,7 @@ SwitchNode::BufferData(Ptr<Packet> packet){
 
     if(m_teleQueue.size[teleHeader.GetDest()] + packet->GetSize() > m_teleThd){
         m_bufferLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
-        if(m_push || m_postcard){
+        if(m_push || m_pull || m_postcard){
             std::cout << "BufferData Buffer loss in " << m_id << std::endl;
         }
     }
@@ -748,7 +751,8 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
             uint32_t pos = hash(flowId, hashPos) % OURS_SKETCH_LENGTH;
             m_sketch.values[hashPos][pos] += 1;
 
-            if(m_sketch.values[hashPos][pos] > m_old.values[hashPos][pos] * 1.5){
+            if(m_sketch.values[hashPos][pos] > m_old.values[hashPos][pos] * (1.0 + m_thd)){
+                //std::cout << m_thd << std::endl;
                 CountHeader countHeader;
                 countHeader.SetNodeId(m_id);
                 countHeader.SetPosition(hashPos * OURS_SKETCH_LENGTH + pos);
@@ -898,6 +902,7 @@ SwitchNode::IngressPipelinePostcard(Ptr<Packet> packet, Ptr<NetDevice> dev){
         return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
 
+    std::cout << "IngressPipeline postcard loss in " << m_id << std::endl;
     m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
     return false;
 }
