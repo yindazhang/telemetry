@@ -148,6 +148,8 @@ class SwitchNode : public Node
 
     protected:
 
+    std::mt19937 m_rng;
+    
     TeleQueue m_teleQueue;
 
     bool BatchPath(PathHeader path, uint8_t dest);
@@ -218,7 +220,6 @@ class SwitchNode : public Node
 
 /*
 #define OURS_SAMPLE_SIZE 50000
-	std::mt19937 m_rng;
 	MyFlowId m_keys[OURS_SAMPLE_SIZE];
 	int32_t m_values[OURS_SAMPLE_SIZE];
 */
