@@ -754,7 +754,7 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
                 CountHeader countHeader;
                 countHeader.SetNodeId(m_id);
                 countHeader.SetPosition(hashPos * OURS_SKETCH_LENGTH + pos);
-                countHeader.SetCount(m_sketch.values[hashPos][pos] - m_old.values[hashPos][pos]);
+                countHeader.SetCount(m_sketch.values[hashPos][pos]);
 
                 uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
                 if(BatchCount(countHeader, dest) && m_postcard)

@@ -334,7 +334,11 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                     uint32_t id = countHeader.GetNodeId();
                     uint32_t position = countHeader.GetPosition();
 
-                    m_counts[id].values[position / OURS_SKETCH_LENGTH][position % OURS_SKETCH_LENGTH] += countHeader.GetCount(); 
+                    uint32_t row = position / OURS_SKETCH_LENGTH;
+                    uint32_t column = position % OURS_SKETCH_LENGTH;
+
+                    m_counts[id].values[row][column] = std::max(countHeader.GetCount(),
+                        m_counts[id].values[row][column]); 
 
                     /*
                     std::cout << "DropHeader: " << (int)teleHeader.GetDest() << " " 
