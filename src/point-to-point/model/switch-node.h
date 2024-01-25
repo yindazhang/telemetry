@@ -20,7 +20,7 @@ class Packet;
 class Address;
 class Time;
 
-/* Heap */
+/*
 class MyHeap{
 public:
 
@@ -48,6 +48,7 @@ public:
 
 	void Insert(const MyFlowId item, const int32_t frequency);
 };
+*/
 
 
 class SwitchNode : public Node
@@ -164,8 +165,8 @@ class SwitchNode : public Node
     const uint32_t batchSize = 4;
     const uint32_t arrSize = 65537;
 
-    int32_t m_userThd = 256*1024;
-    int32_t m_teleThd = 64*1024;
+    uint32_t m_userThd = 256*1024;
+    uint32_t m_teleThd = 64*1024;
 
     std::unordered_map<Ptr<NetDevice>, int32_t> m_userSize;
 

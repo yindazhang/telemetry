@@ -63,46 +63,44 @@ SwitchNode::~SwitchNode(){
     //delete m_heap;
 
     if(m_record){
-        if(m_path){
-            std::string out_file = output_file + ".switch.path";
-            FILE* fout = fopen(out_file.c_str(), "a");
-            for(auto it = m_teleSend[m_pathType].begin();it != m_teleSend[m_pathType].end();++it){
-                fprintf(fout, "%d,%d,%d,%d,%d,%d,%ld\n", m_id, it->first, m_pathType, 
-                    m_queueLoss[m_pathType][it->first], m_bufferLoss[m_pathType][it->first], it->second, m_paths.size());
-            }
-            fflush(fout);
-            fclose(fout);
+        std::string out_file;
+        FILE* fout;
+
+        out_file = output_file + ".switch.path";
+        fout = fopen(out_file.c_str(), "a");
+        for(uint32_t dest = 0;dest < m_collector;++dest){
+            fprintf(fout, "%d,%d,%d,%d,%d,%d,%ld\n", m_id, dest, m_pathType, 
+                m_queueLoss[m_pathType][dest], m_bufferLoss[m_pathType][dest], m_teleSend[m_pathType][dest], m_paths.size());
         }
-        if(m_port){
-            std::string out_file = output_file + ".switch.util";
-            FILE* fout = fopen(out_file.c_str(), "a");
-            for(auto it = m_teleSend[m_portType].begin();it != m_teleSend[m_portType].end();++it){
-                fprintf(fout, "%d,%d,%d,%d,%d,%d,%ld\n", m_id, it->first, m_portType, 
-                    m_queueLoss[m_portType][it->first], m_bufferLoss[m_portType][it->first], it->second, m_paths.size());
-            }
-            fflush(fout);
-            fclose(fout);
+        fflush(fout);
+        fclose(fout);
+        
+        out_file = output_file + ".switch.util";
+        fout = fopen(out_file.c_str(), "a");
+        for(uint32_t dest = 0;dest < m_collector;++dest){
+            fprintf(fout, "%d,%d,%d,%d,%d,%d,%ld\n", m_id, dest, m_portType, 
+                m_queueLoss[m_portType][dest], m_bufferLoss[m_portType][dest], m_teleSend[m_portType][dest], m_paths.size());
         }
-        if(m_drop){
-            std::string out_file = output_file + ".switch.drop";
-            FILE* fout = fopen(out_file.c_str(), "a");
-            for(auto it = m_teleSend[m_dropType].begin();it != m_teleSend[m_dropType].end();++it){
-                fprintf(fout, "%d,%d,%d,%d,%d,%d,%ld\n", m_id, it->first, m_dropType, 
-                    m_queueLoss[m_dropType][it->first], m_bufferLoss[m_dropType][it->first], it->second, m_paths.size());
-            }
-            fflush(fout);
-            fclose(fout);
+        fflush(fout);
+        fclose(fout);
+
+        out_file = output_file + ".switch.drop";
+        fout = fopen(out_file.c_str(), "a");
+        for(uint32_t dest = 0;dest < m_collector;++dest){
+            fprintf(fout, "%d,%d,%d,%d,%d,%d,%ld\n", m_id, dest, m_dropType, 
+                m_queueLoss[m_dropType][dest], m_bufferLoss[m_dropType][dest], m_teleSend[m_dropType][dest], m_paths.size());
         }
-        if(m_count){
-            std::string out_file = output_file + ".switch.count";
-            FILE* fout = fopen(out_file.c_str(), "a");
-            for(auto it = m_teleSend[m_countType].begin();it != m_teleSend[m_countType].end();++it){
-                fprintf(fout, "%d,%d,%d,%d,%d,%d,%ld\n", m_id, it->first, m_countType, 
-                    m_queueLoss[m_countType][it->first], m_bufferLoss[m_countType][it->first], it->second, m_paths.size());
-            }
-            fflush(fout);
-            fclose(fout);
+        fflush(fout);
+        fclose(fout);
+        
+        out_file = output_file + ".switch.count";
+        fout = fopen(out_file.c_str(), "a");
+        for(uint32_t dest = 0;dest < m_collector;++dest){
+            fprintf(fout, "%d,%d,%d,%d,%d,%d,%ld\n", m_id, dest, m_countType, 
+                m_queueLoss[m_countType][dest], m_bufferLoss[m_countType][dest], m_teleSend[m_countType][dest], m_paths.size());
         }
+        fflush(fout);
+        fclose(fout);
     }
 
     if(m_record){
@@ -942,7 +940,7 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
             return nullptr;
         }
         else if((m_final || m_push) && (property.isUpperPull[dest] || property.isLowerPull[dest])){
-            int32_t upperBound = m_teleThd * 0.90;
+            uint32_t upperBound = m_teleThd * 0.90;
 
             if(m_push && m_teleQueue.size[dest] > upperBound){
                 packet = GetTelePacket(1, dest);
@@ -1201,7 +1199,7 @@ SwitchNode::hash(const T& data, uint32_t seed){
     return inhash((uint8_t*)&data, sizeof(T), seed);
 }
 
-/* Heap */
+/*
 MyHeap::MyHeap(uint32_t _SIZE){
     SIZE = _SIZE;
     heap = new KV[SIZE];
@@ -1306,6 +1304,6 @@ MyHeap::Insert(const MyFlowId item, const int32_t frequency){
         Heap_Up(pos);
     }
 }
-
+*/
 
 } // namespace ns3
