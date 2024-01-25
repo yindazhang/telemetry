@@ -150,7 +150,7 @@ SwitchNode::~SwitchNode(){
 
             fout = fopen((output_file + ".switch.count.data").c_str(), "a");
             for(auto it = m_counts.begin();it != m_counts.end();++it){
-                fprintf(fout, "%d %d ", it->first.m_srcIP, it->first.m_dstIP);
+                fprintf(fout, "%d %d %d ", m_id, it->first.m_srcIP, it->first.m_dstIP);
                 fprintf(fout, "%d %d ", it->first.m_srcPort, it->first.m_dstPort);
                 fprintf(fout, "%d\n", it->second);
                 fflush(fout);
