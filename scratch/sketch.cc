@@ -187,35 +187,20 @@ int main(int argc, char *argv[])
 
     std::ifstream ifs;
 
-
     std::string line;
     MyFlowId flowId;
     int32_t value;
 
-    ifs.open(prefix + ".switch.path.data", std::ifstream::in);
-    while(std::getline(ifs, line)){
-        MyFlowId flowId;
-        sscanf(line.c_str(), "%d %d %hu %hu %d", 
-            &flowId.m_srcIP, &flowId.m_dstIP,
-            &flowId.m_srcPort, &flowId.m_dstPort, &value);
-
-        if(nodeSt.find(value) != nodeSt.end()){
-            flowLocMp[flowId] = value;
-        }
-    }
-    ifs.close();
-
-    std::cout << flowLocMp.size() << std::endl;
-
-
     ifs.open(prefix + ".switch.count.data", std::ifstream::in);
     while(std::getline(ifs, line)){
         MyFlowId flowId;
-        sscanf(line.c_str(), "%d %d %hu %hu %d", 
-            &flowId.m_srcIP, &flowId.m_dstIP,
+        int nodeId;
+        sscanf(line.c_str(), "%d %d %d %hu %hu %d", 
+            &nodeId, &flowId.m_srcIP, &flowId.m_dstIP,
             &flowId.m_srcPort, &flowId.m_dstPort, &value);
 
         flowSizeMp[flowId] = value;
+        flowLocMp[flowId] = nodeId;
     }
     ifs.close();
 
