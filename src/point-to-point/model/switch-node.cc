@@ -307,11 +307,11 @@ SwitchNode::SetOutput(std::string output){
             std::string out_file = output_file + ".switch.count";
             fout = fopen(out_file.c_str(), "w");
             fclose(fout);
-            fout = fopen((out_file + ".sample").c_str(), "w");
+            fout = fopen((out_file + ".data").c_str(), "w");
             fclose(fout);
             fout = fopen((out_file + ".sketch").c_str(), "w");
             fclose(fout);
-            fout = fopen((out_file + ".heap").c_str(), "w");
+            fout = fopen((out_file + ".old").c_str(), "w");
             fclose(fout);
         }
     }
