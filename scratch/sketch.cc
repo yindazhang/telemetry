@@ -180,6 +180,7 @@ int main(int argc, char *argv[])
     std::map<MyFlowId, int32_t> flowSizeMp;
     
     std::map<int32_t, CMSketch> realMp;
+    std::map<int32_t, CMSketch> oldMp;
     std::map<int32_t, CMSketch> sketchMp;
 
     std::string prefix = argv[1];
@@ -226,6 +227,26 @@ int main(int argc, char *argv[])
 
     std::cout << realMp.size() << std::endl;
 
+    ifs.open(prefix + ".switch.count.old", std::ifstream::in);
+    while(ifs >> value){
+        int value2 = value;
+        for(int i = 0;i < OURS_SKETCH_HASH;++i){
+            if(i != 0)
+                ifs >> value2;
+            if(value2 != value)
+                std::cout << "Error" << std::endl;
+
+            int count = 0;
+            for(int j = 0;j < OURS_SKETCH_LENGTH;++j){
+                ifs >> count;
+                oldMp[value].values[i][j] = count;
+            }
+        }
+    }
+    ifs.close();
+
+    std::cout << realMp.size() << std::endl;
+
     ifs.open(prefix + ".collector.count", std::ifstream::in);
     while(ifs >> value){
         int value2 = value;
@@ -258,6 +279,37 @@ int main(int argc, char *argv[])
         for(uint32_t hashPos = 0;hashPos < OURS_SKETCH_HASH;++hashPos){
             uint32_t pos = hash(it->first, hashPos) % OURS_SKETCH_LENGTH;
             minimum = std::min(minimum, realMp[node].values[hashPos][pos]);
+        }
+
+        aae += abs(minimum - it->second);
+        are += abs(minimum - it->second) / (double)it->second;
+        size += 1;
+
+        if(it->second > 1000){
+            hhaae += abs(minimum - it->second);
+            hhare += abs(minimum - it->second) / (double)it->second;
+            hhsize += 1;
+        }
+    }
+
+    std::cout << aae / size << std::endl;
+    std::cout << are / size << std::endl;
+    std::cout << hhaae / hhsize << std::endl;
+    std::cout << hhare / hhsize << std::endl;
+
+    aae = are = size = 0;
+    hhaae = hhare = hhsize = 0;
+
+    for(auto it = flowSizeMp.begin();it != flowSizeMp.end();++it){
+        if(flowLocMp.find(it->first) == flowLocMp.end())
+            continue;
+    
+        int node = flowLocMp[it->first];
+
+        int minimum = 0x7fffffff;
+        for(uint32_t hashPos = 0;hashPos < OURS_SKETCH_HASH;++hashPos){
+            uint32_t pos = hash(it->first, hashPos) % OURS_SKETCH_LENGTH;
+            minimum = std::min(minimum, oldMp[node].values[hashPos][pos]);
         }
 
         aae += abs(minimum - it->second);

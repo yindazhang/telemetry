@@ -146,6 +146,17 @@ SwitchNode::~SwitchNode(){
             }
             fclose(fout);
 
+            fout = fopen((output_file + ".switch.count.old").c_str(), "a");
+            for(int i = 0;i < OURS_SKETCH_HASH;++i){
+                fprintf(fout, "%d", m_id);
+                for(int j = 0;j < OURS_SKETCH_LENGTH;++j){
+                    fprintf(fout, " %d", m_old.values[i][j]);
+                }
+                fprintf(fout, "\n");
+                fflush(fout);
+            }
+            fclose(fout);
+
             fout = fopen((output_file + ".switch.count.data").c_str(), "a");
             for(auto it = m_counts.begin();it != m_counts.end();++it){
                 fprintf(fout, "%d %d %d ", m_id, it->first.m_srcIP, it->first.m_dstIP);
