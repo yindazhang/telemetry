@@ -797,8 +797,8 @@ void build_fat_tree(
 
 	if(hG){
 		pp_server_switch.SetDeviceAttribute("DataRate", StringValue("100Gbps"));
-		pp_switch_switch.SetDeviceAttribute("DataRate", StringValue("400Gbps"));
-		pp_recirculate.SetDeviceAttribute("DataRate", StringValue("400Gbps"));
+		pp_switch_switch.SetDeviceAttribute("DataRate", StringValue("100Gbps"));
+		pp_recirculate.SetDeviceAttribute("DataRate", StringValue("100Gbps"));
 	}
 
 	TrafficControlHelper tch;

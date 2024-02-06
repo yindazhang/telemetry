@@ -29,7 +29,7 @@ MyQueue::GetTypeId()
             .AddAttribute(
                 "ECNThreshold",
                 "Threshold for ECN",
-                UintegerValue(64 * 1024),
+                UintegerValue(97500),
                 MakeUintegerAccessor(&MyQueue::m_ecnThreshold),
                 MakeUintegerChecker<uint32_t>());
     return tid;

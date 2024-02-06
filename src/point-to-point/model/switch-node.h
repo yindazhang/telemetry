@@ -144,7 +144,7 @@ class SwitchNode : public Node
       std::vector<DropHeader> dropBatch[3];
       std::vector<CountHeader> countBatch[3];
       std::queue<Ptr<Packet>> packets[3];
-      uint32_t size[3] = {0, 0, 0};
+      int32_t size[3] = {0, 0, 0};
     };
 
     protected:
@@ -165,10 +165,11 @@ class SwitchNode : public Node
     const uint32_t batchSize = 4;
     const uint32_t arrSize = 65537;
 
-    uint32_t m_userThd = 256*1024;
+    uint32_t m_userThd = 5760*1024;
     uint32_t m_teleThd = 64*1024;
 
-    std::unordered_map<Ptr<NetDevice>, int32_t> m_userSize;
+    //std::unordered_map<Ptr<NetDevice>, int32_t> m_userSize;
+    int32_t m_userSize = 0;
 
     std::unordered_map<uint8_t, uint32_t> m_teleSend[9];
     std::unordered_map<uint8_t, uint32_t> m_bufferLoss[9];

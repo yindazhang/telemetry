@@ -14,7 +14,7 @@ NS_LOG_COMPONENT_DEFINE("Telemetry");
 
 int main(int argc, char *argv[])
 {
-	std::string flow_file = "Hadoop_143_0.5_10G_0.2";
+	std::string flow_file = "Hadoop_142_0.5_25G_0.2";
 
 	CommandLine cmd(__FILE__);
 	cmd.AddValue("time", "the total run time (s), by default 0.5", duration);

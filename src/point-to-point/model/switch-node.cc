@@ -423,8 +423,8 @@ SwitchNode::BatchPath(PathHeader path, uint8_t dest){
 
         if(m_teleQueue.size[dest] + packet->GetSize() > m_teleThd){
             m_bufferLoss[m_pathType][dest] += batchSize;
-            if(m_push || m_postcard){
-                std::cout << "BatchPath Buffer loss in " << m_id << std::endl;
+            if(m_bufferLoss[m_pathType][dest] % 100 == 0){
+                std::cout << "BatchPath Buffer loss 100 in " << m_id << std::endl;
             }
             return false;
         }
@@ -455,8 +455,8 @@ SwitchNode::BatchUtil(UtilHeader util, uint8_t dest){
 
         if(m_teleQueue.size[dest] + packet->GetSize() > m_teleThd){
             m_bufferLoss[m_portType][dest] += batchSize;
-            if(m_push || m_postcard){
-                std::cout << "BatchUtil Buffer loss in " << m_id << std::endl;
+            if(m_bufferLoss[m_portType][dest] % 100 == 0){
+                std::cout << "BatchUtil Buffer loss 100 in " << m_id << std::endl;
             }
             return false;
         }
@@ -490,8 +490,8 @@ SwitchNode::BatchDrop(DropHeader drop, uint8_t dest){
 
         if(m_teleQueue.size[dest] + packet->GetSize() > m_teleThd){
             m_bufferLoss[m_dropType][dest] += batchSize;
-            if(m_push || m_postcard){
-                std::cout << "BatchDrop Buffer loss in " << m_id << std::endl;
+            if(m_bufferLoss[m_dropType][dest] % 100 == 0){
+                std::cout << "BatchDrop Buffer loss 100 in " << m_id << std::endl;
             }
             return false;
         }
@@ -523,8 +523,8 @@ SwitchNode::BatchCount(CountHeader count, uint8_t dest){
 
         if(m_teleQueue.size[dest] + packet->GetSize() > m_teleThd){
             m_bufferLoss[m_countType][dest] += batchSize;
-            if(m_push || m_postcard){
-                std::cout << "BatchCount Buffer loss in " << m_id << std::endl;
+            if(m_bufferLoss[m_countType][dest] % 100 == 0){
+                std::cout << "BatchCount Buffer loss 100 in " << m_id << std::endl;
             }
             return false;
         }
@@ -562,7 +562,7 @@ SwitchNode::SendPostcard(uint8_t dest){
         auto vec = m_teleForward[dest];
         uint32_t devId = vec[rand() % vec.size()];
         Ptr<NetDevice> dev = m_devices[devId];
-        if(m_teleQueue.size[dest] + packet->GetSize() <= m_userThd){
+        if(m_teleQueue.size[dest] + packet->GetSize() <= m_teleThd){
             m_teleQueue.size[dest] += packet->GetSize();
             dev->Send(packet, dev->GetBroadcast(), 0x0171);
         }
@@ -570,7 +570,8 @@ SwitchNode::SendPostcard(uint8_t dest){
             TeleHeader teleHeader;
             packet->RemoveHeader(teleHeader);
             m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
-            std::cout << "Send postcard loss in " << m_id << std::endl;
+            if(m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] % 100 == 0)
+                std::cout << "Send postcard loss 100 in " << m_id << std::endl;
         }   
     }
 }
@@ -608,7 +609,7 @@ SwitchNode::RecordUtil(){
             utilHeader.SetPortId(it->first);
             utilHeader.SetTime(Simulator::Now().GetMicroSeconds());
             utilHeader.SetByte(it->second);
-            m_utils[it->second] += 1;
+            m_utils[it->second / 64] += 1;
 
             uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
             if(BatchUtil(utilHeader, dest) && m_postcard)
@@ -651,8 +652,8 @@ SwitchNode::BufferData(Ptr<Packet> packet){
 
     if(m_teleQueue.size[teleHeader.GetDest()] + packet->GetSize() > m_teleThd){
         m_bufferLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
-        if(m_push || m_postcard){
-            std::cout << "BufferData Buffer loss in " << m_id << std::endl;
+        if(m_bufferLoss[teleHeader.GetType()][teleHeader.GetDest()] % 100 == 0){
+            std::cout << "BufferData Buffer loss 100 in " << m_id << std::endl;
         }
     }
     else{
@@ -718,74 +719,13 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
         hashValue = hash(flowId, m_hashSeed);
     }
 
-    if(m_measure && m_count && (m_orbweaver || m_postcard)){
-        m_counts[flowId] += 1;
-
-        /* Ours algorithm */
-        /*
-        uint32_t pos = hash(flowId, 10) % OURS_SAMPLE_SIZE;
-
-        int mod = 4;
-
-        if(m_keys[pos] == flowId){
-            m_values[pos] += 1;
-        }
-        else if(m_values[pos] == 0){
-            m_keys[pos] = flowId;
-            m_values[pos] = 1;
-        }
-
-        if(m_rng() % mod == 0){
-            if(m_values[pos] != 0){
-                CountHeader countHeader;
-                countHeader.SetFlow(flowId);
-                countHeader.SetCount(m_values[pos]);
-                m_values[pos] = 0;
-
-                uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
-                if(BatchCount(countHeader, dest) && m_postcard)
-                    SendPostcard(dest);
-            }
-            if(!(m_keys[pos] == flowId)){
-                m_values[pos] = mod;
-                m_keys[pos] == flowId;
-            }
-        }
-        */
-
-        /* Sketch algorithm */
-        //int32_t minimum = 0x7fffffff;
-
-        for(uint32_t hashPos = 0;hashPos < OURS_SKETCH_HASH;++hashPos){
-            uint32_t pos = hash(flowId, hashPos) % OURS_SKETCH_LENGTH;
-            m_sketch.values[hashPos][pos] += 1;
-
-            if(m_sketch.values[hashPos][pos] > m_old.values[hashPos][pos] * (1.0 + m_thd)){
-                //std::cout << m_thd << std::endl;
-                CountHeader countHeader;
-                countHeader.SetNodeId(m_id);
-                countHeader.SetPosition(hashPos * OURS_SKETCH_LENGTH + pos);
-                countHeader.SetCount(m_sketch.values[hashPos][pos]);
-
-                uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
-                if(BatchCount(countHeader, dest) && m_postcard)
-                    SendPostcard(dest);
-                
-                m_old.values[hashPos][pos] = m_sketch.values[hashPos][pos];
-            }
-            //minimum = std::min(minimum, m_sketch.values[hashPos][pos]);
-        }
-
-        //m_heap->Insert(flowId, minimum);
-    }
-
     devId = vec[hashValue % vec.size()];
     m_bytes[devId] += packet->GetSize();
 
     Ptr<NetDevice> dev = m_devices[devId];
 
-    if(m_userSize[dev] + packet->GetSize() <= m_userThd){
-        m_userSize[dev] += packet->GetSize();
+    if(m_userSize + packet->GetSize() <= m_userThd){
+        m_userSize += packet->GetSize();
         return dev->Send(packet, dev->GetBroadcast(), 0x0800);
     }
 
@@ -811,52 +751,89 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
 
 bool 
 SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
-    if(!m_measure)
+    //Only count data packets (no SYN/ACK)
+    if(!m_measure || packet->GetSize() <= 56)
         return true;
 
-    if((!m_orbweaver && !m_postcard) || !m_path)
+    if(!m_orbweaver && !m_postcard)
         return true;
     
-    // Start Parse Header
     Ipv4Header ipHeader;
     TcpHeader tcpHeader;
 
-    packet->RemoveHeader(ipHeader);
-    packet->RemoveHeader(tcpHeader);
-    // End Parse Header
+    MyFlowId flowId;
+    uint8_t proto, ttl;
 
-    uint8_t proto = ipHeader.GetProtocol();
-    uint8_t ttl = ipHeader.GetTtl();
-    uint32_t src = ipHeader.GetSource().Get();
-    uint32_t dst = ipHeader.GetDestination().Get();
+    if(m_path || m_count){
+        // Start Parse Header
+        packet->RemoveHeader(ipHeader);
+        packet->RemoveHeader(tcpHeader);
+        // End Parse Header
 
-    uint16_t srcPort = tcpHeader.GetSourcePort();
-    uint16_t dstPort = tcpHeader.GetDestinationPort();
+        proto = ipHeader.GetProtocol();
+        ttl = ipHeader.GetTtl();
 
-    // Start Deparse Header
-    packet->AddHeader(tcpHeader);
-    packet->AddHeader(ipHeader);
-    // End Deparse Header
+        flowId.m_srcIP = ipHeader.GetSource().Get();
+        flowId.m_dstIP = ipHeader.GetDestination().Get();
 
-    PathHeader pathHeader;
-    memset((char*)(&pathHeader), 0, sizeof(PathHeader));
+        flowId.m_srcPort = tcpHeader.GetSourcePort();
+        flowId.m_dstPort = tcpHeader.GetDestinationPort();
 
-    pathHeader.SetSrcIP(src);
-    pathHeader.SetDstIP(dst);
-    pathHeader.SetSrcPort(srcPort);
-    pathHeader.SetDstPort(dstPort);
-    pathHeader.SetProtocol(proto);
+        // Start Deparse Header
+        packet->AddHeader(tcpHeader);
+        packet->AddHeader(ipHeader);
+        // End Deparse Header
+    }
 
-    pathHeader.SetNodeId(m_id);
-    pathHeader.SetTTL(ttl);
-    
-    uint32_t arrIndex = pathHeader.Hash() % m_table.size();
-    if(m_table[arrIndex].Empty() || !(m_table[arrIndex] == pathHeader)){
-        m_table[arrIndex] = pathHeader;
+    if(m_path){
+        PathHeader pathHeader;
+        memset((char*)(&pathHeader), 0, sizeof(PathHeader));
 
-        uint8_t dest = Hash32((char*)(&dst), sizeof(dst)) % m_collector;
-        if(BatchPath(pathHeader, dest) && m_postcard)
-            Simulator::Schedule(NanoSeconds(1), &SwitchNode::SendPostcard, this, dest);
+        pathHeader.SetSrcIP(flowId.m_srcIP);
+        pathHeader.SetDstIP(flowId.m_dstIP);
+        pathHeader.SetSrcPort(flowId.m_srcPort);
+        pathHeader.SetDstPort(flowId.m_dstPort);
+        pathHeader.SetProtocol(proto);
+
+        pathHeader.SetNodeId(m_id);
+        pathHeader.SetTTL(ttl);
+        
+        uint32_t arrIndex = pathHeader.Hash() % m_table.size();
+        if(m_table[arrIndex].Empty() || !(m_table[arrIndex] == pathHeader)){
+            m_table[arrIndex] = pathHeader;
+
+            uint8_t dest = Hash32((char*)(&flowId.m_dstIP), sizeof(flowId.m_dstIP)) % m_collector;
+            if(BatchPath(pathHeader, dest) && m_postcard)
+                Simulator::Schedule(NanoSeconds(1), &SwitchNode::SendPostcard, this, dest);
+        }
+    }
+
+    if(m_count){
+        m_counts[flowId] += 1;
+
+        /* Sketch algorithm */
+        //int32_t minimum = 0x7fffffff;
+
+        for(uint32_t hashPos = 0;hashPos < OURS_SKETCH_HASH;++hashPos){
+            uint32_t pos = hash(flowId, hashPos) % OURS_SKETCH_LENGTH;
+            m_sketch.values[hashPos][pos] += 1;
+
+            if(m_sketch.values[hashPos][pos] > m_old.values[hashPos][pos] * (1.0 + m_thd)){
+                //std::cout << m_thd << std::endl;
+                CountHeader countHeader;
+                countHeader.SetNodeId(m_id);
+                countHeader.SetPosition(hashPos * OURS_SKETCH_LENGTH + pos);
+                countHeader.SetCount(m_sketch.values[hashPos][pos]);
+
+                uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
+                if(BatchCount(countHeader, dest) && m_postcard)
+                    SendPostcard(dest);
+                    
+                m_old.values[hashPos][pos] = m_sketch.values[hashPos][pos];
+            }
+            //minimum = std::min(minimum, m_sketch.values[hashPos][pos]);
+        }
+            //m_heap->Insert(flowId, minimum);
     }
 
     return true;
@@ -878,6 +855,8 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
         }
 
         m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
+        if(m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] % 100 == 0)
+            std::cout << "IngressPipelinePush loss 100 in " << m_id << std::endl;
         return false;
     }
     else{
@@ -911,8 +890,9 @@ SwitchNode::IngressPipelinePostcard(Ptr<Packet> packet, Ptr<NetDevice> dev){
         return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
 
-    std::cout << "IngressPipeline postcard loss in " << m_id << std::endl;
     m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] += batchSize;
+    if(m_queueLoss[teleHeader.GetType()][teleHeader.GetDest()] % 100 == 0)
+        std::cout << "IngressPipeline postcard loss 100 in " << m_id << std::endl;
     return false;
 }
 
@@ -951,7 +931,7 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
             return nullptr;
         }
         else if((m_final || m_push) && (property.isUpperPull[dest] || property.isLowerPull[dest])){
-            uint32_t upperBound = m_teleThd * 0.90;
+            int32_t upperBound = m_teleThd * 0.90;
 
             if(m_push && m_teleQueue.size[dest] > upperBound){
                 packet = GetTelePacket(1, dest);
@@ -1100,8 +1080,8 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
             return packet;
         }
         else if(EgressPipelineUser(packet)){
-            m_userSize[dev] -= packet->GetSize();
-            if(m_userSize[dev] < 0)
+            m_userSize -= packet->GetSize();
+            if(m_userSize < 0)
                 std::cout << "Error for userSize" << std::endl;
 
             packet->AddHeader(ppp);

@@ -277,7 +277,7 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                 UtilHeader utilHeader;
                 packet->RemoveHeader(utilHeader);
 
-                m_utils[utilHeader.GetByte()] += 1;
+                m_utils[utilHeader.GetByte() / 64] += 1;
 
                 m_receive[2] += 1;
                         
