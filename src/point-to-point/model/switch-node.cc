@@ -743,7 +743,7 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
 
         uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
         if(BatchDrop(dropHeader, dest) && m_postcard)
-            SendPostcard(dest);
+            Simulator::Schedule(NanoSeconds(1), &SwitchNode::SendPostcard, this, dest);
     }      
 
     return false;
@@ -827,7 +827,7 @@ SwitchNode::EgressPipelineUser(Ptr<Packet> packet){
 
                 uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
                 if(BatchCount(countHeader, dest) && m_postcard)
-                    SendPostcard(dest);
+                    Simulator::Schedule(NanoSeconds(1), &SwitchNode::SendPostcard, this, dest);
                     
                 m_old.values[hashPos][pos] = m_sketch.values[hashPos][pos];
             }
