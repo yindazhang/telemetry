@@ -27,8 +27,8 @@ if __name__ == "__main__":
 	parser = OptionParser()
 	parser.add_option("-n", "--nhost", dest = "nhost", help = "number of hosts", default = "142")
 	parser.add_option("-l", "--load", dest = "load", help = "the percentage of the traffic load to the network capacity, by default 0.5", default = "0.5")
-	parser.add_option("-b", "--bandwidth", dest = "bandwidth", help = "the bandwidth of host link (G/M/K), by default 10G", default = "10G")
-	parser.add_option("-t", "--time", dest = "time", help = "the total run time (s), by default 0.2", default = "0.5")
+	parser.add_option("-b", "--bandwidth", dest = "bandwidth", help = "the bandwidth of host link (G/M/K), by default 25G", default = "25G")
+	parser.add_option("-t", "--time", dest = "time", help = "the total run time (s), by default 0.2", default = "0.2")
 	options,args = parser.parse_args()
 
 	if not options.nhost:
@@ -62,15 +62,15 @@ if __name__ == "__main__":
 	ofile = open(output, "w")
 
 	# generate flows
-	nrack = 12
 	avg = num_of_byte
-	print("Estimated average size is " + str(avg))
-	avg_inter_arrival_rack = (8*S_TO_NS*avg) / (bandwidth*load) / nrack
+	avg_inter_arrival = (8*S_TO_NS*avg) / (bandwidth*load)
 
-	n_flow_estimate = int(time / avg_inter_arrival * nrack)
+	n_flow_estimate = int(time / avg_inter_arrival * nhost)
 	n_flow = 0
 	total_size = 0
 	ofile.write("%d \n"%n_flow_estimate)
+	print("Estimated number of flow is " + str(n_flow_estimate))
+	print("Estimated ratio to collector is " + str(11/142))
 
 	host_pair = [i for i in range(nhost)]
 	random.shuffle(host_pair)
@@ -79,6 +79,7 @@ if __name__ == "__main__":
 
 	host_list = [(base_t + int(poisson(avg_inter_arrival * (GROUP_NUMBER - 1))), i) for i in range(nhost//GROUP_NUMBER)]
 	heapq.heapify(host_list)
+	n_flow_collector = 0
 
 	while len(host_list) > 0:
 		t,src = host_list[0]
@@ -98,9 +99,13 @@ if __name__ == "__main__":
 						continue
 					ofile.write("%d %d %d %d\n"%(host_pair[src*GROUP_NUMBER+x]+1,\
 						host_pair[src*GROUP_NUMBER+y] + 1, size, t))
+					if host_pair[src*GROUP_NUMBER+y] > 130:
+						n_flow_collector += 1
 			heapq.heapreplace(host_list, (t + inter_t, src))
 
 	ofile.seek(0)
 	ofile.write("%d"%n_flow)
 	ofile.close()
 	print("Real average size is " + str(total_size / n_flow))
+	print("Real number of flow is " + str(n_flow))
+	print("Estimated ratio to collector is " + str(n_flow_collector / n_flow))

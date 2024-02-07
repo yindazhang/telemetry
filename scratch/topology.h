@@ -786,12 +786,17 @@ void build_fat_tree(
 	pp_server_switch.SetChannelAttribute("Delay", StringValue("1us"));
 
 	PointToPointHelper pp_switch_switch;
-	pp_switch_switch.SetDeviceAttribute("DataRate", StringValue("40Gbps"));
+	pp_switch_switch.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
 	pp_switch_switch.SetDeviceAttribute("INT", UintegerValue(intSize));
 	pp_switch_switch.SetChannelAttribute("Delay", StringValue("1us"));
 
 	PointToPointHelper pp_recirculate;
-	pp_recirculate.SetDeviceAttribute("DataRate", StringValue("40Gbps"));
+	pp_recirculate.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
+	pp_recirculate.SetDeviceAttribute("INT", UintegerValue(intSize));
+	pp_recirculate.SetChannelAttribute("Delay", StringValue("1us"));
+
+	PointToPointHelper pp_fail;
+	pp_recirculate.SetDeviceAttribute("DataRate", StringValue("5Gbps"));
 	pp_recirculate.SetDeviceAttribute("INT", UintegerValue(intSize));
 	pp_recirculate.SetChannelAttribute("Delay", StringValue("1us"));
 
@@ -799,6 +804,7 @@ void build_fat_tree(
 		pp_server_switch.SetDeviceAttribute("DataRate", StringValue("100Gbps"));
 		pp_switch_switch.SetDeviceAttribute("DataRate", StringValue("100Gbps"));
 		pp_recirculate.SetDeviceAttribute("DataRate", StringValue("100Gbps"));
+		pp_fail.SetDeviceAttribute("DataRate", StringValue("50Gbps"));
 	}
 
 	TrafficControlHelper tch;
@@ -833,7 +839,7 @@ void build_fat_tree(
 				NetDeviceContainer netDev;
 
 				if(failConfig && (i == NUM_BLOCK - 1 && j == K - 1 && k == K - 1))
-					netDev = pp_server_switch.Install(edges[i*K+j], aggregations[i*K+k]);
+					netDev = pp_fail.Install(edges[i*K+j], aggregations[i*K+k]);
 				else
 					netDev = pp_switch_switch.Install(edges[i*K+j], aggregations[i*K+k]);
 
@@ -851,7 +857,7 @@ void build_fat_tree(
 				NetDeviceContainer netDev;
 
 				if(failConfig && (i == NUM_BLOCK - 1 && j == 0 && k == 0))
-					netDev = pp_server_switch.Install(aggregations[i*K+j], cores[j*K+k]);
+					netDev = pp_fail.Install(aggregations[i*K+j], cores[j*K+k]);
 				else
 					netDev = pp_switch_switch.Install(aggregations[i*K+j], cores[j*K+k]);
 
