@@ -165,8 +165,8 @@ class SwitchNode : public Node
     const uint32_t batchSize = 4;
     const uint32_t arrSize = 65537;
 
-    uint32_t m_userThd = 5760*1024;
-    uint32_t m_teleThd = 64*1024;
+    uint32_t m_userThd = 6400000;
+    uint32_t m_teleThd = 128000;
 
     //std::unordered_map<Ptr<NetDevice>, int32_t> m_userSize;
     int32_t m_userSize = 0;
@@ -229,6 +229,7 @@ class SwitchNode : public Node
 //#define OURS_HEAP 0x3ff
 	CMSketch m_sketch;
   CMSketch m_old;
+  CMSketch m_send_sketch;
 	//MyHeap* m_heap;
 
     void Init();

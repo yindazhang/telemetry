@@ -150,7 +150,7 @@ SwitchNode::~SwitchNode(){
             for(int i = 0;i < OURS_SKETCH_HASH;++i){
                 fprintf(fout, "%d", m_id);
                 for(int j = 0;j < OURS_SKETCH_LENGTH;++j){
-                    fprintf(fout, " %d", m_old.values[i][j]);
+                    fprintf(fout, " %d", m_send_sketch.values[i][j]);
                 }
                 fprintf(fout, "\n");
                 fflush(fout);
@@ -512,6 +512,15 @@ SwitchNode::BatchCount(CountHeader count, uint8_t dest){
         Ptr<Packet> packet = CreatePacket(0);
         for(uint32_t i = 0;i < batchSize;++i){
             packet->AddHeader(m_teleQueue.countBatch[dest][i]);
+
+            CountHeader countHeader = m_teleQueue.countBatch[dest][i];
+            uint32_t position = countHeader.GetPosition();
+
+            uint32_t row = position / OURS_SKETCH_LENGTH;
+            uint32_t column = position % OURS_SKETCH_LENGTH;
+
+            m_send_sketch.values[row][column] = std::max(countHeader.GetCount(),
+                        m_send_sketch.values[row][column]); 
         }
         m_teleQueue.countBatch[dest].clear();
 
