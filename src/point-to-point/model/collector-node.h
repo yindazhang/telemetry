@@ -104,7 +104,7 @@ class CollectorNode : public Node
 
     std::set<PathHeader> m_paths;
     std::set<DropHeader> m_drops;
-    std::unordered_map<uint32_t, uint32_t> m_utils;
+    std::set<UtilHeader> m_utils;
     std::unordered_map<uint32_t, CMSketch> m_counts;
 
     uint64_t m_duplicates = 0;

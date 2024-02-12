@@ -117,8 +117,9 @@ SwitchNode::~SwitchNode(){
         }
         if(m_port){
             FILE* fout = fopen((output_file + ".switch.util.data").c_str(), "a");
-            for(auto it = m_utils.begin();it != m_utils.end();++it){
-                fprintf(fout, "%d,%d,%d\n", m_id, it->first, it->second);
+            for(auto util : m_utils){
+                fprintf(fout, "%d %d ", util.GetNodeId(), util.GetPortId());
+                fprintf(fout, "%d %d\n", util.GetTime(), util.GetByte());
                 fflush(fout);
             }
             fclose(fout);
@@ -321,6 +322,8 @@ void
 SwitchNode::AddHostRouteTo(Ipv4Address dest, uint32_t devId)
 {
     m_routeForward[dest.Get()].push_back(devId);
+    m_deviceMap[m_devices[devId]].devId = devId;
+    m_bytes[devId] = 0;
 }
 
 void 
@@ -618,7 +621,8 @@ SwitchNode::RecordUtil(){
             utilHeader.SetPortId(it->first);
             utilHeader.SetTime(Simulator::Now().GetMicroSeconds());
             utilHeader.SetByte(it->second);
-            m_utils[it->second / 64] += 1;
+            if(m_utils.find(utilHeader) == m_utils.end())
+                m_utils.insert(utilHeader);
 
             uint8_t dest = Hash32((char*)&m_id, sizeof(m_id)) % m_collector;
             if(BatchUtil(utilHeader, dest) && m_postcard)
@@ -729,8 +733,6 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
     }
 
     devId = vec[hashValue % vec.size()];
-    m_bytes[devId] += packet->GetSize();
-
     Ptr<NetDevice> dev = m_devices[devId];
 
     if(m_userSize + packet->GetSize() <= m_userThd){
@@ -1093,6 +1095,9 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
             if(m_userSize < 0)
                 std::cout << "Error for userSize" << std::endl;
 
+            if(m_deviceMap.find(dev) == m_deviceMap.end())
+                std::cout << "Error in find dev" << std::endl;
+            m_bytes[m_deviceMap[dev].devId] += packet->GetSize();
             packet->AddHeader(ppp);
             return packet;
         }

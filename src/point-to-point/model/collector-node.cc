@@ -70,8 +70,9 @@ CollectorNode::~CollectorNode(){
 
         if(m_record){
             FILE* fout = fopen((output_file + ".collector.util").c_str(), "a");
-            for(auto it = m_utils.begin();it != m_utils.end();++it){
-                fprintf(fout, "%d,%d\n", it->first, it->second);
+            for(auto util : m_utils){
+                fprintf(fout, "%d %d ", util.GetNodeId(), util.GetPortId());
+                fprintf(fout, "%d %d\n", util.GetTime(), util.GetByte());
                 fflush(fout);
             }
             fclose(fout);
@@ -235,7 +236,7 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
     {
         int64_t sendNs = timestamp.GetTimestamp().GetNanoSeconds();
         int64_t delay = Simulator::Now().GetNanoSeconds() - sendNs;
-        delay = (delay - 1000) / 10;
+        delay = delay / 100;
 
         if(delay >= m_delaySize)
             delay = m_delaySize - 1;
@@ -277,14 +278,15 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
                 UtilHeader utilHeader;
                 packet->RemoveHeader(utilHeader);
 
-                m_utils[utilHeader.GetByte() / 64] += 1;
+                if(m_utils.find(utilHeader) == m_utils.end())
+                    m_utils.insert(utilHeader);
 
                 m_receive[2] += 1;
                         
                 if(m_receive[2] % 10000 == 9999)
                     std::cout << "Receive util entries: " << m_receive[2] << std::endl;
 
-                /* 
+                /*
                 std::cout << "UtilHeader: " << (int)teleHeader.GetDest() << " " 
                         << utilHeader.GetNodeId() << " "
                         << utilHeader.GetPortId() << " "
