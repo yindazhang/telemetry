@@ -103,7 +103,7 @@ class SwitchNode : public Node
 
       DeviceProperty(){
         devId = 0;
-        generateGap = 0x7fffffff;
+        generateGap = 0;
         m_lastTime = 0;
       }
     };

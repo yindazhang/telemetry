@@ -343,10 +343,12 @@ SwitchNode::AddTeleRouteTo(uint8_t dest, uint32_t devId)
 
 void 
 SwitchNode::SetDeviceGenerateGap(uint32_t devId, uint32_t generateGap){
-    DeviceProperty tmp;
-    tmp.devId = devId;
-    tmp.generateGap = generateGap;
-    m_deviceMap[m_devices[devId]] = tmp;
+    if(m_deviceMap.find(m_devices[devId]) == m_deviceMap.end())
+        std::cout << "Cannot find " << devId << std::endl;
+    else if(m_deviceMap[m_devices[devId]].devId != devId)
+        std::cout << "Mismatch " << devId << "," << m_deviceMap[m_devices[devId]].devId << std::endl;
+    m_deviceMap[m_devices[devId]].devId = devId;
+    m_deviceMap[m_devices[devId]].generateGap = generateGap;
 }
 
 void
@@ -640,14 +642,16 @@ SwitchNode::GeneratePacket(){
         int64_t nextTime = 0xffffffffffffL;
 
         for(auto it = m_deviceMap.begin();it != m_deviceMap.end();++it){
-            if(nsNow >= it->second.m_lastTime + it->second.generateGap){
-                it->second.m_lastTime = nsNow;
-                Ptr<Packet> packet = CreatePacket(2);
-                if(packet != nullptr){
-                    (it->first)->Send(packet, (it->first)->GetBroadcast(), 0x0170);
+            if(it->second.generateGap > 0){
+                if(nsNow >= it->second.m_lastTime + it->second.generateGap){
+                    it->second.m_lastTime = nsNow;
+                    Ptr<Packet> packet = CreatePacket(2);
+                    if(packet != nullptr){
+                        (it->first)->Send(packet, (it->first)->GetBroadcast(), 0x0170);
+                    }
                 }
+                nextTime = std::min(nextTime, it->second.m_lastTime + it->second.generateGap);
             }
-            nextTime = std::min(nextTime, it->second.m_lastTime + it->second.generateGap);
         }
         Simulator::Schedule(NanoSeconds(nextTime - nsNow), &SwitchNode::GeneratePacket, this);
     }
@@ -1011,6 +1015,9 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
             isUpper = property.isUpperPull[dest];
             isLower = property.isLowerPull[dest];
             bufferSize = m_teleQueue.size[dest];
+        }
+        else{
+            std::cout << "Cannot find dev in EgressPipelinePull" << std::endl;
         }
 
         if(isUpper){
