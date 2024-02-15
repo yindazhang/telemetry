@@ -10,12 +10,6 @@ totalUnit = 0
 findUnit = 0
 
 portMp = {
-    144: {13 : 1, 14 : 1, 15 : 1}, 145: {13 : 1, 14 : 1, 15 : 1},\
-    146: {13 : 1, 14 : 1, 15 : 1}, 147: {13 : 1, 14 : 1, 15 : 1},\
-    148: {13 : 1, 14 : 1, 15 : 1}, 149: {13 : 1, 14 : 1, 15 : 1},\
-    150: {13 : 1, 14 : 1, 15 : 1}, 151: {13 : 1, 14 : 1, 15 : 1},\
-    152: {13 : 1, 14 : 1, 15 : 1}, 153: {13 : 1, 14 : 1, 15 : 1},\
-    154: {13 : 1, 14 : 1, 15 : 1}, 155: {13 : 1, 14 : 1, 15 : 1},\
     156: {4 : 1, 5 : 1, 6 : 1}, 157: {4 : 1, 5 : 1, 6 : 1},\
     158: {4 : 1, 5 : 1, 6 : 1}, 159: {4 : 1, 5 : 1, 6 : 1},\
     160: {4 : 1, 5 : 1, 6 : 1}, 161: {4 : 1, 5 : 1, 6 : 1},\
@@ -47,14 +41,14 @@ def parse_switch_file(path_file):
             if portMp[nodeId].get(port) == None:
                 continue
 
-            if switchDic.get(nodeId) == None:
-                switchDic[nodeId] = {}
+            if switchDic.get(microtime) == None:
+                switchDic[microtime] = {}
+
+            if switchDic[microtime].get(nodeId) == None:
+                switchDic[microtime][nodeId] = {}
             
-            if switchDic[nodeId].get(microtime) == None:
-                switchDic[nodeId][microtime] = {}
-            
-            if switchDic[nodeId][microtime].get(port) == None:
-                switchDic[nodeId][microtime][port] = byte
+            if switchDic[microtime][nodeId].get(port) == None:
+                switchDic[microtime][nodeId][port] = byte
     
     f.close()
 
@@ -82,14 +76,14 @@ def parse_collector_file(path_file):
             if portMp[nodeId].get(port) == None:
                 continue
 
-            if collectorDic.get(nodeId) == None:
-                collectorDic[nodeId] = {}
+            if collectorDic.get(microtime) == None:
+                collectorDic[microtime] = {}
+
+            if collectorDic[microtime].get(nodeId) == None:
+                collectorDic[microtime][nodeId] = {}
             
-            if collectorDic[nodeId].get(microtime) == None:
-                collectorDic[nodeId][microtime] = {}
-            
-            if collectorDic[nodeId][microtime].get(port) == None:
-                collectorDic[nodeId][microtime][port] = byte
+            if collectorDic[microtime][nodeId].get(port) == None:
+                collectorDic[microtime][nodeId][port] = byte
     
     f.close()
 
@@ -103,56 +97,61 @@ if __name__=="__main__":
 
     totalECMP = 0
     findECMP = 0
+    rates = []
 
-    for nodeId in switchDic:
-        for microtime in switchDic[nodeId]:
-            if len(switchDic[nodeId][microtime]) != len(portMp[nodeId]):
+    for microtime in switchDic:
+        if len(switchDic[microtime]) != len(portMp):
+            print("Error!")
+
+        utils = [0 for i in range(9)]
+        for nodeId in switchDic[microtime]:
+            if len(switchDic[microtime][nodeId]) != len(portMp[nodeId]):
                 print("Error!")
-            
-            maximum = 0
-            minimum = 0xffffff
-            rate = 0
 
-            for port in switchDic[nodeId][microtime]:
-                maximum = max(switchDic[nodeId][microtime][port], maximum)
-                minimum = min(switchDic[nodeId][microtime][port], minimum)
+            for port in switchDic[microtime][nodeId]:
+                utils[(nodeId % 3) * 3 + port - 4] += switchDic[microtime][nodeId][port]
+
             
-            if minimum == 0 and maximum == 0:
-                rate = 1
-            elif minimum == 0:
-                rate = 10000
+        maximum = 0
+        minimum = 0xffffff
+        rate = 0
+
+        for util in utils:
+            #print(util, end = ",")
+            maximum = max(util, maximum)
+            minimum = min(util, minimum)
+        #print()
+            
+        if minimum == 0 and maximum == 0:
+            rate = 1
+        elif minimum == 0:
+            rate = 10000
+        else:
+            rate = (maximum - minimum) / minimum
+
+        rates.append(rate)
+        
+        
+        if rate > 1:
+            totalECMP += 1
+
+            isIn = True
+
+            if collectorDic.get(microtime) == None:
+                isIn = False
             else:
-                rate = maximum - minimum / minimum
-
-            if rate > 10:
-                totalECMP += 1
-
-                if collectorDic.get(nodeId) == None:
-                    continue
-                elif collectorDic[nodeId].get(microtime) == None:
-                    continue
-                elif len(collectorDic[nodeId][microtime]) != len(portMp[nodeId]):
-                    continue
-                else:
-                    maximum = 0
-                    minimum = 0xffffff
-                    newRate = 0
-
-                    for port in collectorDic[nodeId][microtime]:
-                        maximum = max(collectorDic[nodeId][microtime][port], maximum)
-                        minimum = min(collectorDic[nodeId][microtime][port], minimum)
-                    
-                    if minimum == 0 and maximum == 0:
-                        newRate = 1
-                    elif minimum == 0:
-                        newRate = 10000
-                    else:
-                        newRate = maximum - minimum / minimum
-                    
-                    if newRate != rate:
-                        print("ECMP not match")
-
-                    findECMP += 1
+                for nodeId in switchDic[microtime]:
+                    if collectorDic[microtime].get(nodeId) == None:
+                        isIn = False
+                    elif len(collectorDic[microtime][nodeId]) != len(portMp[nodeId]):
+                        isIn = False
             
-    print(1 - (findUnit / totalUnit))
-    print(1 - (findECMP / totalECMP))
+            if isIn:
+                findECMP += 1
+
+    #rates.sort()
+    #for i in range(1, 100):
+    #    print(rates[int(len(rates) * i / 100)])   
+    
+    print((1 - (findUnit / totalUnit), totalUnit))
+    print((1 - (findECMP / totalECMP), totalECMP))
