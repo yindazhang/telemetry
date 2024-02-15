@@ -87,7 +87,7 @@ class CollectorNode : public Node
     };
 
   protected:
-    const uint32_t m_delaySize = 10000;
+    const uint32_t m_delaySize = 200000;
     
     TeleQueue m_teleQueue;
   

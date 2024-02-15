@@ -236,7 +236,7 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
     {
         int64_t sendNs = timestamp.GetTimestamp().GetNanoSeconds();
         int64_t delay = Simulator::Now().GetNanoSeconds() - sendNs;
-        delay = delay / 100;
+        delay = delay / 1000;
 
         if(delay >= m_delaySize)
             delay = m_delaySize - 1;
