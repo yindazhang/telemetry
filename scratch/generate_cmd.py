@@ -17,8 +17,8 @@ def AddLoad(start, outFile):
         cmd += "--Threshold=" + str(format(0.0008*load*load*load, '.4f')) + " "
         if hG == 1:
             cmd += "--hG=1 "
-            cmd += "--time=0.2 "
-            cmd += "--flow=Hadoop_142_" + str(load/10) + "_25G_0.5"
+            cmd += "--time=0.3 "
+            cmd += "--flow=Hadoop_142_" + str(load/10) + "_25G_0.3"
         else:
             cmd += "--time=0.5 "
             cmd += "--flow=Hadoop_142_" + str(load/10) + "_10G_0.5"
