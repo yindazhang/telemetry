@@ -29,7 +29,7 @@ if __name__ == "__main__":
     parser.add_option("-n", "--nhost", dest = "nhost", help = "number of hosts", default = "142")
     parser.add_option("-l", "--load", dest = "load", help = "the percentage of the traffic load to the network capacity, by default 0.5", default = "0.5")
     parser.add_option("-b", "--bandwidth", dest = "bandwidth", help = "the bandwidth of host link (G/M/K), by default 25G", default = "25G")
-    parser.add_option("-t", "--time", dest = "time", help = "the total run time (s), by default 0.2", default = "0.2")
+    parser.add_option("-t", "--time", dest = "time", help = "the total run time (s), by default 0.2", default = "0.5")
     options,args = parser.parse_args()
     
     if not options.nhost:
