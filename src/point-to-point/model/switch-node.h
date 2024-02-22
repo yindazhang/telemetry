@@ -166,7 +166,7 @@ class SwitchNode : public Node
     const uint32_t arrSize = 65537;
 
     uint32_t m_userThd = 2064000;
-    uint32_t m_teleThd = 86000;
+    uint32_t m_teleThd = 172000;
 
     //std::unordered_map<Ptr<NetDevice>, int32_t> m_userSize;
     int32_t m_userSize = 0;

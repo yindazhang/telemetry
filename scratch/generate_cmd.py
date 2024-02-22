@@ -1,20 +1,21 @@
 from optparse import OptionParser
+import math
 
 loads = [4,5,6,7,8]
 topologies = [1]
 taskIds = [15] #[1,2,3,4,7]
-utilGaps = [20000]
+utilGaps = [5000]
 generateBps = [128]
 #utilGaps = [6000, 7000, 8000, 9000, 10000]
 #OrbWeavers = [0,2,3,9,33]
-OrbWeavers = [2,3,9,33]
+OrbWeavers = [0,2,3,9,33]
 hG = 1
 
 def AddLoad(start, outFile):
     global hG
     for load in loads:
         cmd = start
-        cmd += "--Threshold=" + str(format(0.0008*load*load*load, '.4f')) + " "
+        cmd += "--Threshold=" + str(format(0.0001*load*load*load, '.4f')) + " "
         if hG == 1:
             cmd += "--hG=1 "
             cmd += "--time=0.3 "
@@ -37,8 +38,8 @@ def AddStore(start, outFile):
 def AddECMPFail(start, outFile):
     cmd = start + "--ECMP=1 --Failure=0 "
     AddStore(cmd, outFile + "-ECMP1-Fail0")
-    cmd = start + "--ECMP=0 --Failure=1 "
-    AddStore(cmd, outFile + "-ECMP0-Fail1")
+    #cmd = start + "--ECMP=0 --Failure=1 "
+    #AddStore(cmd, outFile + "-ECMP0-Fail1")
     cmd = start + "--ECMP=0 --Failure=0 "
     AddStore(cmd, outFile + "-ECMP0-Fail0")
 
