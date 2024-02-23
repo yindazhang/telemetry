@@ -29,7 +29,7 @@ MyQueue::GetTypeId()
             .AddAttribute(
                 "ECNThreshold",
                 "Threshold for ECN",
-                UintegerValue(100000),
+                UintegerValue(65),
                 MakeUintegerAccessor(&MyQueue::m_ecnThreshold),
                 MakeUintegerChecker<uint32_t>());
     return tid;
@@ -66,7 +66,7 @@ MyQueue::Enqueue(Ptr<Packet> item)
 
     switch(priority){
         case 0 : 
-            if(proto == 0x0021 && m_queues[0]->GetNBytes() > m_ecnThreshold){
+            if(proto == 0x0021 && m_queues[0]->GetNPackets() > m_ecnThreshold){
                 if(ipHeader.GetEcn() == Ipv4Header::ECN_ECT1 || 
                     ipHeader.GetEcn() == Ipv4Header::ECN_ECT0)
                     ipHeader.SetEcn(Ipv4Header::ECN_CE);
