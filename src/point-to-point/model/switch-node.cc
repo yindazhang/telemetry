@@ -1029,7 +1029,11 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
                 }
                 return packet;
             }
-            else if(bufferSize + 1500 < size){
+            else if(size == 0 && bufferSize == 0){
+                //Speedup simulation
+                return nullptr;
+            }
+            else{
                 teleHeader.SetSize(bufferSize);
                 packet->AddHeader(teleHeader);
 
@@ -1037,7 +1041,6 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
                 packet->AddHeader(ppp);
                 return packet;
             }
-            return nullptr;
         }
         else if(isLower){
             if(size + 1500 < bufferSize){
@@ -1048,7 +1051,11 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
                 }
                 return packet;
             }
-            else if(bufferSize < size){
+            else if(size == 0 && bufferSize == 0){
+                //Speedup simulation
+                return nullptr;
+            }
+            else{
                 teleHeader.SetSize(bufferSize);
                 packet->AddHeader(teleHeader);
 
@@ -1056,7 +1063,6 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
                 packet->AddHeader(ppp);
                 return packet;
             }
-            return nullptr;
         }
 
         packet = GetTelePacket(1, dest);
