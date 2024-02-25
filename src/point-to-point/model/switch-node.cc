@@ -946,7 +946,7 @@ SwitchNode::EgressPipelineSeed(Ptr<Packet> packet, Ptr<NetDevice> dev){
             return nullptr;
         }
         else if((m_final || m_push) && (property.isUpperPull[dest] || property.isLowerPull[dest])){
-            int32_t upperBound = m_teleThd * 0.90;
+            int32_t upperBound = m_teleThd * 0.95;
 
             if(m_push && m_teleQueue.size[dest] > upperBound){
                 packet = GetTelePacket(1, dest);
@@ -1029,7 +1029,7 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
                 }
                 return packet;
             }
-            else if(bufferSize + 1 < size){
+            else if(bufferSize + 1500 < size){
                 teleHeader.SetSize(bufferSize);
                 packet->AddHeader(teleHeader);
 
@@ -1040,7 +1040,7 @@ SwitchNode::EgressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
             return nullptr;
         }
         else if(isLower){
-            if(size + 1 < bufferSize){
+            if(size + 1500 < bufferSize){
                 packet = GetTelePacket(1, dest);
                 if(packet != nullptr){
                     ppp.SetProtocol(0x171);
