@@ -162,7 +162,7 @@ class SwitchNode : public Node
 
     int64_t m_lastTime = 2200000000;
 
-    const uint32_t batchSize = 4;
+    const uint32_t batchSize = 8;
     const uint32_t arrSize = 65537;
 
     uint32_t m_userThd = 2064000;

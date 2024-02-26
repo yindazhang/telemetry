@@ -40,9 +40,11 @@ MyQueue::MyQueue()
     m_queues.push_back(CreateObject<DropTailQueue<Packet>>());
     m_queues.push_back(CreateObject<DropTailQueue<Packet>>());
     m_queues.push_back(CreateObject<DropTailQueue<Packet>>());
+    m_queues.push_back(CreateObject<DropTailQueue<Packet>>());
     m_queues[0]->SetMaxSize(QueueSize("16MiB"));
     m_queues[1]->SetMaxSize(QueueSize("16MiB"));
     m_queues[2]->SetMaxSize(QueueSize("16MiB"));
+    m_queues[3]->SetMaxSize(QueueSize("16MiB"));
 }
 
 MyQueue::~MyQueue() {}
@@ -75,6 +77,10 @@ MyQueue::Enqueue(Ptr<Packet> item)
         case 1 : break;
         case 2 : 
             if(m_queues[2]->GetNBytes() > 256)
+                return false;
+            break;
+        case 3 : 
+            if(m_queues[3]->GetNBytes() > 256)
                 return false;
             break;
         default : std::cout << "Unknown priority for queue" << std::endl; return false;

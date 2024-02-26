@@ -645,7 +645,7 @@ SwitchNode::GeneratePacket(){
             if(it->second.generateGap > 0){
                 if(nsNow >= it->second.m_lastTime + it->second.generateGap){
                     it->second.m_lastTime = nsNow;
-                    Ptr<Packet> packet = CreatePacket(2);
+                    Ptr<Packet> packet = CreatePacket(3);
                     if(packet != nullptr){
                         (it->first)->Send(packet, (it->first)->GetBroadcast(), 0x0170);
                     }
@@ -888,6 +888,9 @@ SwitchNode::IngressPipelinePull(Ptr<Packet> packet, Ptr<NetDevice> dev){
         std::cout << "Unknown config (pull in basic/push)" << std::endl;
         return false;
     }
+    SocketPriorityTag priorityTag;
+    priorityTag.SetPriority(2);
+    packet->ReplacePacketTag(priorityTag);
     return dev->Send(packet, dev->GetBroadcast(), 0x0172);
 }
 
