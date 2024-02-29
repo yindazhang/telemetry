@@ -1,7 +1,8 @@
 from optparse import OptionParser
 import math
 
-loads = [0.4, 0.5, 0.6, 0.7, 0.8]
+#loads = [0.4, 0.5, 0.6, 0.7, 0.8]
+loads = [0.8]
 fail_loads = [0.33, 0.42, 0.5, 0.58, 0.67]
 
 topologies = [1]
@@ -11,21 +12,21 @@ generateBps = [128]
 #utilGaps = [6000, 7000, 8000, 9000, 10000]
 
 #OrbWeavers = [0,2,3,9,33]
-OrbWeavers = [0,2,3,9,33]
+OrbWeavers = [33]
 hG = 1
 
 def AddLoad(start, outFile, fail):
     global hG
 
     arr = []
-    if fail:
-        arr = fail_loads
-    else:
-        arr = loads
+    #if fail:
+    #    arr = fail_loads
+    #else:
+    arr = loads
 
     for load in arr:
         cmd = start
-        cmd += "--Threshold=" + str(format(0.2*load*load*load, '.4f')) + " "
+        cmd += "--Threshold=" + str(format(0.1*load*load*load, '.4f')) + " "
         if hG == 1:
             cmd += "--hG=1 "
             cmd += "--time=0.3 "
@@ -38,18 +39,18 @@ def AddLoad(start, outFile, fail):
     print()
 
 def AddStore(start, outFile, fail):
-    cmd = start + "--Temp=0 --Store=0 "
-    AddLoad(cmd, outFile + "-Store0", fail)
-    #cmd = start + "--Temp=1 --Store=0 "
-    #AddLoad(cmd, outFile + "-Store1", fail)
-    #cmd = start + "--Temp=0 --Store=1 "
-    #AddLoad(cmd, outFile + "-Store2", fail)
+    #cmd = start + "--Temp=0 --Store=0 "
+    #AddLoad(cmd, outFile + "-Store0", fail)
+    cmd = start + "--Temp=1 --Store=0 "
+    AddLoad(cmd, outFile + "-Store1", fail)
+    cmd = start + "--Temp=0 --Store=1 "
+    AddLoad(cmd, outFile + "-Store2", fail)
 
 def AddECMPFail(start, outFile):
-    cmd = start + "--ECMP=1 --Failure=0 "
-    AddStore(cmd, outFile + "-ECMP1-Fail0", False)
-    #cmd = start + "--ECMP=0 --Failure=1 "
-    #AddStore(cmd, outFile + "-ECMP0-Fail1", True)
+    #cmd = start + "--ECMP=1 --Failure=0 "
+    #AddStore(cmd, outFile + "-ECMP1-Fail0", False)
+    cmd = start + "--ECMP=0 --Failure=1 "
+    AddStore(cmd, outFile + "-ECMP0-Fail1", True)
     cmd = start + "--ECMP=0 --Failure=0 "
     AddStore(cmd, outFile + "-ECMP0-Fail0", False)
 

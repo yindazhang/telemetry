@@ -91,8 +91,10 @@ MyQueue::Enqueue(Ptr<Packet> item)
     item->AddHeader(ppp);
 
     bool ret = m_queues[priority]->Enqueue(item);
-    if(!ret)
-        std::cout << "Error in buffer" << std::endl;
+    if(!ret){
+        std::cout << "Error in buffer " << priority << std::endl;
+        std::cout << "Buffer size " << m_queues[priority]->GetNBytes() << std::endl;
+    }
 
     return ret;
 }

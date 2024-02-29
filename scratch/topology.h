@@ -796,9 +796,9 @@ void build_fat_tree(
 	pp_recirculate.SetChannelAttribute("Delay", StringValue("1us"));
 
 	PointToPointHelper pp_fail;
-	pp_recirculate.SetDeviceAttribute("DataRate", StringValue("5Gbps"));
-	pp_recirculate.SetDeviceAttribute("INT", UintegerValue(intSize));
-	pp_recirculate.SetChannelAttribute("Delay", StringValue("1us"));
+	pp_fail.SetDeviceAttribute("DataRate", StringValue("5Gbps"));
+	pp_fail.SetDeviceAttribute("INT", UintegerValue(intSize));
+	pp_fail.SetChannelAttribute("Delay", StringValue("1us"));
 
 	if(hG){
 		pp_server_switch.SetDeviceAttribute("DataRate", StringValue("100Gbps"));

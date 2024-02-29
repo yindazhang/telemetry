@@ -744,7 +744,7 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
         return dev->Send(packet, dev->GetBroadcast(), 0x0800);
     }
 
-    //std::cout << "Drop in switch" << std::endl;
+    std::cout << "Drop in switch" << std::endl;
     if(m_measure && m_drop && (m_orbweaver || m_postcard)){
         DropHeader dropHeader;
         
@@ -876,7 +876,11 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
     }
     else{
         dev = m_devices[m_devices.size() - 1];
-        return dev->Send(packet, dev->GetBroadcast(), 0x0171);
+        if(!dev->Send(packet, dev->GetBroadcast(), 0x0171)){
+            std::cout << "Fail in IngressPipelinePush" << std::endl;
+            return false;
+        }
+        return true;
     }
 
     return false;
@@ -1106,7 +1110,7 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
             packet->AddHeader(ppp);
             return packet;
         }
-        else if(EgressPipelineUser(packet)){
+        else{
             m_userSize -= packet->GetSize();
             if(m_userSize < 0)
                 std::cout << "Error for userSize" << std::endl;
@@ -1114,11 +1118,12 @@ SwitchNode::EgressPipeline(Ptr<Packet> packet, uint32_t priority, uint16_t proto
             if(m_deviceMap.find(dev) == m_deviceMap.end())
                 std::cout << "Error in find dev" << std::endl;
             m_bytes[m_deviceMap[dev].devId] += packet->GetSize();
+
+            EgressPipelineUser(packet);
+
             packet->AddHeader(ppp);
             return packet;
         }
-        
-        return nullptr;
     }
     else{
         if(protocol == 0x0171 && m_basic){
