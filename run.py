@@ -1,9 +1,15 @@
 import os
 import sys
+import argparse
 
 if __name__=="__main__":
 
-    with open('command.txt', 'r') as file:
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('-f', dest='file', action='store', help="Specify the command file.")
+    args = parser.parse_args()
+
+
+    with open(args.file, 'r') as file:
         lines = file.readlines()
         for line in lines:
             print(line)
