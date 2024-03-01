@@ -876,11 +876,7 @@ SwitchNode::IngressPipelinePush(Ptr<Packet> packet, Ptr<NetDevice> dev){
     }
     else{
         dev = m_devices[m_devices.size() - 1];
-        if(!dev->Send(packet, dev->GetBroadcast(), 0x0171)){
-            std::cout << "Fail in IngressPipelinePush" << std::endl;
-            return false;
-        }
-        return true;
+        return dev->Send(packet, dev->GetBroadcast(), 0x0171);
     }
 
     return false;

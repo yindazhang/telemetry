@@ -256,14 +256,10 @@ PointToPointNetDevice::TransmitStart(Ptr<Packet> p)
         if(p->PeekPacketTag(priorityTag))
             priority = priorityTag.GetPriority();
 
-
         PppHeader ppp;
         p->PeekHeader(ppp);
         uint16_t protocol = ppp.GetProtocol();
         p = node->EgressPipeline(p, priority, protocol, this);
-
-        if(p == nullptr)
-            return false;
     }
 
     //
@@ -274,12 +270,17 @@ PointToPointNetDevice::TransmitStart(Ptr<Packet> p)
     NS_ASSERT_MSG(m_txMachineState == READY, "Must be READY to transmit");
     m_txMachineState = BUSY;
     m_currentPkt = p;
-    m_phyTxBeginTrace(m_currentPkt);
+    //m_phyTxBeginTrace(m_currentPkt);
+
+    //NS_LOG_LOGIC("Schedule TransmitCompleteEvent in " << txCompleteTime.As(Time::S));
+    if(p == nullptr){
+        Simulator::Schedule(NanoSeconds(1), &PointToPointNetDevice::TransmitComplete, this);
+        return true;
+    }
 
     Time txTime = m_bps.CalculateBytesTxTime(p->GetSize());
     Time txCompleteTime = txTime + m_tInterframeGap;
 
-    NS_LOG_LOGIC("Schedule TransmitCompleteEvent in " << txCompleteTime.As(Time::S));
     Simulator::Schedule(txCompleteTime, &PointToPointNetDevice::TransmitComplete, this);
 
     bool result = m_channel->TransmitStart(p, this, txTime);
@@ -304,9 +305,9 @@ PointToPointNetDevice::TransmitComplete()
     NS_ASSERT_MSG(m_txMachineState == BUSY, "Must be BUSY if transmitting");
     m_txMachineState = READY;
 
-    NS_ASSERT_MSG(m_currentPkt, "PointToPointNetDevice::TransmitComplete(): m_currentPkt zero");
+    //NS_ASSERT_MSG(m_currentPkt, "PointToPointNetDevice::TransmitComplete(): m_currentPkt zero");
 
-    m_phyTxEndTrace(m_currentPkt);
+    //m_phyTxEndTrace(m_currentPkt);
     m_currentPkt = nullptr;
 
     Ptr<Packet> p = m_queue->Dequeue();
