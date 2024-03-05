@@ -25,6 +25,8 @@ uint32_t recordConfig = 0;
 uint32_t tempConfig = 0;
 uint32_t storeConfig = 0;
 
+uint32_t teleThd = 172000;
+
 int fct_record = 0;
 int hG = 0;
 

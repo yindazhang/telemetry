@@ -29,6 +29,8 @@ int main(int argc, char *argv[])
 	cmd.AddValue("ECMP", "configuration of ecmp: (0) 5-tuple (1) dst IP", ecmpConfig);
 	cmd.AddValue("Topology", "configuration of topology: (0) leaf-spine (1) fat-tree", topology);
 	cmd.AddValue("Failure", "Link failure", failConfig);
+
+	cmd.AddValue("teleThd", "Buffer size for telemetry data", teleThd);
 	cmd.AddValue("GenerateBps", "Telemetry data generated", generateBps);
 	cmd.AddValue("hG", "100Gbps", hG);
 
@@ -44,6 +46,10 @@ int main(int argc, char *argv[])
 
 	file_name = "scratch/" + flow_file + "s_Topo" + std::to_string(topology) + 
 			"_ECMP" + std::to_string(ecmpConfig) + "_Gap" + std::to_string(utilGap);
+
+	if(teleThd != 172000)
+		file_name += "_Buffer" + std::to_string(teleThd);
+
 	if(storeConfig)
 		file_name += "_Store2";
 	else if(tempConfig)

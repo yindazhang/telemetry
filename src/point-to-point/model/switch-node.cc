@@ -248,6 +248,11 @@ SwitchNode::SetThd(double thd){
 }
 
 void 
+SwitchNode::SetTeleThd(uint32_t teleThd){
+    m_teleThd = teleThd;
+}
+
+void 
 SwitchNode::SetUtilGap(uint32_t utilGap){
     m_utilGap = utilGap;
 }
@@ -744,7 +749,7 @@ SwitchNode::IngressPipelineUser(Ptr<Packet> packet)
         return dev->Send(packet, dev->GetBroadcast(), 0x0800);
     }
 
-    std::cout << "Drop in switch" << std::endl;
+    //std::cout << "Drop in switch" << std::endl;
     if(m_measure && m_drop && (m_orbweaver || m_postcard)){
         DropHeader dropHeader;
         

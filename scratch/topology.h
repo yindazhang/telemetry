@@ -673,6 +673,7 @@ void build_fat_tree(
 		edges[i]->SetOrbWeaver(OrbWeaver);
 		edges[i]->SetEcmp(ecmpConfig);
 		edges[i]->SetHashSeed(1);
+		edges[i]->SetTeleThd(teleThd);
 
 		if(taskId == 1)
 			edges[i]->SetPath(1);
@@ -707,6 +708,7 @@ void build_fat_tree(
 		aggregations[i]->SetOrbWeaver(OrbWeaver);
 		aggregations[i]->SetEcmp(ecmpConfig);
 		aggregations[i]->SetHashSeed(2);
+		aggregations[i]->SetTeleThd(teleThd);
 
 		if(taskId == 1)
 			aggregations[i]->SetPath(1);
@@ -740,6 +742,7 @@ void build_fat_tree(
 		cores[i]->SetOrbWeaver(OrbWeaver);
 		cores[i]->SetEcmp(ecmpConfig);
 		cores[i]->SetHashSeed(3);
+		cores[i]->SetTeleThd(teleThd);
 
 		if(taskId == 1)
 			cores[i]->SetPath(1);

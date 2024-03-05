@@ -116,6 +116,7 @@ class SwitchNode : public Node
     void SetDeviceLowerPull(uint8_t dest, uint32_t devId);
 
     void SetThd(double thd);
+    void SetTeleThd(uint32_t teleThd);
     void SetUtilGap(uint32_t utilGap);
     void SetHashSeed(uint32_t hashSeed);
     void SetEcmp(uint32_t ecmp);
