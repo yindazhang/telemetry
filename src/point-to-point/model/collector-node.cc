@@ -123,6 +123,11 @@ CollectorNode::~CollectorNode(){
     fprintf(fout, "\n");
     fflush(fout);
     fclose(fout);
+
+    for(int dest = 0;dest < 3;++dest){
+        std::cout << "Max size for destination " << dest << " is " << 
+            m_teleQueue.maxSize[dest] << std::endl;
+    }
 }
 
 void 
@@ -170,7 +175,7 @@ CollectorNode::SetOrbWeaver(uint32_t OrbWeaver){
 }
 
 void 
-CollectorNode::SetPriority(uint8_t dest, uint16_t priority){
+CollectorNode::SetPriority(uint8_t dest, uint32_t priority){
     m_priority[dest] = priority;
 }
 
@@ -362,8 +367,10 @@ CollectorNode::MainCollect(Ptr<Packet> packet, TeleHeader teleHeader){
 void 
 CollectorNode::BufferData(Ptr<Packet> packet, TeleHeader teleHeader){
     packet->AddHeader(teleHeader);
-    m_teleQueue.packets[teleHeader.GetDest()].push(packet);
-    m_teleQueue.size[teleHeader.GetDest()] += packet->GetSize();
+    uint32_t dest = teleHeader.GetDest();
+    m_teleQueue.packets[dest].push(packet);
+    m_teleQueue.size[dest] += packet->GetSize();
+    m_teleQueue.maxSize[dest] = std::max(m_teleQueue.maxSize[dest], m_teleQueue.size[dest]);
 }
 
 Ptr<Packet> 

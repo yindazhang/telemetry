@@ -31,6 +31,7 @@ int main(int argc, char *argv[])
 	cmd.AddValue("Failure", "Link failure", failConfig);
 
 	cmd.AddValue("teleThd", "Buffer size for telemetry data", teleThd);
+	cmd.AddValue("priority", "Threshold for Temp Storage", priority);
 	cmd.AddValue("GenerateBps", "Telemetry data generated", generateBps);
 	cmd.AddValue("hG", "100Gbps", hG);
 

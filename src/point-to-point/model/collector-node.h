@@ -59,7 +59,7 @@ class CollectorNode : public Node
     void SetRecord(uint32_t record);
 
     void SetOrbWeaver(uint32_t OrbWeaver);
-    void SetPriority(uint8_t dest, uint16_t priority);
+    void SetPriority(uint8_t dest, uint32_t priority);
 
     struct DeviceProperty{
       std::vector<uint8_t> collectorDst;
@@ -84,6 +84,7 @@ class CollectorNode : public Node
     struct TeleQueue{
       std::queue<Ptr<Packet>> packets[3];
       uint32_t size[3] = {0, 0, 0};
+      uint32_t maxSize[3] = {0, 0, 0};
     };
 
   protected:
