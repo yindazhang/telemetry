@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
 	if(storeConfig)
 		file_name += "_Store2";
 	else if(tempConfig)
-		file_name += "_Store1";
+		file_name += "_Store1_" + std::to_string(priority);
 
 	if(failConfig)
 		file_name += "_Fail";
